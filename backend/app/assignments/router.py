@@ -18,6 +18,7 @@ from app.config import get_settings
 from app.deps import current_teacher, get_db
 from app.ai.base import VisionModel
 from app.grading.answer_key import AnswerKeyItem, extract_answer_key, get_answer_key_model
+from app.grading.pipeline import lock_assignment
 from app.models import (
     AnswerItem,
     AnswerKeyStatus,
@@ -238,6 +239,8 @@ async def upload_page(
     if (page := await existing()) is not None:
         return await duplicate_out(page)
 
+    # Serialises uploads of this assignment until commit: seq allocation and quota check.
+    await lock_assignment(db, assignment_id)
     try:
         await check_quota(db, teacher_id)
     except QuotaExceeded:

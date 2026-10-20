@@ -150,6 +150,7 @@ class Page(_Base):
 
     __table_args__ = (
         UniqueConstraint("assignment_id", "image_sha256", name="uq_page_assignment_sha"),
+        UniqueConstraint("assignment_id", "seq", name="uq_page_assignment_seq"),
         {"mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"},
     )
 

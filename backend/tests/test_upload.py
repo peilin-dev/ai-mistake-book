@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 
 import httpx
@@ -184,6 +185,44 @@ async def test_local_storage_missing_key(storage):
     await storage.delete("d/e.bin")
     with pytest.raises(FileNotFoundError):
         await storage.get("d/e.bin")
+
+async def test_concurrent_uploads_get_distinct_seqs(app, settings, my_assignment, teacher,
+                                                    make_jpeg, enqueued, storage, db):
+    """Two uploads racing on separate sessions must not share a seq."""
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.auth.tokens import issue_token
+    from app.db import make_engine
+    from app.deps import get_db
+
+    engine = make_engine(settings.DATABASE_URL)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+
+    async def per_request_db():
+        async with sessions() as s:
+            yield s
+
+    app.dependency_overrides[get_db] = per_request_db
+    headers = {"Authorization": f"Bearer {issue_token(teacher.id)}"}
+    try:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test",
+                                     headers=headers) as c1, \
+                httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test",
+                                  headers=headers) as c2:
+            r1, r2 = await asyncio.gather(
+                c1.post(url_of(my_assignment), files={"file": ("a.jpg", make_jpeg(1), "image/jpeg")}),
+                c2.post(url_of(my_assignment), files={"file": ("b.jpg", make_jpeg(2), "image/jpeg")}),
+            )
+    finally:
+        await engine.dispose()
+    assert (r1.status_code, r2.status_code) == (201, 201)
+    assert sorted([r1.json()["seq"], r2.json()["seq"]]) == [1, 2]
+
+
+def test_page_seq_is_unique_per_assignment():
+    names = {c.name for c in Page.__table__.constraints}
+    assert "uq_page_assignment_seq" in names
+
 
 # --- Task 10 fix: enqueue failures and queued duplicates ---
 
