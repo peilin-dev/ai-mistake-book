@@ -187,3 +187,33 @@ async def test_foreign_resources_are_404(client_for, make_teacher, graded_submis
 
 async def test_missing_submission_404(auth_client):
     assert (await auth_client.get("/api/submissions/999999")).status_code == 404
+
+
+async def test_api_engine_is_read_committed(settings):
+    from sqlalchemy import text
+
+    from app.db import get_sessionmaker
+
+    async with get_sessionmaker()() as s:
+        assert (await s.execute(text("SELECT @@transaction_isolation"))).scalar() == "READ-COMMITTED"
+
+
+async def test_read_after_lock_sees_concurrent_commit(db, settings, unmatched_page):
+    """A reads the page, B commits a change, A locks then re-reads: A must see B's commit."""
+    from sqlalchemy import update
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.db import make_engine
+    from app.grading.pipeline import fresh_page, lock_assignment
+
+    pid, aid = unmatched_page.id, unmatched_page.assignment_id
+    await db.execute(update(Page).where(Page.id == pid).values(status=PageStatus.processing))
+    await db.commit()
+    assert (await db.get(Page, pid)).status == PageStatus.processing  # A's first read
+    engine = make_engine(settings.DATABASE_URL)
+    async with async_sessionmaker(engine)() as b:
+        await b.execute(update(Page).where(Page.id == pid).values(status=PageStatus.done))
+        await b.commit()
+    await engine.dispose()
+    await lock_assignment(db, aid)
+    assert (await fresh_page(db, Page.id == pid)).status == PageStatus.done

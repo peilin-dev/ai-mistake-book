@@ -1,22 +1,18 @@
 """arq worker: `arq app.jobs.worker.WorkerSettings`."""
 from arq import Retry
 from arq.connections import RedisSettings
-from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.ai.base import ModelCallError
 from app.ai.registry import get_model
 from app.config import get_settings
+from app.db import make_engine
 from app.grading.pipeline import grade_page, set_page_status
 from app.models import PageStatus
 from app.storage.base import get_storage
 
 MAX_TRIES = 3
 RETRY_DELAY_S = 10
-
-
-def make_worker_engine(url: str) -> AsyncEngine:
-    """READ COMMITTED so each statement of the grading write phase sees other pages' commits."""
-    return create_async_engine(url, pool_pre_ping=True, isolation_level="READ COMMITTED")
 
 
 async def grade_page_job(ctx: dict, page_id: int) -> None:
@@ -32,7 +28,7 @@ async def grade_page_job(ctx: dict, page_id: int) -> None:
 
 
 async def startup(ctx: dict) -> None:
-    engine = make_worker_engine(get_settings().DATABASE_URL)
+    engine = make_engine(get_settings().DATABASE_URL)
     ctx["engine"] = engine
     ctx["sessionmaker"] = async_sessionmaker(engine, expire_on_commit=False)
     ctx["storage"] = get_storage()

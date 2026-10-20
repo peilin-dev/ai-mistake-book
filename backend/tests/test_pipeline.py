@@ -12,7 +12,8 @@ from app.ai.fake import FakeModel
 from app.grading.crop import crop, prepare_image
 from app.grading.pipeline import grade_page
 from app.grading.prompts import build_grading_prompt
-from app.jobs.worker import WorkerSettings, grade_page_job, make_worker_engine
+from app.db import make_engine as make_worker_engine
+from app.jobs.worker import WorkerSettings, grade_page_job
 from app.models import KnowledgePoint, Page, QuestionResult, Student, Submission, Subject, UsageRecord
 from tests.conftest import graded, q
 

@@ -17,7 +17,7 @@ if ENV_TEST.exists():
             os.environ.setdefault(k.strip(), v.strip())
 
 from app.config import Settings, set_settings  # noqa: E402
-from app.db import Base  # noqa: E402
+from app.db import Base, make_engine  # noqa: E402
 from app.auth.wechat import WeChatAuthError, WxSession, get_wechat_client  # noqa: E402
 from app.auth.tokens import issue_token  # noqa: E402
 from app.deps import get_db  # noqa: E402
@@ -30,7 +30,7 @@ def _schema():
     """Rebuild the schema once per session so model changes never leave stale columns."""
 
     async def _rebuild():
-        engine = create_async_engine(os.environ["TEST_DATABASE_URL"])
+        engine = make_engine(os.environ["TEST_DATABASE_URL"])
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
             await conn.run_sync(Base.metadata.create_all)
@@ -53,7 +53,7 @@ def settings(tmp_path):
 
 @pytest_asyncio.fixture
 async def db(settings):
-    engine = create_async_engine(settings.DATABASE_URL)
+    engine = make_engine(settings.DATABASE_URL)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     async with session_factory() as session:
         yield session
