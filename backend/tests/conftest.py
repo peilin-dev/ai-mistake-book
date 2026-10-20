@@ -298,6 +298,33 @@ class MockTransport(httpx.AsyncBaseTransport):
 def mock_transport() -> MockTransport:
     return MockTransport()
 
+# --- Task 11 fixtures ---
+from app.ai.fake import FakeModel  # noqa: E402
+from app.grading.answer_key import get_answer_key_model  # noqa: E402
+
+KEY_QUESTIONS = [
+    {"question_no": "1", "answer": "7", "max_score": 2, "is_subjective": False},
+    {"question_no": "2", "answer": "12", "max_score": 4, "is_subjective": False},
+]
+
+
+@pytest.fixture
+def install_answer_key_model(app):
+    """Factory: installs a FakeModel replaying `responses` as the answer-key model."""
+
+    def _install(responses: list) -> FakeModel:
+        model = FakeModel(responses)
+        app.dependency_overrides[get_answer_key_model] = lambda: model
+        return model
+
+    return _install
+
+
+@pytest.fixture
+def fake_model_answer_key(install_answer_key_model) -> FakeModel:
+    return install_answer_key_model([{"questions": KEY_QUESTIONS}])
+
+
 # --- Task 10 fixtures ---
 from app.models import AnswerItem, AnswerKeyStatus, Page, PageStatus, Student  # noqa: E402
 

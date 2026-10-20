@@ -7,8 +7,8 @@ from typing import Annotated
 from arq import create_pool
 from arq.connections import RedisSettings
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response, UploadFile
-from pydantic import BaseModel, ConfigDict, StringConstraints
-from sqlalchemy import case, func, select
+from pydantic import BaseModel, ConfigDict, StringConstraints, model_validator
+from sqlalchemy import case, delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +16,10 @@ from app.assignments.access import own_assignment
 from app.classes.access import own_class
 from app.config import get_settings
 from app.deps import current_teacher, get_db
+from app.ai.base import VisionModel
+from app.grading.answer_key import AnswerKeyItem, extract_answer_key, get_answer_key_model
 from app.models import (
+    AnswerItem,
     AnswerKeyStatus,
     Assignment,
     Page,
@@ -269,3 +272,105 @@ async def upload_page(
     await _enqueue_or_503(enqueue, page_id)  # page stays queued; a re-upload retries
     response.status_code = 201
     return PageUploadOut(page_id=page_id, seq=seq, status=PageStatus.queued, duplicate=False)
+
+class AnswerKeyOut(BaseModel):
+    answer_key_status: AnswerKeyStatus
+    items: list[AnswerKeyItem]
+
+
+class AnswerKeyConfirmIn(BaseModel):
+    items: list[AnswerKeyItem]
+
+    @model_validator(mode="after")
+    def _unique_question_no(self):
+        numbers = [i.question_no for i in self.items]
+        if len(set(numbers)) != len(numbers):
+            raise ValueError("question_no must be unique")
+        return self
+
+
+class AnswerKeyConfirmOut(AnswerKeyOut):
+    regrade_suggested: bool
+
+
+async def _load_items(db: AsyncSession, assignment_id: int) -> list[AnswerKeyItem]:
+    rows = (
+        await db.execute(
+            select(AnswerItem).where(AnswerItem.assignment_id == assignment_id).order_by(AnswerItem.id)
+        )
+    ).scalars()
+    return [
+        AnswerKeyItem(
+            question_no=r.question_no,
+            answer=r.answer,
+            max_score=r.max_score or 0,
+            is_subjective=r.is_subjective,
+        )
+        for r in rows
+    ]
+
+
+async def _replace_items(
+    db: AsyncSession, assignment: Assignment, items: list[AnswerKeyItem], status: AnswerKeyStatus
+) -> None:
+    await db.execute(delete(AnswerItem).where(AnswerItem.assignment_id == assignment.id))
+    db.add_all(
+        AnswerItem(assignment_id=assignment.id, **item.model_dump()) for item in items
+    )
+    assignment.answer_key_status = status
+
+
+@router.get("/assignments/{assignment_id}/answer-key", response_model=AnswerKeyOut)
+async def get_answer_key(
+    assignment_id: int,
+    teacher: Teacher = Depends(current_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    assignment = await own_assignment(db, teacher, assignment_id)
+    return AnswerKeyOut(
+        answer_key_status=assignment.answer_key_status, items=await _load_items(db, assignment_id)
+    )
+
+
+@router.post("/assignments/{assignment_id}/answer-key", response_model=AnswerKeyOut)
+async def extract_key(
+    assignment_id: int,
+    file: UploadFile,
+    teacher: Teacher = Depends(current_teacher),
+    db: AsyncSession = Depends(get_db),
+    model: VisionModel = Depends(get_answer_key_model),
+):
+    assignment = await own_assignment(db, teacher, assignment_id)
+    data = await read_limited(file)
+    if sniff_image(data) is None:
+        raise HTTPException(status_code=415, detail="only JPEG/PNG/HEIC images are accepted")
+    try:
+        items = await extract_answer_key(db, model, teacher.id, data)
+    except HTTPException:
+        await db.commit()  # keep the usage rows of calls that did return
+        raise
+    await _replace_items(db, assignment, items, AnswerKeyStatus.pending)
+    await db.commit()
+    return AnswerKeyOut(answer_key_status=AnswerKeyStatus.pending, items=items)
+
+
+@router.put("/assignments/{assignment_id}/answer-key", response_model=AnswerKeyConfirmOut)
+async def confirm_answer_key(
+    assignment_id: int,
+    body: AnswerKeyConfirmIn,
+    teacher: Teacher = Depends(current_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    assignment = await own_assignment(db, teacher, assignment_id)
+    done_pages = (
+        await db.execute(
+            select(func.count())
+            .select_from(Page)
+            .where(Page.assignment_id == assignment_id, Page.status == PageStatus.done)
+        )
+    ).scalar_one()
+    await _replace_items(db, assignment, body.items, AnswerKeyStatus.confirmed)
+    await db.commit()
+    return AnswerKeyConfirmOut(
+        answer_key_status=AnswerKeyStatus.confirmed, items=body.items, regrade_suggested=done_pages > 0
+    )
