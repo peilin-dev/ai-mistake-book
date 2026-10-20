@@ -1,3 +1,4 @@
+import asyncio
 import os
 from pathlib import Path
 
@@ -19,6 +20,21 @@ from app.config import Settings, set_settings  # noqa: E402
 from app.db import Base  # noqa: E402
 from app.deps import get_db  # noqa: E402
 from app.main import create_app  # noqa: E402
+from app.models import Assignment, Class_, Subject, Teacher  # noqa: E402
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _schema():
+    """Rebuild the schema once per session so model changes never leave stale columns."""
+
+    async def _rebuild():
+        engine = create_async_engine(os.environ["TEST_DATABASE_URL"])
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+        await engine.dispose()
+
+    asyncio.run(_rebuild())
 
 
 @pytest.fixture
@@ -36,8 +52,6 @@ def settings(tmp_path):
 @pytest_asyncio.fixture
 async def db(settings):
     engine = create_async_engine(settings.DATABASE_URL)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     async with session_factory() as session:
         yield session
@@ -62,3 +76,25 @@ async def client(db, settings):
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
 
+
+
+@pytest_asyncio.fixture
+async def make_assignment(db):
+    """Factory: teacher -> class -> assignment; callable repeatedly."""
+    counter = 0
+
+    async def _make(subject: Subject = Subject.math, **kwargs) -> Assignment:
+        nonlocal counter
+        counter += 1
+        teacher = Teacher(unionid=f"u{counter}", mp_openid=f"o{counter}")
+        db.add(teacher)
+        await db.flush()
+        cls = Class_(teacher_id=teacher.id, name=f"class{counter}", grade=5)
+        db.add(cls)
+        await db.flush()
+        a = Assignment(class_id=cls.id, subject=subject, title=f"hw{counter}", **kwargs)
+        db.add(a)
+        await db.commit()
+        return a
+
+    return _make
