@@ -3,7 +3,7 @@ import { errorText, isNetworkError } from './messages'
 
 export type Uploader = (filePath: string) => Promise<{ page_id: number; seq: number; duplicate: boolean }>
 
-export type QueueState = 'waiting' | 'uploading' | 'done' | 'failed' | 'held' | 'skipped'
+export type QueueState = 'waiting' | 'uploading' | 'done' | 'failed' | 'held'
 
 export interface QueueItem {
   localId: string
@@ -11,11 +11,12 @@ export interface QueueItem {
   state: QueueState
   pageId?: number
   message?: string
+  /** No usable file (the photo could not be processed): only 重拍这张 can fix it. */
+  retakeOnly?: boolean
 }
 
 const QUOTA_TEXT = '本月批改额度已用完'
 const RECEIVED_TEXT = '已收到，稍后会自动开始批改'
-const SKIPPED_TEXT = '已跳过，这张需要重新拍'
 const RESEND_DELAY_MS = 30_000
 
 function statusOf(e: unknown): number | null {
@@ -37,6 +38,8 @@ export class UploadQueue {
   private timers = new Set<ReturnType<typeof setTimeout>>()
   private running = false
   private disposed = false
+  /** 503 resends scheduled or in flight; the backend sweep re-enqueues them if we leave. */
+  private resends = 0
   private nextId = 1
   private readonly retries: number
 
@@ -60,19 +63,40 @@ export class UploadQueue {
     return localId
   }
 
+  /**
+   * A photo that could not be prepared (e.g. compression failed). It keeps its place in
+   * shooting order and pauses the queue when reached, so nothing behind it uploads until
+   * it is re-shot: the backend links a nameless page to the page uploaded just before it.
+   */
+  addFailed(message: string): string {
+    const localId = `u${this.nextId++}`
+    const item: QueueItem = { localId, filePath: '', state: 'failed', message, retakeOnly: true }
+    if (this.stopped === 'quota') {
+      item.state = 'held'
+      item.message = QUOTA_TEXT
+    }
+    this.list.push(item)
+    this.emit()
+    void this.pump()
+    return localId
+  }
+
   items(): QueueItem[] {
     return this.list.map((i) => ({ ...i }))
   }
 
+  /** Photos not yet safely on the server, including a scheduled 503 resend. */
   pendingCount(): number {
-    return this.list.filter((i) => i.state === 'waiting' || i.state === 'uploading').length +
-      (this.paused ? 1 : 0)
+    return (
+      this.list.filter((i) => i.state === 'waiting' || i.state === 'uploading' || i.state === 'failed').length +
+      this.resends
+    )
   }
 
   retry(localId: string): void {
     if (this.stopped !== null || this.paused?.localId !== localId) return
     const item = this.list.find((i) => i.localId === localId)
-    if (!item || item.state !== 'failed') return
+    if (!item || item.state !== 'failed' || item.retakeOnly) return
     item.state = 'waiting'
     item.message = undefined
     this.paused = null
@@ -80,16 +104,20 @@ export class UploadQueue {
     void this.pump()
   }
 
-  skip(localId: string): void {
-    if (this.paused?.localId !== localId) return
+  /** 重拍这张: the new photo takes the paused item's place, so upload order stays shooting order. */
+  replaceFile(localId: string, filePath: string): void {
+    if (this.stopped !== null || this.paused?.localId !== localId) return
     const item = this.list.find((i) => i.localId === localId)
     if (!item || item.state !== 'failed') return
-    item.state = 'skipped'
-    item.message = SKIPPED_TEXT
+    item.filePath = filePath
+    item.state = 'waiting'
+    item.message = undefined
+    item.retakeOnly = undefined
     this.paused = null
     this.emit()
     void this.pump()
   }
+
   onChange(cb: () => void): () => void {
     this.listeners.add(cb)
     return () => {
@@ -101,6 +129,7 @@ export class UploadQueue {
     this.disposed = true
     this.timers.forEach((t) => clearTimeout(t))
     this.timers.clear()
+    this.resends = 0
     this.listeners.clear()
   }
 
@@ -119,8 +148,14 @@ export class UploadQueue {
     this.running = true
     try {
       while (!this.disposed && this.stopped === null && this.paused === null) {
-        const item = this.list.find((i) => i.state === 'waiting')
+        // Strictly in order: the first item not yet uploaded decides what happens next.
+        const item = this.list.find((i) => i.state === 'waiting' || i.state === 'failed')
         if (!item) break
+        if (item.state === 'failed') {
+          this.paused = { localId: item.localId, message: item.message ?? '' }
+          this.emit()
+          break
+        }
         await this.process(item)
       }
     } finally {
@@ -174,10 +209,16 @@ export class UploadQueue {
 
   private scheduleResend(filePath: string): void {
     if (this.disposed) return
+    this.resends++
     const t = setTimeout(() => {
       this.timers.delete(t)
       if (this.disposed) return
-      this.uploader(filePath).catch((e) => console.warn('silent re-upload failed', e))
+      this.uploader(filePath)
+        .catch((e) => console.warn('silent re-upload failed', e))
+        .finally(() => {
+          this.resends = Math.max(0, this.resends - 1)
+          this.emit()
+        })
     }, RESEND_DELAY_MS)
     this.timers.add(t)
   }

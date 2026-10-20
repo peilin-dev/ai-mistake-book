@@ -7,14 +7,13 @@ const LABEL: Record<QueueState, string> = {
   done: '✓',
   failed: '失败',
   held: '未传',
-  skipped: '已跳过',
 }
 
-const BAD: QueueState[] = ['failed', 'held', 'skipped']
+const BAD: QueueState[] = ['failed', 'held']
 
 interface Props {
   items: QueueItem[]
-  /** Item currently waiting for 重试 / 跳过. */
+  /** Item currently waiting for 重试 / 重拍这张. */
   pausedId: string | null
   onRetry: (localId: string) => void
 }
@@ -41,7 +40,11 @@ export default function ThumbStrip({ items, pausedId, onRetry }: Props) {
               boxSizing: 'border-box',
             }}
           >
-            <Image src={it.filePath} mode='aspectFill' style={{ width: '100%', height: '100%' }} />
+            {it.filePath ? (
+              <Image src={it.filePath} mode='aspectFill' style={{ width: '100%', height: '100%' }} />
+            ) : (
+              <View style={{ width: '100%', height: '100%', background: '#444' }} />
+            )}
             <Text
               style={{
                 position: 'absolute',

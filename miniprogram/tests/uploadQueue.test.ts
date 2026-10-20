@@ -132,7 +132,12 @@ describe('UploadQueue', () => {
     expect(q.items().every((i) => i.state === 'done')).toBe(true)
   })
 
-  it('skipContinuesWithNext', async () => {
+  it('hasNoSkip', () => {
+    const q = new UploadQueue(async () => ok()) as unknown as Record<string, unknown>
+    expect(q.skip).toBeUndefined()
+  })
+
+  it('replaceFileKeepsShootingOrder', async () => {
     const calls: string[] = []
     const q = new UploadQueue(async (f) => {
       calls.push(f)
@@ -144,12 +149,100 @@ describe('UploadQueue', () => {
     q.add('c')
     await flush()
     expect(calls).toEqual(['a', 'b'])
-    q.skip(bId)
+    expect(q.paused?.localId).toBe(bId)
+    q.replaceFile(bId, "b'")
     await flush()
-    expect(calls).toEqual(['a', 'b', 'c'])
-    expect(q.items().map((i) => i.state)).toEqual(['done', 'skipped', 'done'])
-    expect(q.items()[1].message).toBe('已跳过，这张需要重新拍')
+    expect(calls).toEqual(['a', 'b', "b'", 'c'])
+    expect(q.items().map((i) => [i.filePath, i.state])).toEqual([
+      ['a', 'done'],
+      ["b'", 'done'],
+      ['c', 'done'],
+    ])
     expect(q.paused).toBeNull()
+  })
+
+  it('replaceFileOnlyForPausedItem', async () => {
+    const calls: string[] = []
+    const q = new UploadQueue(async (f) => {
+      calls.push(f)
+      if (f === 'b') throw new ApiError(415, '')
+      return ok()
+    })
+    const aId = q.add('a')
+    const bId = q.add('b')
+    const cId = q.add('c')
+    await flush()
+    q.replaceFile(aId, 'x') // done item: no-op
+    q.replaceFile(cId, 'y') // waiting item behind the pause: no-op
+    await flush()
+    expect(calls).toEqual(['a', 'b'])
+    expect(q.items().map((i) => i.filePath)).toEqual(['a', 'b', 'c'])
+    expect(q.paused?.localId).toBe(bId)
+  })
+
+  it('neverUploadsPastAnUnuploadedItem', async () => {
+    // Whatever the teacher taps while b is paused, c never uploads before b does.
+    const calls: string[] = []
+    const q = new UploadQueue(async (f) => {
+      calls.push(f)
+      if (f === 'b') throw new ApiError(0, '')
+      return ok()
+    })
+    q.add('a')
+    const bId = q.add('b')
+    const cId = q.add('c')
+    await flush()
+    q.retry(cId)
+    q.replaceFile(cId, 'z')
+    q.add('d')
+    await flush()
+    expect(calls.filter((f) => f !== 'b')).toEqual(['a'])
+    expect(q.paused?.localId).toBe(bId)
+  })
+
+  it('compressionFailureItemPausesQueueInOrder', async () => {
+    const calls: string[] = []
+    const q = new UploadQueue(async (f) => {
+      calls.push(f)
+      return ok()
+    })
+    q.add('a')
+    const bad = q.addFailed('这张照片处理失败，请重拍这张')
+    q.add('c')
+    await flush()
+    expect(calls).toEqual(['a'])
+    expect(q.items().map((i) => i.state)).toEqual(['done', 'failed', 'waiting'])
+    expect(q.paused).toEqual({ localId: bad, message: '这张照片处理失败，请重拍这张' })
+    expect(q.items()[1].retakeOnly).toBe(true)
+    expect(q.pendingCount()).toBe(2)
+    q.retry(bad) // nothing to retry: no file
+    await flush()
+    expect(calls).toEqual(['a'])
+    q.replaceFile(bad, "b'")
+    await flush()
+    expect(calls).toEqual(['a', "b'", 'c'])
+    expect(q.items().every((i) => i.state === 'done')).toBe(true)
+  })
+
+  it('compressionFailureBehindAPausePausesNext', async () => {
+    const calls: string[] = []
+    let bFails = true
+    const q = new UploadQueue(async (f) => {
+      calls.push(f)
+      if (f === 'b' && bFails) throw new ApiError(404, '')
+      return ok()
+    })
+    q.add('a')
+    const bId = q.add('b')
+    const bad = q.addFailed('这张照片处理失败，请重拍这张')
+    q.add('d')
+    await flush()
+    expect(q.paused?.localId).toBe(bId)
+    bFails = false
+    q.retry(bId)
+    await flush()
+    expect(calls).toEqual(['a', 'b', 'b'])
+    expect(q.paused?.localId).toBe(bad)
   })
 
   it('retry is a no-op after quota stop', async () => {
@@ -245,6 +338,19 @@ describe('UploadQueue', () => {
     expect(uploader).toHaveBeenLastCalledWith('a')
     await vi.advanceTimersByTimeAsync(120_000)
     expect(uploader).toHaveBeenCalledTimes(2) // only once
+  })
+
+  it('pendingResendCountsAsPending', async () => {
+    vi.useFakeTimers()
+    const uploader = vi.fn<Uploader>().mockRejectedValueOnce(new ApiError(503, 'x')).mockResolvedValue(ok())
+    const q = new UploadQueue(uploader)
+    q.add('a')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(q.items()[0].state).toBe('done')
+    expect(q.pendingCount()).toBe(1) // the 30 s resend is still to come
+    await vi.advanceTimersByTimeAsync(31_000)
+    expect(uploader).toHaveBeenCalledTimes(2)
+    expect(q.pendingCount()).toBe(0)
   })
 
   it('dispose cancels pending resend and stops uploading', async () => {
