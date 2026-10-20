@@ -171,8 +171,10 @@
 
 一道题 `needs_review = true` 当且仅当满足任一条件：
 - `confidence < 0.8`（阈值可配置）；
-- `answer_verified = false`（AI 自解答案）；
+- 无答案卷时，该题 AI 给出的正确答案与全班同题号的多数结果不一致；
 - 所在页的学生未确定。
+
+（2026-10-21 修订：原规则"`answer_verified = false` 即复核"会让没拍答案卷的作业几乎每题都要复核，改为上面的"多数一致性"规则，详见 `docs/specs/2026-10-21-m3-miniprogram-design.md` 第 5 节。`answer_verified` 仍保留，用于标注"答案由 AI 判断"。）
 
 主观题不额外强制复核（决定 8），同样按上述规则处理。老师修正后 `reviewed=true`，以老师结果为准，并保留模型原值用于准确率统计。
 
