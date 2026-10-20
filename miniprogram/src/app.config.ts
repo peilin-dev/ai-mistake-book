@@ -1,5 +1,5 @@
-export default defineAppConfig({
-  pages: ['pages/index/index', 'pages/class-edit/index', 'pages/class/index', 'pages/assignment/index'],
+﻿export default defineAppConfig({
+  pages: ['pages/index/index', 'pages/class-edit/index', 'pages/class/index', 'pages/assignment/index', 'pages/camera/index', 'pages/answer-key/index'],
   window: {
     navigationBarTitleText: 'AI 错题本',
     navigationBarBackgroundColor: '#ffffff',
