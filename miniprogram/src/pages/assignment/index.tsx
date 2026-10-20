@@ -10,6 +10,7 @@ import {
   isFinished,
   orderPages,
   progressText,
+  unassignedPageCount,
 } from '../../lib/progress'
 import { subjectsForGrade } from '../../lib/subjects'
 import type { AssignmentOut, PageOut, ProgressOut, StudentOut, SubmissionOut } from '../../lib/types'
@@ -177,7 +178,7 @@ export default function AssignmentHome() {
   const keyAction = answerKeyAction(assignment.answer_key_status)
   const text = progressText(progress, submissions, rosterSize)
   const hints = assignmentHints(assignment, rosterSize)
-  const bottom = bottomActions(progress, submissions.length)
+  const bottom = bottomActions(progress, submissions.length, unassignedPageCount(pages))
   const id = assignment.id
 
   return (
@@ -287,7 +288,7 @@ export default function AssignmentHome() {
             style={{ marginTop: '16px' }}
             onClick={() => go(`/pages/review/index?assignmentId=${id}`)}
           >
-            去复核 {bottom.review} 题
+            {bottom.reviewLabel}
           </Button>
         ) : null}
         {bottom.results ? (

@@ -1,7 +1,13 @@
 import type { PageOut, AssignmentOut, ProgressOut, SubmissionOut } from './types'
 
+/** Nothing left to wait for. With no pages yet there is nothing to poll: useDidShow refreshes. */
 export function isFinished(progress: ProgressOut): boolean {
-  return progress.total > 0 && progress.queued + progress.processing === 0
+  return progress.queued + progress.processing === 0
+}
+
+/** Pages P7 asks "这张卷子是谁的？" for: graded but with no student. */
+export function unassignedPageCount(pages: PageOut[]): number {
+  return pages.filter((p) => p.status === 'done' && p.student_id === null).length
 }
 
 export function progressText(
@@ -31,12 +37,19 @@ export function answerKeyAction(status: string): AnswerKeyAction {
   return 'shoot'
 }
 
-/** Which optional bottom buttons to show: review count (0 = hidden) and results. */
+/**
+ * Which optional bottom buttons to show: review count (0 = hidden; flagged questions plus
+ * pages with no student) and results.
+ */
 export function bottomActions(
   p: ProgressOut,
   submissionCount: number,
-): { review: number; results: boolean } {
-  return { review: p.needs_review > 0 ? p.needs_review : 0, results: submissionCount > 0 }
+  unassignedPages = 0,
+): { review: number; reviewLabel: string; results: boolean } {
+  const questions = Math.max(0, p.needs_review)
+  const review = questions + Math.max(0, unassignedPages)
+  const reviewLabel = review === 0 ? '' : unassignedPages > 0 ? `去复核 ${review} 项` : `去复核 ${review} 题`
+  return { review, reviewLabel, results: submissionCount > 0 }
 }
 /** Failed pages first (easy to find in a long list), then the rest in seq order. */
 export function orderPages(pages: PageOut[]): PageOut[] {

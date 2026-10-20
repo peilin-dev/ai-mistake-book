@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { orderPages, answerKeyAction, assignmentHints, bottomActions, isFinished, progressText } from '../src/lib/progress'
+import {
+  orderPages,
+  answerKeyAction,
+  assignmentHints,
+  bottomActions,
+  isFinished,
+  progressText,
+  unassignedPageCount,
+} from '../src/lib/progress'
 import type { PageOut, AssignmentOut, ProgressOut, SubmissionOut } from '../src/lib/types'
 
 const p = (o: Partial<ProgressOut>): ProgressOut => ({
@@ -7,7 +15,8 @@ const p = (o: Partial<ProgressOut>): ProgressOut => ({
 })
 
 describe('isFinished', () => {
-  it('false when nothing uploaded', () => expect(isFinished(p({}))).toBe(false))
+  it('true when nothing uploaded (nothing to poll for; page refreshes on show)', () =>
+    expect(isFinished(p({}))).toBe(true))
   it('false while queued or processing', () => {
     expect(isFinished(p({ total: 3, queued: 1, done: 2 }))).toBe(false)
     expect(isFinished(p({ total: 3, processing: 1, done: 2 }))).toBe(false)
@@ -58,8 +67,32 @@ describe('answerKeyAction', () => {
 
 describe('bottomActions', () => {
   it('shows review and results only when relevant', () => {
-    expect(bottomActions(p({}), 0)).toEqual({ review: 0, results: false })
-    expect(bottomActions(p({ total: 3, done: 3, needs_review: 2 }), 1)).toEqual({ review: 2, results: true })
+    expect(bottomActions(p({}), 0)).toEqual({ review: 0, reviewLabel: '', results: false })
+    expect(bottomActions(p({ total: 3, done: 3, needs_review: 2 }), 1)).toEqual({
+      review: 2,
+      reviewLabel: '去复核 2 题',
+      results: true,
+    })
+  })
+  it('counts unassigned pages, even with no flagged questions', () => {
+    expect(bottomActions(p({ total: 2, done: 2 }), 0, 1)).toEqual({
+      review: 1,
+      reviewLabel: '去复核 1 项',
+      results: false,
+    })
+    expect(bottomActions(p({ total: 3, done: 3, needs_review: 2 }), 1, 1)).toMatchObject({
+      review: 3,
+      reviewLabel: '去复核 3 项',
+    })
+  })
+})
+
+describe('unassignedPageCount', () => {
+  it('counts done pages without a student', () => {
+    const mk = (status: string, student_id: number | null) => ({ status, student_id }) as PageOut
+    expect(
+      unassignedPageCount([mk('done', null), mk('done', 1), mk('failed', null), mk('queued', null), mk('done', null)]),
+    ).toBe(2)
   })
 })
 describe('orderPages', () => {
