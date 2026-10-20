@@ -51,7 +51,13 @@ export default function Index() {
     void Taro.navigateTo({ url: `/pages/class/index?classId=${id}` })
   }
 
-  if (cards === null) return <View className='page' />
+  if (cards === null) {
+    return (
+      <View className='page'>
+        <Text className='label'>加载中…</Text>
+      </View>
+    )
+  }
 
   if (cards.length === 0) {
     return (

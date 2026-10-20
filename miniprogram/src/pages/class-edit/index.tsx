@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { View, Text, Button, Input, Textarea, Picker } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { request } from '../../lib/api'
@@ -42,6 +42,7 @@ function NewClass() {
   const [nameTouched, setNameTouched] = useState(false)
   const [roster, setRoster] = useState('')
   const [busy, setBusy] = useState(false)
+  const submitting = useRef(false)
 
   const pickGrade = (g: number) => {
     setGrade(g)
@@ -54,31 +55,35 @@ function NewClass() {
       toast('请先填写班级名称')
       return
     }
+    if (submitting.current) return
+    submitting.current = true
     setBusy(true)
-    let cls: ClassOut
     try {
-      cls = await request<ClassOut>('POST', '/api/classes', { name: className, grade })
-    } catch (e) {
-      setBusy(false)
-      toast(errorText(e))
-      return
-    }
-    if (previewRoster(roster).count > 0) {
+      let cls: ClassOut
       try {
-        await request('POST', `/api/classes/${cls.id}/students:import`, { text: roster })
+        cls = await request<ClassOut>('POST', '/api/classes', { name: className, grade })
       } catch (e) {
-        setBusy(false)
-        await Taro.showModal({
-          title: '班级已建好',
-          content: `名单还没导入成功：${errorText(e)}。可以在名单页重新追加。`,
-          showCancel: false,
-        })
-        void Taro.redirectTo({ url: `/pages/class-edit/index?classId=${cls.id}` })
+        toast(errorText(e))
         return
       }
+      if (previewRoster(roster).count > 0) {
+        try {
+          await request('POST', `/api/classes/${cls.id}/students:import`, { text: roster })
+        } catch (e) {
+          await Taro.showModal({
+            title: '班级已建好',
+            content: `名单还没导入成功：${errorText(e)}。可以在名单页重新追加。`,
+            showCancel: false,
+          })
+          void Taro.redirectTo({ url: `/pages/class-edit/index?classId=${cls.id}` })
+          return
+        }
+      }
+      goHome()
+    } finally {
+      submitting.current = false
+      setBusy(false)
     }
-    setBusy(false)
-    goHome()
   }
 
   const count = previewRoster(roster).count
@@ -200,9 +205,11 @@ function EditClass({ classId }: { classId: number }) {
     request<ClassOut[]>('GET', '/api/classes')
       .then((list) => {
         const c = list.find((x) => x.id === classId)
-        if (c) void Taro.setNavigationBarTitle({ title: `${c.name} 名单` })
+        void Taro.setNavigationBarTitle({ title: c ? `${c.name} 名单` : '班级名单' })
       })
-      .catch(() => undefined)
+      .catch(() => {
+        void Taro.setNavigationBarTitle({ title: '班级名单' })
+      })
   }, [classId])
 
   const append = async () => {
