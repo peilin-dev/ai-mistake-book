@@ -141,6 +141,8 @@ class Page(_Base):
         _enum(PageStatus, "page_status"), default=PageStatus.queued
     )
     fail_reason: Mapped[str | None] = mapped_column(String(64))
+    # Student name the model read off this page; NULL when none was written.
+    recognized_name: Mapped[str | None] = mapped_column(String(64))
     student_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("students.id", ondelete="SET NULL"), index=True
     )

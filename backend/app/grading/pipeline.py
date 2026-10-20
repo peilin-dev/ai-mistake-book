@@ -1,10 +1,19 @@
-"""Grading pipeline for one page (spec section 7)."""
+"""Grading pipeline for one page (spec section 7).
+
+Two phases so model calls of many pages run in parallel while their writes do not:
+1. model phase: no locks; read the image and context, call the model, commit usage;
+2. write phase: `SELECT ... FOR UPDATE` on the assignment row serialises all pages of
+   one assignment until the page's final commit, so matching, submissions and totals
+   always see every page committed before.
+The worker runs at READ COMMITTED; the write phase starts a new transaction with the
+locking read, so its later reads also see fresh data under REPEATABLE READ.
+"""
 import asyncio
 import logging
+from dataclasses import dataclass
 
 from pydantic import ValidationError
 from sqlalchemy import and_, case, delete, func, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.base import ModelCallError, ModelOutputError, VisionModel
@@ -32,6 +41,16 @@ from app.storage.base import Storage
 log = logging.getLogger(__name__)
 
 
+@dataclass
+class _Context:
+    assignment_id: int
+    class_id: int
+    teacher_id: int
+    answers: dict[str, AnswerItem]
+    allowed_kps: set[int]
+    image: bytes
+
+
 async def set_page_status(db: AsyncSession, page_id: int, status: PageStatus, reason: str | None) -> None:
     page = await db.get(Page, page_id)  # reloads if a rollback expired it
     page.status, page.fail_reason = status, reason
@@ -45,7 +64,13 @@ async def grade_page(db: AsyncSession, storage: Storage, model: VisionModel, pag
         return
     await set_page_status(db, page_id, PageStatus.processing, None)
     try:
-        await _grade(db, storage, model, page, get_settings())
+        ctx, result = await _model_phase(db, storage, model, page)
+        await db.commit()  # usage is kept whatever happens next
+        if result is None or not result.questions:
+            reason = "model_output_invalid" if result is None else "unreadable"
+            await set_page_status(db, page_id, PageStatus.failed, reason)
+            return
+        await _write_phase(db, storage, page_id, ctx, result, get_settings())
     except ModelCallError:
         # Keep usage already recorded; arq decides whether to retry.
         await set_page_status(db, page_id, PageStatus.queued, None)
@@ -57,33 +82,36 @@ async def grade_page(db: AsyncSession, storage: Storage, model: VisionModel, pag
         raise
 
 
-async def _grade(db: AsyncSession, storage: Storage, model: VisionModel, page: Page, settings: Settings) -> None:
+async def _model_phase(
+    db: AsyncSession, storage: Storage, model: VisionModel, page: Page
+) -> tuple[_Context, GradedPage | None]:
     assignment = await db.get(Assignment, page.assignment_id)
     cls = await db.get(Class_, assignment.class_id)
     image = await asyncio.to_thread(prepare_image, await storage.get(page.image_key))
     answers = await _answer_key(db, assignment)
     kps = await candidates(db, assignment.subject, cls.grade)
     prompt = build_grading_prompt(assignment.subject.value, cls.grade, list(answers.values()), kps)
+    ctx = _Context(assignment.id, cls.id, cls.teacher_id, answers, {kp.id for kp in kps}, image)
+    return ctx, await _call_model(db, model, prompt, image, cls.teacher_id)
 
-    result = await _call_model(db, model, prompt, image, cls.teacher_id)
-    if result is None or not result.questions:
-        reason = "model_output_invalid" if result is None else "unreadable"
-        await set_page_status(db, page.id, PageStatus.failed, reason)
-        return
 
-    roster = [(sid, name) for sid, name in await db.execute(
-        select(Student.id, Student.name).where(Student.class_id == cls.id))]
-    match = match_student(result.student_name, roster, await _previous_student(db, page),
-                          settings.NAME_MATCH_THRESHOLD)
-    page.student_id = match.student_id
-    old_submissions, old_crops = await _clear_results(db, page.id)
-    submission_id = await _submission_id(db, page.assignment_id, match.student_id)
-    allowed_kps = {kp.id for kp in kps}
+async def _write_phase(
+    db: AsyncSession, storage: Storage, page_id: int, ctx: _Context, result: GradedPage, settings: Settings
+) -> None:
+    await db.execute(select(Assignment.id).where(Assignment.id == ctx.assignment_id).with_for_update())
+    page = await _fresh_page(db, Page.id == page_id)
+    name = _clean_name(result.student_name)
+    roster = [(sid, n) for sid, n in await db.execute(
+        select(Student.id, Student.name).where(Student.class_id == ctx.class_id))]
+    match = match_student(name, roster, await _previous_student(db, page), settings.NAME_MATCH_THRESHOLD)
+    page.student_id, page.recognized_name = match.student_id, name
+    old_submissions, old_crops = await _clear_results(db, page_id)
+    submission_id = await _submission_id(db, ctx.assignment_id, match.student_id)
 
     rows = []
     for gq in result.questions:
-        row = _result_row(gq, answers.get(gq.no), allowed_kps)
-        row.page_id, row.submission_id = page.id, submission_id
+        row = _result_row(gq, ctx.answers.get(gq.no), ctx.allowed_kps)
+        row.page_id, row.submission_id = page_id, submission_id
         row.needs_review = needs_review(row.confidence, row.answer_verified, match.status,
                                         settings.REVIEW_CONFIDENCE_THRESHOLD)
         db.add(row)
@@ -91,15 +119,28 @@ async def _grade(db: AsyncSession, storage: Storage, model: VisionModel, page: P
     await db.flush()  # ids for crop keys
     for row, gq in rows:
         if not row.is_correct:
-            row.crop_key = f"crops/{cls.teacher_id}/{assignment.id}/{row.id}.jpg"
-            await storage.put(row.crop_key, crop(image, gq.bbox), "image/jpeg")
+            row.crop_key = f"crops/{ctx.teacher_id}/{ctx.assignment_id}/{row.id}.jpg"
+            data = await asyncio.to_thread(crop, ctx.image, gq.bbox)
+            await storage.put(row.crop_key, data, "image/jpeg")
 
+    if submission_id is not None:
+        await _attach_following_pages(db, page, submission_id, settings)
     for sid in (old_submissions | {submission_id}) - {None}:
         await _recompute_submission(db, sid)
     page.status, page.fail_reason = PageStatus.done, None
-    await db.commit()
+    await db.commit()  # releases the assignment lock
     for crop_key in old_crops:
         await storage.delete(crop_key)
+
+
+def _clean_name(name: str | None) -> str | None:
+    name = (name or "").strip()
+    return name[:64] or None
+
+
+async def _fresh_page(db: AsyncSession, *where) -> Page | None:
+    stmt = select(Page).where(*where).limit(1).execution_options(populate_existing=True)
+    return (await db.execute(stmt)).scalar_one_or_none()
 
 
 async def _answer_key(db: AsyncSession, assignment: Assignment) -> dict[str, AnswerItem]:
@@ -138,6 +179,22 @@ async def _previous_student(db: AsyncSession, page: Page) -> int | None:
     return (await db.execute(stmt)).scalar_one_or_none()
 
 
+async def _attach_following_pages(db: AsyncSession, page: Page, submission_id: int, settings: Settings) -> None:
+    """Nameless pages finished before this one become its continuation (spec 7.2)."""
+    seq = page.seq + 1
+    while (nxt := await _fresh_page(db, Page.assignment_id == page.assignment_id, Page.seq == seq)) is not None:
+        if nxt.status != PageStatus.done or nxt.student_id is not None or nxt.recognized_name is not None:
+            break
+        nxt.student_id = page.student_id
+        stmt = select(QuestionResult).where(QuestionResult.page_id == nxt.id).execution_options(
+            populate_existing=True)
+        for row in (await db.execute(stmt)).scalars():
+            row.submission_id = submission_id
+            row.needs_review = needs_review(row.confidence, row.answer_verified, "continued",
+                                            settings.REVIEW_CONFIDENCE_THRESHOLD)
+        seq += 1
+
+
 async def _clear_results(db: AsyncSession, page_id: int) -> tuple[set[int | None], list[str]]:
     """Delete this page's previous results (job retries); return their submissions and crops."""
     old = (await db.execute(
@@ -148,6 +205,7 @@ async def _clear_results(db: AsyncSession, page_id: int) -> tuple[set[int | None
 
 
 async def _submission_id(db: AsyncSession, assignment_id: int, student_id: int | None) -> int | None:
+    """Get or create; safe without savepoints because the assignment lock is held."""
     if student_id is None:
         return None
     find = select(Submission.id).where(
@@ -155,11 +213,8 @@ async def _submission_id(db: AsyncSession, assignment_id: int, student_id: int |
     if (sid := (await db.execute(find)).scalar_one_or_none()) is not None:
         return sid
     sub = Submission(assignment_id=assignment_id, student_id=student_id)
-    try:
-        async with db.begin_nested():
-            db.add(sub)
-    except IntegrityError:  # another page of this student created it concurrently
-        return (await db.execute(find)).scalar_one()
+    db.add(sub)
+    await db.flush()
     return sub.id
 
 
@@ -193,5 +248,5 @@ async def _recompute_submission(db: AsyncSession, submission_id: int) -> None:
         select(func.coalesce(func.sum(QuestionResult.score), 0), func.coalesce(func.sum(pending), 0))
         .where(QuestionResult.submission_id == submission_id)
     )).one()
-    sub = await db.get(Submission, submission_id)
+    sub = await db.get(Submission, submission_id, populate_existing=True)
     sub.total_score, sub.needs_review_count = float(total), int(review_count)

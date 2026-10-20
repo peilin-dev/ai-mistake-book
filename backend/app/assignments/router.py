@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import logging
 from collections.abc import Awaitable, Callable
 from typing import Annotated
 
@@ -27,6 +28,7 @@ from app.models import (
 from app.quota.service import QuotaExceeded, check_quota
 from app.storage.base import Storage, get_storage
 
+log = logging.getLogger(__name__)
 router = APIRouter(tags=["assignments"])
 
 
@@ -182,6 +184,14 @@ async def read_limited(file: UploadFile) -> bytes:
     return b"".join(chunks)
 
 
+async def _enqueue_or_503(enqueue: EnqueueGradePage, page_id: int) -> None:
+    try:
+        await enqueue(page_id)
+    except Exception:
+        log.exception("enqueue of page %s failed", page_id)
+        raise HTTPException(status_code=503, detail="批改队列暂不可用，请稍后重试") from None
+
+
 class PageUploadOut(BaseModel):
     page_id: int
     seq: int
@@ -215,12 +225,15 @@ async def upload_page(
             )
         ).scalar_one_or_none()
 
-    def duplicate_out(page: Page) -> PageUploadOut:
+    async def duplicate_out(page: Page) -> PageUploadOut:
+        # A queued duplicate may be a retry after a failed enqueue; the job id keeps it idempotent.
+        if page.status == PageStatus.queued:
+            await _enqueue_or_503(enqueue, page.id)
         response.status_code = 200
         return PageUploadOut(page_id=page.id, seq=page.seq, status=page.status, duplicate=True)
 
     if (page := await existing()) is not None:
-        return duplicate_out(page)
+        return await duplicate_out(page)
 
     try:
         await check_quota(db, teacher_id)
@@ -243,7 +256,7 @@ async def upload_page(
     except IntegrityError:  # concurrent identical upload won the race
         await db.rollback()
         if (page := await existing()) is not None:
-            return duplicate_out(page)
+            return await duplicate_out(page)
         raise
     page.image_key = f"originals/{teacher_id}/{assignment_id}/{page.id}.{ext}"
     try:
@@ -253,6 +266,6 @@ async def upload_page(
     except BaseException:
         await db.rollback()
         raise
-    await enqueue(page_id)
+    await _enqueue_or_503(enqueue, page_id)  # page stays queued; a re-upload retries
     response.status_code = 201
     return PageUploadOut(page_id=page_id, seq=seq, status=PageStatus.queued, duplicate=False)

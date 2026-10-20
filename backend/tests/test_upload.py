@@ -40,7 +40,7 @@ async def test_duplicate_upload_returns_existing_page(auth_client, my_assignment
     b = r.json()
     assert r.status_code == 200
     assert b["page_id"] == a["page_id"] and b["duplicate"] is True
-    assert len(enqueued) == 1
+    assert enqueued == [a["page_id"], a["page_id"]]  # still queued -> re-enqueued (idempotent job id)
 
 
 async def test_duplicate_skips_quota_check(auth_client, my_assignment, jpeg_bytes, settings, enqueued, storage):
@@ -174,7 +174,7 @@ async def test_concurrent_duplicate_race_returns_existing(
                                files={"file": ("a.jpg", jpeg_bytes, "image/jpeg")})
     assert r.status_code == 200
     assert r.json()["duplicate"] is True and r.json()["page_id"] == winner["id"]
-    assert enqueued == []
+    assert enqueued == [winner["id"]]  # winner is still queued
 
 async def test_local_storage_missing_key(storage):
     with pytest.raises(FileNotFoundError):
@@ -184,3 +184,61 @@ async def test_local_storage_missing_key(storage):
     await storage.delete("d/e.bin")
     with pytest.raises(FileNotFoundError):
         await storage.get("d/e.bin")
+
+# --- Task 10 fix: enqueue failures and queued duplicates ---
+
+@pytest.fixture
+def failing_enqueue(app) -> list[int]:
+    calls: list[int] = []
+
+    async def _enqueue(page_id: int) -> None:
+        calls.append(page_id)
+        raise ConnectionError("redis down")
+
+    from app.assignments.router import get_enqueuer
+    app.dependency_overrides[get_enqueuer] = lambda: _enqueue
+    return calls
+
+
+async def test_enqueue_failure_returns_503_and_keeps_page(auth_client, my_assignment, jpeg_bytes,
+                                                          failing_enqueue, storage, db):
+    r = await auth_client.post(url_of(my_assignment), files={"file": ("a.jpg", jpeg_bytes, "image/jpeg")})
+    assert r.status_code == 503 and r.json()["detail"] == "批改队列暂不可用，请稍后重试"
+    page = (await db.execute(select(Page))).scalar_one()
+    assert page.status == "queued" and failing_enqueue == [page.id]
+
+
+async def test_retry_after_enqueue_failure_reenqueues(app, auth_client, my_assignment, jpeg_bytes,
+                                                      failing_enqueue, storage):
+    url = url_of(my_assignment)
+    assert (await auth_client.post(url, files={"file": ("a.jpg", jpeg_bytes, "image/jpeg")})).status_code == 503
+    calls: list[int] = []
+
+    async def _enqueue(page_id: int) -> None:
+        calls.append(page_id)
+
+    from app.assignments.router import get_enqueuer
+    app.dependency_overrides[get_enqueuer] = lambda: _enqueue
+    r = await auth_client.post(url, files={"file": ("a.jpg", jpeg_bytes, "image/jpeg")})
+    assert r.status_code == 200 and r.json()["duplicate"] is True
+    assert calls == [r.json()["page_id"]]
+
+
+async def test_duplicate_of_queued_page_503_when_queue_down(auth_client, my_assignment, jpeg_bytes,
+                                                            failing_enqueue, storage):
+    url = url_of(my_assignment)
+    await auth_client.post(url, files={"file": ("a.jpg", jpeg_bytes, "image/jpeg")})
+    r = await auth_client.post(url, files={"file": ("a.jpg", jpeg_bytes, "image/jpeg")})
+    assert r.status_code == 503 and len(failing_enqueue) == 2
+
+
+async def test_duplicate_of_processed_page_not_reenqueued(auth_client, my_assignment, jpeg_bytes,
+                                                          enqueued, storage, db):
+    url = url_of(my_assignment)
+    a = (await auth_client.post(url, files={"file": ("a.jpg", jpeg_bytes, "image/jpeg")})).json()
+    page = await db.get(Page, a["page_id"])
+    page.status = "done"
+    await db.commit()
+    r = await auth_client.post(url, files={"file": ("a.jpg", jpeg_bytes, "image/jpeg")})
+    assert r.status_code == 200 and r.json()["status"] == "done"
+    assert enqueued == [a["page_id"]]

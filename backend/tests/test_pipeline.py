@@ -1,19 +1,26 @@
+import asyncio
 import io
 
 import pytest
 from arq import Retry
 from PIL import Image
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.ai.base import ModelCallError, ModelOutputError
 from app.ai.fake import FakeModel
 from app.grading.crop import crop, prepare_image
 from app.grading.pipeline import grade_page
 from app.grading.prompts import build_grading_prompt
-from app.jobs.worker import WorkerSettings, grade_page_job
+from app.jobs.worker import WorkerSettings, grade_page_job, make_worker_engine
 from app.models import KnowledgePoint, Page, QuestionResult, Student, Submission, Subject, UsageRecord
 from tests.conftest import graded, q
+
+
+async def _reset(db) -> None:
+    """See other sessions' commits: end this session's snapshot and drop cached objects."""
+    await db.rollback()
+    db.expire_all()
 
 
 async def _results(db) -> list[QuestionResult]:
@@ -199,7 +206,7 @@ async def test_crop_key_and_content(db, storage, uploaded_page, roster_zhangsan,
 
 @pytest.fixture
 async def job_ctx(settings, storage):
-    engine = create_async_engine(settings.DATABASE_URL)
+    engine = make_worker_engine(settings.DATABASE_URL)
     ctx = {"sessionmaker": async_sessionmaker(engine, expire_on_commit=False), "storage": storage}
     yield ctx
     await engine.dispose()
@@ -210,7 +217,7 @@ async def test_job_retries_on_model_call_error(db, job_ctx, uploaded_page):
     job_ctx.update(model=FakeModel([ModelCallError("503")]), job_try=1)
     with pytest.raises(Retry):
         await grade_page_job(job_ctx, page_id)
-    db.expire_all()
+    await _reset(db)
     assert (await db.get(Page, page_id)).status == "queued"
 
 
@@ -218,7 +225,7 @@ async def test_job_final_try_marks_model_unavailable(db, job_ctx, uploaded_page)
     page_id = uploaded_page.id
     job_ctx.update(model=FakeModel([ModelCallError("503")]), job_try=WorkerSettings.max_tries)
     await grade_page_job(job_ctx, page_id)
-    db.expire_all()
+    await _reset(db)
     page = await db.get(Page, page_id)
     assert page.status == "failed" and page.fail_reason == "model_unavailable"
 
@@ -227,13 +234,14 @@ async def test_job_grades_page(db, job_ctx, uploaded_page, roster_zhangsan):
     page_id = uploaded_page.id
     job_ctx.update(model=FakeModel([graded(student_name="张三", questions=[q(no="1")])]), job_try=1)
     await grade_page_job(job_ctx, page_id)
-    db.expire_all()
+    await _reset(db)
     assert (await db.get(Page, page_id)).status == "done"
 
 
-def test_worker_settings():
+def test_worker_settings(settings):
     assert WorkerSettings.functions == [grade_page_job]
     assert WorkerSettings.max_tries == 3
+    assert WorkerSettings.job_timeout == 2 * 120 + 60 == 2 * settings.MODEL_TIMEOUT_S + 60
 
 
 # --- enqueuer ---
@@ -311,3 +319,90 @@ def test_prompt_lists_answers_and_candidates():
 def test_prompt_without_answer_key_asks_model_to_solve():
     prompt = build_grading_prompt("math", 5, [], [])
     assert "标准答案" in prompt and "62.8dm³" not in prompt
+
+
+# --- concurrency and late continuation (READ COMMITTED, as in the worker) ---
+
+@pytest.fixture
+async def rc_sessionmaker(settings):
+    engine = make_worker_engine(settings.DATABASE_URL)
+    yield async_sessionmaker(engine, expire_on_commit=False)
+    await engine.dispose()
+
+
+class GatedModel(FakeModel):
+    """FakeModel whose calls wait at a barrier, so model phases of several pages overlap."""
+
+    def __init__(self, responses, barrier: asyncio.Barrier) -> None:
+        super().__init__(responses)
+        self._barrier = barrier
+
+    async def complete_json(self, prompt, images):
+        await asyncio.wait_for(self._barrier.wait(), 10)
+        return await super().complete_json(prompt, images)
+
+
+async def _grade_in_new_session(rc_sessionmaker, storage, model, page_id):
+    async with rc_sessionmaker() as s:
+        await grade_page(s, storage, model, page_id)
+
+
+async def test_concurrent_pages_of_same_student_share_one_submission(
+        db, rc_sessionmaker, storage, two_uploaded_pages, roster_zhangsan):
+    ids, student_id = [p.id for p in two_uploaded_pages], roster_zhangsan.id
+    barrier = asyncio.Barrier(2)
+    await asyncio.gather(*(
+        _grade_in_new_session(rc_sessionmaker, storage,
+                              GatedModel([graded(student_name="张三", questions=[q(no=no)])], barrier), pid)
+        for pid, no in zip(ids, ("1", "2"))))
+    await _reset(db)
+    sub = (await db.execute(select(Submission))).scalar_one()
+    assert sub.student_id == student_id and sub.total_score == 4 and sub.needs_review_count == 2
+    pages = [await db.get(Page, pid) for pid in ids]
+    assert [p.status for p in pages] == ["done", "done"]
+    assert all(r.submission_id == sub.id for r in await _results(db))
+
+
+async def test_nameless_page_finished_first_joins_previous_page_later(
+        db, rc_sessionmaker, storage, two_uploaded_pages, confirmed_key_q1_q2, roster_zhangsan):
+    p1, p2 = two_uploaded_pages
+    ids, student_id = (p1.id, p2.id), roster_zhangsan.id
+    p1.status = "processing"  # page 1 still being graded
+    await db.commit()
+
+    await _grade_in_new_session(rc_sessionmaker, storage, FakeModel([graded(
+        student_name="  ", questions=[q(no="2", score=4, max_score=4)])]), ids[1])
+    await _reset(db)
+    page2 = await db.get(Page, ids[1])
+    assert page2.status == "done" and page2.student_id is None and page2.recognized_name is None
+    assert (await db.execute(select(QuestionResult))).scalar_one().needs_review is True
+
+    await _grade_in_new_session(rc_sessionmaker, storage, FakeModel([graded(
+        student_name=" 张三 ", questions=[q(no="1")])]), ids[0])
+    await _reset(db)
+    page1, page2 = await db.get(Page, ids[0]), await db.get(Page, ids[1])
+    assert page1.recognized_name == "张三"
+    assert page1.student_id == page2.student_id == student_id
+    sub = (await db.execute(select(Submission))).scalar_one()
+    assert sub.total_score == 6 and sub.needs_review_count == 0
+    results = await _results(db)
+    assert len(results) == 2
+    assert all(r.submission_id == sub.id and r.needs_review is False for r in results)
+
+
+async def test_late_continuation_stops_at_first_named_page(
+        db, rc_sessionmaker, storage, make_page, roster_zhangsan):
+    pages = [await make_page(1), await make_page(2), await make_page(3), await make_page(4)]
+    ids, student_id = [p.id for p in pages], roster_zhangsan.id
+    pages[0].status = "processing"
+    await db.commit()
+    for pid, name in ((ids[1], None), (ids[2], "王五"), (ids[3], None)):
+        await _grade_in_new_session(rc_sessionmaker, storage, FakeModel([graded(
+            student_name=name, questions=[q(no="1")])]), pid)
+    await _grade_in_new_session(rc_sessionmaker, storage, FakeModel([graded(
+        student_name="张三", questions=[q(no="1")])]), ids[0])
+    await _reset(db)
+    students = [(await db.get(Page, pid)).student_id for pid in ids]
+    assert students == [student_id, student_id, None, None]
+    sub = (await db.execute(select(Submission))).scalar_one()
+    assert sub.total_score == 4
