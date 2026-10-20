@@ -9,29 +9,19 @@ export function targetSize(w: number, h: number, maxLong = 2000): { width: numbe
 }
 
 /**
- * Page-side only (offscreen canvas, not unit-tested): draw the photo at
- * targetSize and export as JPEG quality 0.85. Returns a temp file path.
+ * Page-side only: shrink the photo to targetSize and re-encode as JPEG
+ * quality 85 with wx.compressImage (base library >= 2.26.0 for
+ * compressedWidth/Height). An image that already fits is only re-encoded.
+ * Returns a temp file path.
  */
 export async function compressForUpload(path: string): Promise<string> {
   const info = await Taro.getImageInfo({ src: path })
   const { width, height } = targetSize(info.width, info.height)
-  const canvas = Taro.createOffscreenCanvas({ type: '2d', width, height })
-  const img = canvas.createImage()
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve()
-    img.onerror = () => reject(new Error('image load failed'))
-    img.src = info.path
-  })
-  const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
-  ctx.drawImage(img as unknown as CanvasImageSource, 0, 0, width, height)
-  const res = await Taro.canvasToTempFilePath({
-    canvas: canvas as unknown as Taro.canvasToTempFilePath.Option['canvas'],
-    fileType: 'jpg',
-    quality: 0.85,
-    width,
-    height,
-    destWidth: width,
-    destHeight: height,
+  const resized = width !== info.width || height !== info.height
+  const res = await Taro.compressImage({
+    src: path,
+    quality: 85,
+    ...(resized ? { compressedWidth: width, compressedHeight: height } : {}),
   })
   return res.tempFilePath
 }

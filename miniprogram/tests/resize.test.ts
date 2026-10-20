@@ -1,7 +1,8 @@
 ﻿import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('@tarojs/taro', () => ({ default: {} }))
-import { targetSize } from '../src/lib/resize'
+const taro = vi.hoisted(() => ({ getImageInfo: vi.fn(), compressImage: vi.fn() }))
+vi.mock('@tarojs/taro', () => ({ default: taro }))
+import { compressForUpload, targetSize } from '../src/lib/resize'
 
 describe('targetSize', () => {
   it('shrinks the long edge to 2000', () => {
@@ -21,3 +22,20 @@ describe('targetSize', () => {
   })
 })
 
+
+describe('compressForUpload', () => {
+  it('resizes a big photo', async () => {
+    taro.getImageInfo.mockResolvedValue({ width: 4000, height: 3000 })
+    taro.compressImage.mockResolvedValue({ tempFilePath: 'tmp://a.jpg' })
+    expect(await compressForUpload('wx://p.jpg')).toBe('tmp://a.jpg')
+    expect(taro.compressImage).toHaveBeenCalledWith({
+      src: 'wx://p.jpg', quality: 85, compressedWidth: 2000, compressedHeight: 1500,
+    })
+  })
+  it('only re-encodes a photo that already fits', async () => {
+    taro.getImageInfo.mockResolvedValue({ width: 800, height: 600 })
+    taro.compressImage.mockResolvedValue({ tempFilePath: 'tmp://b.jpg' })
+    await compressForUpload('wx://q.jpg')
+    expect(taro.compressImage).toHaveBeenLastCalledWith({ src: 'wx://q.jpg', quality: 85 })
+  })
+})

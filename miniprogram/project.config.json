@@ -3,6 +3,7 @@
   "projectname": "mistake-book-miniprogram",
   "description": "AI 错题本 teacher mini program",
   "appid": "touristappid",
+  "libVersion": "2.26.0",
   "setting": {
     "urlCheck": false,
     "es6": false,
