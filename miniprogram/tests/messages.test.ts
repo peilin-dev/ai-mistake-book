@@ -34,6 +34,10 @@ describe('errorText', () => {
       '已有成绩的学生不能删除，可以改名',
     )
   })
+  it('413 and 415 have their own copy', () => {
+    expect(errorText(new ApiError(413, ''))).toBe('照片太大了，请重拍这张')
+    expect(errorText(new ApiError(415, ''))).toBe('这不是照片，请重拍这张')
+  })
   it('network failures', () => {
     expect(errorText(new ApiError(0, ''))).toBe('网络不太好，请稍后再试')
     expect(errorText(new Error('request:fail timeout'))).toBe('网络不太好，请稍后再试')
@@ -46,3 +50,4 @@ describe('errorText', () => {
     expect(errorText(undefined)).toBe('出了点问题，请稍后再试')
   })
 })
+

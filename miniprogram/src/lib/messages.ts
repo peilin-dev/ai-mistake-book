@@ -31,6 +31,9 @@ function isNetworkError(e: unknown): boolean {
 
 export function errorText(e: unknown): string {
   if (e instanceof ApiError && [409, 429, 503].includes(e.status) && e.detail) return e.detail
+  if (e instanceof ApiError && e.status === 413) return '照片太大了，请重拍这张'
+  if (e instanceof ApiError && e.status === 415) return '这不是照片，请重拍这张'
   if (isNetworkError(e)) return '网络不太好，请稍后再试'
   return '出了点问题，请稍后再试'
 }
+
