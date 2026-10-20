@@ -232,6 +232,8 @@ async def correct_question(
         r.is_correct = body.is_correct
     if body.score is not None:
         r.score = body.score
+        if body.is_correct is None and r.max_score is not None:
+            r.is_correct = body.score >= r.max_score  # a full-mark override reads as 对
     elif body.is_correct is not None:
         r.score = 0 if not body.is_correct else (r.max_score or 0)
     r.reviewed, r.needs_review = True, False

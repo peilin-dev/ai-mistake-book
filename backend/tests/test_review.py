@@ -34,6 +34,34 @@ async def test_second_modification_keeps_model_values(auth_client, graded_submis
     assert body["score"] == 1 and body["is_correct"] is False
 
 
+async def test_full_mark_score_marks_correct(auth_client, graded_submission):
+    q2 = graded_submission.questions[1]  # judged wrong, 0/4
+    body = (await auth_client.patch(f"/api/question-results/{q2.id}", json={"score": 4})).json()
+    assert body["score"] == 4 and body["is_correct"] is True
+
+
+async def test_partial_score_marks_wrong(auth_client, graded_submission):
+    q1 = graded_submission.questions[0]  # judged correct, 2/2
+    body = (await auth_client.patch(f"/api/question-results/{q1.id}", json={"score": 1})).json()
+    assert body["score"] == 1 and body["is_correct"] is False
+
+
+async def test_score_without_max_keeps_is_correct(auth_client, db, graded_submission):
+    q1 = graded_submission.questions[0]
+    row = await db.get(QuestionResult, q1.id)
+    row.max_score = None
+    await db.commit()
+    body = (await auth_client.patch(f"/api/question-results/{q1.id}", json={"score": 1})).json()
+    assert body["score"] == 1 and body["is_correct"] is True
+
+
+async def test_explicit_is_correct_wins_over_score(auth_client, graded_submission):
+    q1 = graded_submission.questions[0]
+    body = (await auth_client.patch(f"/api/question-results/{q1.id}",
+                                    json={"is_correct": True, "score": 1})).json()
+    assert body["score"] == 1 and body["is_correct"] is True
+
+
 async def test_invalid_corrections(auth_client, graded_submission):
     qid = graded_submission.questions[0].id
     assert (await auth_client.patch(f"/api/question-results/{qid}", json={})).status_code == 422
