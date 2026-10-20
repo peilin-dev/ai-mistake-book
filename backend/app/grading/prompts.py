@@ -93,7 +93,7 @@ def build_answer_key_prompt() -> str:
         "要求：",
         "1. question_no 填试卷上印刷的题号，不要自行重新编号。",
         "2. answer 填该题的标准答案，照抄答案卷上的内容。",
-        "3. max_score 为该题满分，答案卷上没有标注时填 0。",
+        "3. max_score 为该题满分，答案卷上没有标注时填 null。",
         "4. 主观题（作文、简答、证明等没有唯一答案的题）is_subjective 填 true，其余填 false。",
         "",
         "只输出一个 JSON 对象，不要输出任何其他文字，也不要使用 Markdown 代码块。格式严格如下：",

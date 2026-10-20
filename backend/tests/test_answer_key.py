@@ -197,3 +197,45 @@ async def test_foreign_assignment_is_404(client_for, make_teacher, my_assignment
 async def test_missing_assignment_is_404(auth_client, jpeg_bytes, fake_model_answer_key):
     assert (await auth_client.get("/api/assignments/999999/answer-key")).status_code == 404
 
+
+# --- final review fix 1: keys without printed scores ---
+
+def test_answer_key_prompt_asks_null_for_unprinted_score():
+    from app.grading.prompts import build_answer_key_prompt
+
+    prompt = build_answer_key_prompt()
+    assert "填 0" not in prompt
+    assert "没有标注时填 null" in prompt
+
+
+async def test_extracted_key_keeps_null_max_score(auth_client, db, my_assignment, jpeg_bytes,
+                                                  install_answer_key_model):
+    install_answer_key_model([{"questions": [{"question_no": "1", "answer": "7", "max_score": None}]}])
+    r = await auth_client.post(key_url(my_assignment), files=photo(jpeg_bytes))
+    assert r.status_code == 200 and r.json()["items"][0]["max_score"] is None
+    assert (await item_rows(db, my_assignment))[0].max_score is None
+
+
+async def test_confirmed_key_without_score_uses_model_max(auth_client, db, storage, my_assignment,
+                                                          uploaded_page, roster_zhangsan):
+    from app.ai.fake import FakeModel
+    from app.grading.pipeline import grade_page
+    from app.models import QuestionResult
+    from tests.conftest import graded, q
+
+    items = [{"question_no": "1", "answer": "7", "max_score": None, "is_subjective": False}]
+    r = await auth_client.put(key_url(my_assignment), json={"items": items})
+    assert r.status_code == 200 and r.json()["items"] == items
+    assert (await item_rows(db, my_assignment))[0].max_score is None
+    got = (await auth_client.get(key_url(my_assignment))).json()
+    assert got["items"][0]["max_score"] is None
+
+    page_id = uploaded_page.id
+    await db.rollback()
+    model = FakeModel([graded(student_name="张三", questions=[q(no="1", score=3, max_score=5)])])
+    await grade_page(db, storage, model, page_id)
+    res = (await db.execute(select(QuestionResult).execution_options(populate_existing=True))).scalar_one()
+    assert (res.score, res.max_score, res.answer_verified) == (3, 5, True)
+    r = await auth_client.patch(f"/api/question-results/{res.id}", json={"is_correct": True})
+    assert r.status_code == 200 and r.json()["score"] == 5
+

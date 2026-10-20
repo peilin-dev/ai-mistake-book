@@ -36,7 +36,7 @@ class AnswerKeyItem(BaseModel):
 
     question_no: QuestionNo
     answer: str
-    max_score: float = Field(ge=0)
+    max_score: float | None = Field(default=None, ge=0)  # None: no score printed on the key
     is_subjective: bool = False
 
 

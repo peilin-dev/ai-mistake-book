@@ -303,7 +303,7 @@ async def _load_items(db: AsyncSession, assignment_id: int) -> list[AnswerKeyIte
         AnswerKeyItem(
             question_no=r.question_no,
             answer=r.answer,
-            max_score=r.max_score or 0,
+            max_score=r.max_score,
             is_subjective=r.is_subjective,
         )
         for r in rows
