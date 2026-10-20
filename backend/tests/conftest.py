@@ -81,8 +81,8 @@ def fake_wx():
     return FakeWeChatClient()
 
 
-@pytest_asyncio.fixture
-async def client(db, settings, fake_wx):
+@pytest.fixture
+def app(db, fake_wx):
     app = create_app()
 
     async def _get_db():
@@ -90,25 +90,61 @@ async def client(db, settings, fake_wx):
 
     app.dependency_overrides[get_db] = _get_db
     app.dependency_overrides[get_wechat_client] = lambda: fake_wx
+    return app
+
+
+@pytest_asyncio.fixture
+async def client(app):
+    """Unauthenticated client."""
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
 
 
+@pytest_asyncio.fixture
+async def client_for(app):
+    """Factory: a fresh client authenticated as the given teacher."""
+    clients: list[httpx.AsyncClient] = []
+
+    def _make(teacher: Teacher) -> httpx.AsyncClient:
+        c = httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Authorization": f"Bearer {issue_token(teacher.id)}"},
+        )
+        clients.append(c)
+        return c
+
+    yield _make
+    for c in clients:
+        await c.aclose()
+
 
 @pytest_asyncio.fixture
-async def teacher(db) -> Teacher:
-    t = Teacher(unionid="u-auth", mp_openid="o-auth")
-    db.add(t)
-    await db.commit()
-    return t
+async def make_teacher(db):
+    """Factory: a committed Teacher with unique ids."""
+    counter = 0
+
+    async def _make() -> Teacher:
+        nonlocal counter
+        counter += 1
+        t = Teacher(unionid=f"ut{counter}", mp_openid=f"ot{counter}")
+        db.add(t)
+        await db.commit()
+        return t
+
+    return _make
 
 
 @pytest_asyncio.fixture
-async def auth_client(client, teacher):
-    """The `client`, logged in as `teacher`."""
-    client.headers["Authorization"] = f"Bearer {issue_token(teacher.id)}"
-    return client
+async def teacher(make_teacher) -> Teacher:
+    return await make_teacher()
+
+
+@pytest_asyncio.fixture
+async def auth_client(client_for, teacher):
+    """A client logged in as `teacher`; `client` stays unauthenticated."""
+    return client_for(teacher)
 
 
 @pytest_asyncio.fixture
@@ -120,10 +156,8 @@ async def my_class(db, teacher) -> Class_:
 
 
 @pytest_asyncio.fixture
-async def other_teacher_class(db) -> Class_:
-    other = Teacher(unionid="u-other", mp_openid="o-other")
-    db.add(other)
-    await db.flush()
+async def other_teacher_class(db, make_teacher) -> Class_:
+    other = await make_teacher()
     c = Class_(teacher_id=other.id, name="别人的班", grade=5)
     db.add(c)
     await db.commit()

@@ -30,6 +30,24 @@ def test_parse_roster_fullwidth_comma_tab_and_letter_prefix():
     ]
 
 
+def test_parse_roster_non_number_tokens_stay_in_name():
+    assert parse_roster("张三 李四\nJohn Smith\n2024001 Mary Ann") == [
+        RosterEntry("张三 李四", None),
+        RosterEntry("John Smith", None),
+        RosterEntry("Mary Ann", "2024001"),
+    ]
+
+
+async def test_client_fixture_stays_unauthenticated(client, auth_client):
+    assert (await client.get("/api/me")).status_code == 401
+    assert (await auth_client.get("/api/me")).status_code == 200
+
+
+async def test_client_for_other_teacher(client_for, make_teacher, my_class):
+    other = await make_teacher()
+    r = await client_for(other).get(f"/api/classes/{my_class.id}/students")
+    assert r.status_code == 404
+
 async def test_grade_must_be_1_to_12(auth_client):
     r = await auth_client.post("/api/classes", json={"name": "五(2)班", "grade": 13})
     assert r.status_code == 422
