@@ -38,10 +38,26 @@ function authHeader(): Record<string, string> {
 }
 
 /** Run `send` once; on a 401 log in again silently and retry exactly once. */
+let loginInFlight: Promise<void> | null = null
+
+/** All callers that hit a 401 at the same time share one login. */
+function sharedLogin(): Promise<void> {
+  if (!loginInFlight) {
+    loginInFlight = login().finally(() => {
+      loginInFlight = null
+    })
+  }
+  return loginInFlight
+}
+
 async function withRelogin<T>(send: () => Promise<{ statusCode: number; data: unknown }>): Promise<T> {
   let res = await send()
   if (res.statusCode === 401) {
-    await login()
+    try {
+      await sharedLogin()
+    } catch (e) {
+      throw new ApiError(401, e instanceof Error ? e.message : 'login failed')
+    }
     res = await send()
   }
   const data = parseBody(res.data)

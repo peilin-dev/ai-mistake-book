@@ -9,3 +9,5 @@ __pycache__/
 /miniprogram/node_modules/
 /miniprogram/dist/
 /miniprogram/.swc/
+!miniprogram/.env.development
+!miniprogram/.env.production

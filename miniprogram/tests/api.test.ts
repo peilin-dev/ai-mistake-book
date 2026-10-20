@@ -56,7 +56,32 @@ describe('api.request', () => {
       .mockResolvedValueOnce({ statusCode: 401, data: { detail: 'still bad' } })
     await expect(request('GET', '/api/me')).rejects.toMatchObject({ status: 401, detail: 'still bad' })
     expect(taro.login).toHaveBeenCalledTimes(1)
-    await expect(Promise.reject(new ApiError(401, 'x'))).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('sharesOneLoginAcrossParallel401s', async () => {
+    taro.setStorageSync('token', 'old')
+    taro.login.mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 5))
+      return { code: 'wxcode' }
+    })
+    taro.request.mockImplementation(async (o: { url: string; header: Record<string, string> }) => {
+      if (o.url.endsWith('/api/auth/wx-login')) return { statusCode: 200, data: { token: 'new' } }
+      if (o.header.Authorization === 'Bearer new') return { statusCode: 200, data: { ok: o.url } }
+      return { statusCode: 401, data: { detail: 'expired' } }
+    })
+    const [a, b] = await Promise.all([request('GET', '/api/a'), request('GET', '/api/b')])
+    expect(a).toEqual({ ok: `${BASE}/api/a` })
+    expect(b).toEqual({ ok: `${BASE}/api/b` })
+    expect(taro.login).toHaveBeenCalledTimes(1)
+  })
+
+  it('mapsLoginFailureOnRetryToApiError401', async () => {
+    taro.request.mockResolvedValue({ statusCode: 401, data: { detail: 'x' } })
+    taro.login.mockRejectedValue(new Error('wx down'))
+    const err = (await request('GET', '/api/me').catch((e) => e)) as ApiError
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err.status).toBe(401)
+    expect(err.detail).toBe('wx down')
   })
 
   it('mapsNon2xxToApiError', async () => {
@@ -85,6 +110,17 @@ describe('api.upload', () => {
     expect(arg.name).toBe('file')
     expect(arg.filePath).toBe('/tmp/a.jpg')
     expect(arg.header.Authorization).toBe('Bearer abc')
+  })
+
+  it('relogsInOnceOn401', async () => {
+    taro.uploadFile
+      .mockResolvedValueOnce({ statusCode: 401, data: JSON.stringify({ detail: 'x' }) })
+      .mockResolvedValueOnce({ statusCode: 201, data: JSON.stringify({ page_id: 3 }) })
+    taro.request.mockResolvedValue({ statusCode: 200, data: { token: 'new' } })
+    const out = await upload<{ page_id: number }>('/api/assignments/1/pages', '/tmp/a.jpg')
+    expect(out).toEqual({ page_id: 3 })
+    expect(taro.login).toHaveBeenCalledTimes(1)
+    expect(taro.uploadFile.mock.calls[1][0].header.Authorization).toBe('Bearer new')
   })
 
   it('mapsUploadErrorToApiError', async () => {
