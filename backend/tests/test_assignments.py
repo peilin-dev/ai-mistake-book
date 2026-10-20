@@ -105,3 +105,47 @@ async def test_progress_ignores_other_assignments(auth_client, my_class, make_as
     await db.commit()
     r = (await auth_client.get(f"/api/assignments/{aid}/progress")).json()
     assert r["total"] == 0 and r["needs_review"] == 0
+
+
+# --- final review fix 6: page and submission lists ---
+
+async def test_list_pages_and_submissions(auth_client, db, my_assignment, my_class, roster_zhangsan,
+                                          make_done_page):
+    from app.models import Student, Submission
+
+    lisi = Student(class_id=my_class.id, name="李四")
+    db.add(lisi)
+    p2 = await make_done_page(2, None, "王五")
+    p1 = await make_done_page(1, roster_zhangsan.id, "张三")
+    p3 = Page(assignment_id=my_assignment.id, seq=3, image_key="k", image_sha256="f3",
+              status=PageStatus.failed, fail_reason="unreadable")
+    db.add(p3)
+    await db.flush()
+    s_z = Submission(assignment_id=my_assignment.id, student_id=roster_zhangsan.id,
+                     total_score=6, needs_review_count=1)
+    s_l = Submission(assignment_id=my_assignment.id, student_id=lisi.id, total_score=2)
+    db.add_all([s_z, s_l])
+    await db.commit()
+
+    pages = (await auth_client.get(f"/api/assignments/{my_assignment.id}/pages")).json()
+    assert pages == [
+        {"page_id": p1.id, "seq": 1, "status": "done", "fail_reason": None,
+         "student_id": roster_zhangsan.id, "student_name": "张三", "recognized_name": "张三"},
+        {"page_id": p2.id, "seq": 2, "status": "done", "fail_reason": None,
+         "student_id": None, "student_name": None, "recognized_name": "王五"},
+        {"page_id": p3.id, "seq": 3, "status": "failed", "fail_reason": "unreadable",
+         "student_id": None, "student_name": None, "recognized_name": None},
+    ]
+    subs = (await auth_client.get(f"/api/assignments/{my_assignment.id}/submissions")).json()
+    by_name = sorted([("张三", s_z), ("李四", s_l)])
+    assert subs == [
+        {"id": s.id, "student_id": s.student_id, "student_name": n, "total_score": s.total_score,
+         "needs_review_count": s.needs_review_count}
+        for n, s in by_name
+    ]
+
+
+async def test_lists_of_foreign_assignment_are_404(client_for, make_teacher, my_assignment):
+    other = client_for(await make_teacher())
+    assert (await other.get(f"/api/assignments/{my_assignment.id}/pages")).status_code == 404
+    assert (await other.get(f"/api/assignments/{my_assignment.id}/submissions")).status_code == 404

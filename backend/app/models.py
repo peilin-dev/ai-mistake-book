@@ -147,6 +147,8 @@ class Page(_Base):
         BigInteger, ForeignKey("students.id", ondelete="SET NULL"), index=True
     )
     original_deleted_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # Teacher-triggered retries of a failed page; part of the arq job id (grade:{id}:{n}).
+    retry_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
     __table_args__ = (
         UniqueConstraint("assignment_id", "image_sha256", name="uq_page_assignment_sha"),

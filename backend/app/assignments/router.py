@@ -26,7 +26,9 @@ from app.models import (
     Page,
     PageStatus,
     QuestionResult,
+    Student,
     Subject,
+    Submission,
     Teacher,
 )
 from app.quota.service import QuotaExceeded, check_quota
@@ -134,10 +136,74 @@ async def assignment_progress(
     )
 
 
+class PageListItem(BaseModel):
+    page_id: int
+    seq: int
+    status: PageStatus
+    fail_reason: str | None
+    student_id: int | None
+    student_name: str | None
+    recognized_name: str | None
+
+
+class SubmissionListItem(BaseModel):
+    id: int
+    student_id: int
+    student_name: str
+    total_score: float
+    needs_review_count: int
+
+
+@router.get("/assignments/{assignment_id}/pages", response_model=list[PageListItem])
+async def list_pages(
+    assignment_id: int,
+    teacher: Teacher = Depends(current_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    await own_assignment(db, teacher, assignment_id)
+    rows = (await db.execute(
+        select(Page, Student.name)
+        .outerjoin(Student, Student.id == Page.student_id)
+        .where(Page.assignment_id == assignment_id)
+        .order_by(Page.seq)
+    )).all()
+    return [
+        PageListItem(page_id=p.id, seq=p.seq, status=p.status, fail_reason=p.fail_reason,
+                     student_id=p.student_id, student_name=name, recognized_name=p.recognized_name)
+        for p, name in rows
+    ]
+
+
+@router.get("/assignments/{assignment_id}/submissions", response_model=list[SubmissionListItem])
+async def list_submissions(
+    assignment_id: int,
+    teacher: Teacher = Depends(current_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    await own_assignment(db, teacher, assignment_id)
+    rows = (await db.execute(
+        select(Submission, Student.name)
+        .join(Student, Student.id == Submission.student_id)
+        .where(Submission.assignment_id == assignment_id)
+        .order_by(Student.name, Submission.id)
+    )).all()
+    return [
+        SubmissionListItem(id=s.id, student_id=s.student_id, student_name=name,
+                           total_score=s.total_score, needs_review_count=s.needs_review_count)
+        for s, name in rows
+    ]
+
+
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 HEIC_BRANDS = {b"heic", b"heix", b"heim", b"heis", b"mif1", b"msf1"}
 
-EnqueueGradePage = Callable[[int], Awaitable[None]]
+EnqueueGradePage = Callable[..., Awaitable[None]]  # (page_id, retry=0)
+RETRYABLE_FAILURES = {"model_unavailable", "internal_error"}
+
+
+def grade_job_id(page_id: int, retry: int = 0) -> str:
+    """A fresh id per retry: arq keeps the result of a finished job and refuses its id."""
+    return f"grade:{page_id}" if retry == 0 else f"grade:{page_id}:{retry}"
 
 
 async def _arq_pool(app: FastAPI):
@@ -159,9 +225,9 @@ async def close_arq_pool(app: FastAPI) -> None:
 
 
 def get_enqueuer(request: Request) -> EnqueueGradePage:
-    async def enqueue_grade_page(page_id: int) -> None:
+    async def enqueue_grade_page(page_id: int, retry: int = 0) -> None:
         pool = await _arq_pool(request.app)
-        await pool.enqueue_job("grade_page_job", page_id, _job_id=f"grade:{page_id}")
+        await pool.enqueue_job("grade_page_job", page_id, _job_id=grade_job_id(page_id, retry))
 
     return enqueue_grade_page
 
@@ -188,9 +254,9 @@ async def read_limited(file: UploadFile) -> bytes:
     return b"".join(chunks)
 
 
-async def _enqueue_or_503(enqueue: EnqueueGradePage, page_id: int) -> None:
+async def _enqueue_or_503(enqueue: EnqueueGradePage, page_id: int, retry: int = 0) -> None:
     try:
-        await enqueue(page_id)
+        await (enqueue(page_id, retry) if retry else enqueue(page_id))
     except Exception:
         log.exception("enqueue of page %s failed", page_id)
         raise HTTPException(status_code=503, detail="批改队列暂不可用，请稍后重试") from None
@@ -230,9 +296,24 @@ async def upload_page(
         ).scalar_one_or_none()
 
     async def duplicate_out(page: Page) -> PageUploadOut:
+        if page.status == PageStatus.failed and page.fail_reason in RETRYABLE_FAILURES:
+            # Re-uploading a page that failed for a transient reason retries it.
+            await lock_assignment(db, assignment_id)
+            page = (await db.execute(
+                select(Page).where(Page.id == page.id).execution_options(populate_existing=True)
+            )).scalar_one()
+            if page.status == PageStatus.failed and page.fail_reason in RETRYABLE_FAILURES:
+                page.status, page.fail_reason = PageStatus.queued, None
+                page.retry_count += 1
+            page_id, seq, status, retry = page.id, page.seq, page.status, page.retry_count
+            await db.commit()
+            if status == PageStatus.queued:
+                await _enqueue_or_503(enqueue, page_id, retry)
+            response.status_code = 200
+            return PageUploadOut(page_id=page_id, seq=seq, status=status, duplicate=True)
         # A queued duplicate may be a retry after a failed enqueue; the job id keeps it idempotent.
         if page.status == PageStatus.queued:
-            await _enqueue_or_503(enqueue, page.id)
+            await _enqueue_or_503(enqueue, page.id, page.retry_count)
         response.status_code = 200
         return PageUploadOut(page_id=page.id, seq=page.seq, status=page.status, duplicate=True)
 

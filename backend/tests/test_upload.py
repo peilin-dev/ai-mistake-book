@@ -281,3 +281,47 @@ async def test_duplicate_of_processed_page_not_reenqueued(auth_client, my_assign
     r = await auth_client.post(url, files={"file": ("a.jpg", jpeg_bytes, "image/jpeg")})
     assert r.status_code == 200 and r.json()["status"] == "done"
     assert enqueued == [a["page_id"]]
+
+# --- final review fix 6: retry of failed pages ---
+
+class _Pool:
+    def __init__(self) -> None:
+        self.job_ids: list[str] = []
+
+    async def enqueue_job(self, name, *args, _job_id=None):
+        self.job_ids.append(_job_id)
+
+
+async def _fail(db, page_id, reason):
+    page = await db.get(Page, page_id)
+    page.status, page.fail_reason = "failed", reason
+    await db.commit()
+
+
+@pytest.mark.parametrize("reason", ["model_unavailable", "internal_error"])
+async def test_duplicate_of_retryable_failed_page_requeues_with_fresh_job_id(
+        app, auth_client, my_assignment, jpeg_bytes, storage, db, reason):
+    pool = _Pool()
+    app.state.arq_pool = pool
+    url = url_of(my_assignment)
+    pid = (await auth_client.post(url, files={"file": ("a.jpg", jpeg_bytes, "image/jpeg")})).json()["page_id"]
+    for n in (1, 2):
+        await _fail(db, pid, reason)
+        r = await auth_client.post(url, files={"file": ("a.jpg", jpeg_bytes, "image/jpeg")})
+        assert r.status_code == 200
+        assert r.json() == {"page_id": pid, "seq": 1, "status": "queued", "duplicate": True}
+        db.expire_all()
+        page = await db.get(Page, pid)
+        assert (page.status, page.fail_reason) == ("queued", None)
+    # a queued retry whose enqueue may have failed is re-enqueued under the same id
+    await auth_client.post(url, files={"file": ("a.jpg", jpeg_bytes, "image/jpeg")})
+    assert pool.job_ids == [f"grade:{pid}", f"grade:{pid}:1", f"grade:{pid}:2", f"grade:{pid}:2"]
+
+
+async def test_duplicate_of_unreadable_page_is_not_retried(auth_client, my_assignment, jpeg_bytes,
+                                                           enqueued, storage, db):
+    url = url_of(my_assignment)
+    pid = (await auth_client.post(url, files={"file": ("a.jpg", jpeg_bytes, "image/jpeg")})).json()["page_id"]
+    await _fail(db, pid, "unreadable")
+    r = await auth_client.post(url, files={"file": ("a.jpg", jpeg_bytes, "image/jpeg")})
+    assert r.json()["status"] == "failed" and enqueued == [pid]
