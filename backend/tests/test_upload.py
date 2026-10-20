@@ -325,3 +325,11 @@ async def test_duplicate_of_unreadable_page_is_not_retried(auth_client, my_assig
     await _fail(db, pid, "unreadable")
     r = await auth_client.post(url, files={"file": ("a.jpg", jpeg_bytes, "image/jpeg")})
     assert r.json()["status"] == "failed" and enqueued == [pid]
+
+
+# --- final review fix 7: non-ASCII signature ---
+
+async def test_non_ascii_signature_is_403(client, storage):
+    await storage.put("a/b.jpg", b"DATA", "image/jpeg")
+    r = await client.get("/api/files/a/b.jpg", params={"expires": 9999999999, "sig": "签名"})
+    assert r.status_code == 403

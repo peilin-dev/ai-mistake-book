@@ -48,4 +48,6 @@ class LocalStorage:
         return f"/api/files/{key}?expires={expires}&sig={self._sign(key, expires)}"
 
     def verify(self, key: str, expires: int, sig: str) -> bool:
-        return expires >= time.time() and hmac.compare_digest(self._sign(key, expires), sig)
+        # Compare bytes: compare_digest raises TypeError on non-ASCII str input.
+        return expires >= time.time() and hmac.compare_digest(
+            self._sign(key, expires).encode(), sig.encode("utf-8", "surrogatepass"))
