@@ -1,5 +1,8 @@
-"""arq worker: `arq app.jobs.worker.WorkerSettings`."""
-from arq import Retry
+﻿"""arq worker: `arq app.jobs.worker.WorkerSettings`."""
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
+from arq import Retry, cron
 from arq.connections import RedisSettings
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -7,6 +10,7 @@ from app.ai.base import ModelCallError
 from app.ai.registry import get_model
 from app.config import get_settings
 from app.db import make_engine
+from app.jobs.cleanup import purge_old_originals
 from app.grading.pipeline import grade_page, set_page_status
 from app.models import PageStatus
 from app.storage.base import get_storage
@@ -27,6 +31,12 @@ async def grade_page_job(ctx: dict, page_id: int) -> None:
             await set_page_status(db, page_id, PageStatus.failed, "model_unavailable")
 
 
+async def purge_originals_job(ctx: dict) -> None:
+    now = datetime.now(timezone.utc).replace(tzinfo=None)  # naive UTC, like created_at
+    async with ctx["sessionmaker"]() as db:
+        await purge_old_originals(db, ctx["storage"], now, get_settings().ORIGINAL_RETENTION_DAYS)
+
+
 async def startup(ctx: dict) -> None:
     engine = make_engine(get_settings().DATABASE_URL)
     ctx["engine"] = engine
@@ -41,9 +51,12 @@ async def shutdown(ctx: dict) -> None:
 
 class WorkerSettings:
     functions = [grade_page_job]
+    cron_jobs = [cron(purge_originals_job, hour=3, minute=0, second=0)]
+    timezone = ZoneInfo("Asia/Shanghai")  # cron times are evaluated in this zone
     max_tries = MAX_TRIES
     # Two model attempts plus image work and DB writes must fit in one job.
     job_timeout = 2 * get_settings().MODEL_TIMEOUT_S + 60
     on_startup = startup
     on_shutdown = shutdown
     redis_settings = RedisSettings.from_dsn(get_settings().REDIS_URL)
+

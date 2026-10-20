@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 import os
 from pathlib import Path
 
@@ -469,3 +469,55 @@ async def other_class_student(db, other_teacher_class) -> Student:
     db.add(s)
     await db.commit()
     return s
+
+
+# --- Task 13 fixtures ---
+from datetime import datetime, timedelta, timezone  # noqa: E402
+
+
+def utcnow() -> datetime:
+    """Naive UTC, matching the created_at columns."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+async def storage_exists(storage, key: str) -> bool:
+    try:
+        await storage.get(key)
+    except FileNotFoundError:
+        return False
+    return True
+
+
+@pytest_asyncio.fixture
+async def page_factory(db, storage, make_assignment):
+    """Factory: a Page (original stored) created `created_days_ago` days ago.
+
+    Each call uses its own teacher/class/assignment. With with_crop=True the page
+    also has one QuestionResult whose crop is stored.
+    """
+    counter = 0
+
+    async def _make(created_days_ago: float, with_crop: bool = False, **page_kw) -> SimpleNamespace:
+        nonlocal counter
+        counter += 1
+        assignment = await make_assignment()
+        page_kw.setdefault("status", PageStatus.done)
+        page = Page(assignment_id=assignment.id, seq=1, image_key="", image_sha256=f"pf{counter}",
+                    **page_kw)
+        db.add(page)
+        await db.flush()
+        page.created_at = utcnow() - timedelta(days=created_days_ago)
+        page.image_key = f"originals/pf/{page.id}.jpg"
+        await storage.put(page.image_key, paper_jpeg(seed=counter), "image/jpeg")
+        crop_keys: list[str] = []
+        if with_crop:
+            key = f"crops/pf/{page.id}-1.jpg"
+            await storage.put(key, paper_jpeg(100, 100, counter), "image/jpeg")
+            db.add(make_result(page.id, None, "1", crop_key=key))
+            crop_keys.append(key)
+        await db.commit()
+        return SimpleNamespace(id=page.id, image_key=page.image_key, crop_keys=crop_keys)
+
+    return _make
+
+
