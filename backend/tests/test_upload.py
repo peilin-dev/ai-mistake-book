@@ -475,8 +475,52 @@ async def test_retry_twice_second_is_409(auth_client, failed_page_factory, enque
     assert list(enqueued.retries) == [1]
 
 
-async def test_retry_is_quota_neutral(auth_client, failed_page_factory, settings, enqueued):
+async def test_retry_is_quota_neutral(auth_client, failed_page_factory, settings, enqueued, db, teacher):
     settings.MONTHLY_PAGE_QUOTA = 1
     p = await failed_page_factory("model_unavailable")
-    r = await auth_client.post(f"/api/pages/{p.id}:retry")
+    tid, pid = teacher.id, p.id
+    before = await pages_used_this_month(db, tid)
+    r = await auth_client.post(f"/api/pages/{pid}:retry")
     assert r.status_code == 200
+    db.expire_all()
+    assert await pages_used_this_month(db, tid) == before
+
+
+async def test_retry_503_when_queue_down_and_page_stays_queued(app, auth_client, failed_page_factory, db):
+    from app.assignments.router import get_enqueuer
+
+    async def _boom(page_id: int, retry: int = 0) -> None:
+        raise ConnectionError("redis down")
+
+    app.dependency_overrides[get_enqueuer] = lambda: _boom
+    pid = (await failed_page_factory("model_unavailable")).id
+    r = await auth_client.post(f"/api/pages/{pid}:retry")
+    assert r.status_code == 503 and r.json()["detail"] == "批改队列暂不可用，请稍后重试"
+    db.expire_all()
+    page = await db.get(Page, pid)
+    assert page.status.value == "queued" and page.retry_count == 1
+
+
+@pytest.mark.parametrize("new_status", ["done", "queued"])
+async def test_duplicate_lost_race_reports_current_state(
+        monkeypatch, auth_client, my_assignment, jpeg_bytes, storage, enqueued, db, new_status):
+    """The page stops being a retryable failure between the duplicate lookup and the lock."""
+    import app.assignments.router as router_mod
+    url = url_of(my_assignment)
+    pid = (await auth_client.post(url, files={"file": ("a.jpg", jpeg_bytes, "image/jpeg")})).json()["page_id"]
+    await _fail(db, pid, "model_unavailable")
+    real_lock = router_mod.lock_assignment
+
+    async def racing_lock(session, assignment_id):
+        db.expire_all()
+        page = await db.get(Page, pid)  # another session moves the page on first
+        page.status, page.fail_reason = new_status, None
+        await db.commit()
+        await real_lock(session, assignment_id)
+
+    monkeypatch.setattr(router_mod, "lock_assignment", racing_lock)
+    r = await auth_client.post(url, files={"file": ("a.jpg", jpeg_bytes, "image/jpeg")})
+    assert r.status_code == 200
+    assert r.json() == {"page_id": pid, "seq": 1, "status": new_status, "duplicate": True}
+    # done: not re-enqueued; queued: idempotent re-enqueue under its own job id
+    assert enqueued == ([pid] if new_status == "done" else [pid, pid])
