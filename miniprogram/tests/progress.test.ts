@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { answerKeyAction, assignmentHints, bottomActions, isFinished, progressText } from '../src/lib/progress'
-import type { AssignmentOut, ProgressOut, SubmissionOut } from '../src/lib/types'
+import { orderPages, answerKeyAction, assignmentHints, bottomActions, isFinished, progressText } from '../src/lib/progress'
+import type { PageOut, AssignmentOut, ProgressOut, SubmissionOut } from '../src/lib/types'
 
 const p = (o: Partial<ProgressOut>): ProgressOut => ({
   total: 0, queued: 0, processing: 0, done: 0, failed: 0, needs_review: 0, ...o,
@@ -60,5 +60,12 @@ describe('bottomActions', () => {
   it('shows review and results only when relevant', () => {
     expect(bottomActions(p({}), 0)).toEqual({ review: 0, results: false })
     expect(bottomActions(p({ total: 3, done: 3, needs_review: 2 }), 1)).toEqual({ review: 2, results: true })
+  })
+})
+describe('orderPages', () => {
+  it('failed first, then the rest by seq', () => {
+    const mk = (seq: number, status: string) => ({ page_id: seq, seq, status }) as PageOut
+    const out = orderPages([mk(1, 'done'), mk(2, 'failed'), mk(3, 'queued'), mk(4, 'failed')])
+    expect(out.map((x) => x.seq)).toEqual([2, 4, 1, 3])
   })
 })

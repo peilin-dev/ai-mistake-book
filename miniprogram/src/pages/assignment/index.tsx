@@ -1,13 +1,14 @@
 import { useRef, useState } from 'react'
 import { View, Text, Button } from '@tarojs/components'
 import Taro, { useDidHide, useDidShow, useRouter, useUnload } from '@tarojs/taro'
-import { request } from '../../lib/api'
-import { errorText, failReasonAction, failReasonText } from '../../lib/messages'
+import { ApiError, request } from '../../lib/api'
+import { errorText, failReasonAction, failReasonText, pageStatusText } from '../../lib/messages'
 import {
   answerKeyAction,
   assignmentHints,
   bottomActions,
   isFinished,
+  orderPages,
   progressText,
 } from '../../lib/progress'
 import { subjectsForGrade } from '../../lib/subjects'
@@ -31,6 +32,7 @@ export default function AssignmentHome() {
   const seq = useRef(0)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loaded = useRef(false)
+  const busy = useRef(new Set<number>())
 
   const stopPolling = () => {
     seq.current++ // any in-flight response is now stale
@@ -64,7 +66,9 @@ export default function AssignmentHome() {
       if (!isFinished(prog)) schedule()
     } catch (e) {
       if (mine !== seq.current) return
-      if (!loaded.current) {
+      if (!loaded.current && e instanceof ApiError && e.status === 404) {
+        setState('notfound')
+      } else if (!loaded.current) {
         Taro.showToast({ title: errorText(e), icon: 'none' })
         setState('error')
       } else {
@@ -119,16 +123,23 @@ export default function AssignmentHome() {
   }
 
   const retryPage = async (pageId: number) => {
-    if (busyPages.includes(pageId)) return
-    setBusyPages((b) => [...b, pageId])
+    if (busy.current.has(pageId)) return
+    busy.current.add(pageId)
+    setBusyPages([...busy.current])
     try {
       await request('POST', `/api/pages/${pageId}:retry`)
     } catch (e) {
-      Taro.showToast({ title: errorText(e), icon: 'none' })
-    } finally {
-      setBusyPages((b) => b.filter((id) => id !== pageId))
+      // 409: it is already being retried, nothing to tell the teacher
+      if (!(e instanceof ApiError && e.status === 409)) {
+        Taro.showToast({ title: errorText(e), icon: 'none' })
+      }
     }
-    void refresh()
+    try {
+      await refresh()
+    } finally {
+      busy.current.delete(pageId)
+      setBusyPages([...busy.current])
+    }
   }
 
   if (state === 'loading') {
@@ -151,9 +162,13 @@ export default function AssignmentHome() {
   if (state === 'error' || !assignment || !progress) {
     return (
       <View className='page'>
-        <Text className='label' onClick={retryLoad}>
-          加载失败，点这里重试
-        </Text>
+        <Text className='label'>加载失败，请检查网络后重试</Text>
+        <Button className='big-btn' onClick={retryLoad}>
+          重新加载
+        </Button>
+        <Button className='big-btn ghost-btn' style={{ marginTop: '16px' }} onClick={back}>
+          返回
+        </Button>
       </View>
     )
   }
@@ -187,9 +202,14 @@ export default function AssignmentHome() {
 
       <View className='card'>
         <Text style={{ fontSize: '34px', display: 'block' }}>{text.pages}</Text>
-        <Text className='label' style={{ marginTop: '8px' }}>
-          {text.students}
-        </Text>
+        {progress.failed > 0 ? (
+          <Text style={{ color: '#d93025', display: 'block', marginTop: '8px' }}>{progress.failed} 张没批成</Text>
+        ) : null}
+        {rosterSize > 0 ? (
+          <Text className='label' style={{ marginTop: '8px' }}>
+            {text.students}
+          </Text>
+        ) : null}
         {hints.map((h) => (
           <Text key={h} className='label' style={{ color: '#8a6100' }}>
             {h}
@@ -208,7 +228,7 @@ export default function AssignmentHome() {
       {pages.length === 0 ? (
         <Text className='label'>还没有拍卷子，点下面的“开始拍卷”</Text>
       ) : (
-        pages.map((p) => {
+        orderPages(pages).map((p) => {
           const action = p.status === 'failed' ? failReasonAction(p.fail_reason) : null
           return (
             <View className='card' key={p.page_id}>
@@ -216,8 +236,11 @@ export default function AssignmentHome() {
                 <Text style={{ fontWeight: 'bold' }}>
                   第 {p.seq} 张　{p.student_name ?? '未识别'}
                 </Text>
-                <Text className='label' style={{ marginBottom: 0 }}>
-                  {p.status === 'queued' ? '排队中' : p.status === 'processing' ? '批改中' : p.status === 'done' ? '已批完' : '没批成'}
+                <Text
+                  className='label'
+                  style={{ marginBottom: 0, color: p.status === 'failed' ? '#d93025' : undefined }}
+                >
+                  {pageStatusText(p.status)}
                 </Text>
               </View>
               {p.status === 'failed' ? (

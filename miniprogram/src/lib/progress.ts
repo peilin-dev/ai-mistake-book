@@ -1,4 +1,4 @@
-import type { AssignmentOut, ProgressOut, SubmissionOut } from './types'
+import type { PageOut, AssignmentOut, ProgressOut, SubmissionOut } from './types'
 
 export function isFinished(progress: ProgressOut): boolean {
   return progress.total > 0 && progress.queued + progress.processing === 0
@@ -37,4 +37,9 @@ export function bottomActions(
   submissionCount: number,
 ): { review: number; results: boolean } {
   return { review: p.needs_review > 0 ? p.needs_review : 0, results: submissionCount > 0 }
+}
+/** Failed pages first (easy to find in a long list), then the rest in seq order. */
+export function orderPages(pages: PageOut[]): PageOut[] {
+  const bySeq = [...pages].sort((a, b) => a.seq - b.seq)
+  return [...bySeq.filter((p) => p.status === 'failed'), ...bySeq.filter((p) => p.status !== 'failed')]
 }

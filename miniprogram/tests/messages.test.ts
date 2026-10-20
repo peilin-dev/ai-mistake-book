@@ -1,9 +1,9 @@
-﻿import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@tarojs/taro', () => ({ default: {} }))
 
 import { ApiError } from '../src/lib/api'
-import { errorText, failReasonAction, failReasonText } from '../src/lib/messages'
+import { errorText, failReasonAction, failReasonText, pageStatusText } from '../src/lib/messages'
 
 describe('failReasonText / failReasonAction', () => {
   it('maps known reasons', () => {
@@ -51,3 +51,12 @@ describe('errorText', () => {
   })
 })
 
+
+describe('pageStatusText', () => {
+  it('maps page statuses', () => {
+    expect(pageStatusText('queued')).toBe('排队中')
+    expect(pageStatusText('processing')).toBe('批改中')
+    expect(pageStatusText('done')).toBe('已批完')
+    expect(pageStatusText('failed')).toBe('没批成')
+  })
+})

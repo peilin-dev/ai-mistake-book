@@ -38,3 +38,15 @@ export function errorText(e: unknown): string {
 }
 
 
+export function pageStatusText(status: string): string {
+  switch (status) {
+    case 'queued':
+      return '排队中'
+    case 'processing':
+      return '批改中'
+    case 'done':
+      return '已批完'
+    default:
+      return '没批成'
+  }
+}
