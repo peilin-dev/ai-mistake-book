@@ -22,7 +22,9 @@ describe('failReasonText / failReasonAction', () => {
     expect(failReasonAction('unreadable')).toBe('retake')
     expect(failReasonAction('model_output_invalid')).toBe('retake')
     expect(failReasonAction('weird')).toBe('retake')
-    expect(failReasonAction(null)).toBeNull()
+  })
+  it('a failed page with no reason can still be re-shot', () => {
+    expect(failReasonAction(null)).toBe('retake')
   })
 })
 
@@ -33,6 +35,18 @@ describe('errorText', () => {
     expect(errorText(new ApiError(409, '已有成绩的学生不能删除，可以改名'))).toBe(
       '已有成绩的学生不能删除，可以改名',
     )
+  })
+  it('uses backend Chinese detail for 422/502 (answer key)', () => {
+    expect(errorText(new ApiError(422, '未识别到题目'))).toBe('未识别到题目')
+    expect(errorText(new ApiError(502, '答案卷识别失败，请重拍'))).toBe('答案卷识别失败，请重拍')
+  })
+  it('never shows technical 422/502 detail', () => {
+    expect(errorText(new ApiError(422, '[{"loc":["body"],"msg":"field required"}]'))).toBe('出了点问题，请稍后再试')
+    expect(errorText(new ApiError(422, 'score must be between 0 and max_score'))).toBe('出了点问题，请稍后再试')
+    expect(errorText(new ApiError(502, ''))).toBe('出了点问题，请稍后再试')
+  })
+  it('401 after the silent re-login failed', () => {
+    expect(errorText(new ApiError(401, 'login failed'))).toBe('登录已过期，请重新打开小程序')
   })
   it('413 and 415 have their own copy', () => {
     expect(errorText(new ApiError(413, ''))).toBe('照片太大了，请重拍这张')

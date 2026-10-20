@@ -17,10 +17,12 @@ export function failReasonText(reason: string | null): string {
   }
 }
 
-export function failReasonAction(reason: string | null): FailAction | null {
-  if (reason === null) return null
-  return RETRY_REASONS.includes(reason) ? 'retry' : 'retake'
+/** What a failed page offers; one with no recorded reason is re-shot. */
+export function failReasonAction(reason: string | null): FailAction {
+  return reason !== null && RETRY_REASONS.includes(reason) ? 'retry' : 'retake'
 }
+
+const CJK = /[一-鿿]/
 
 export function isNetworkError(e: unknown): boolean {
   if (e instanceof ApiError) return e.status === 0
@@ -31,6 +33,11 @@ export function isNetworkError(e: unknown): boolean {
 
 export function errorText(e: unknown): string {
   if (e instanceof ApiError && [409, 429, 503].includes(e.status) && e.detail) return e.detail
+  // Answer-key errors ("未识别到题目", "答案卷识别失败，请重拍"); validation noise stays hidden.
+  if (e instanceof ApiError && [422, 502].includes(e.status) && CJK.test(e.detail) && !/^[[{]/.test(e.detail)) {
+    return e.detail
+  }
+  if (e instanceof ApiError && e.status === 401) return '登录已过期，请重新打开小程序'
   if (e instanceof ApiError && e.status === 413) return '照片太大了，请重拍这张'
   if (e instanceof ApiError && e.status === 415) return '这不是照片，请重拍这张'
   if (isNetworkError(e)) return '网络不太好，请稍后再试'
