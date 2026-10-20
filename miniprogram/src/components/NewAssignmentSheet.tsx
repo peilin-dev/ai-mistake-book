@@ -33,7 +33,8 @@ export default function NewAssignmentSheet({ classId, grade, lastSubject, onClos
         subject,
         title: finalTitle,
       })
-      void Taro.redirectTo({ url: `/pages/assignment/index?assignmentId=${a.id}` })
+      onClose()
+      void Taro.navigateTo({ url: `/pages/assignment/index?assignmentId=${a.id}` })
     } catch (e) {
       Taro.showToast({ title: errorText(e), icon: 'none' })
       submitting.current = false

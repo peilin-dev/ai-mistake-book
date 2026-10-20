@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { View, Text, Button } from '@tarojs/components'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { request } from '../../lib/api'
@@ -13,34 +13,55 @@ interface Row {
   progress: ProgressOut | null
 }
 
+type LoadState = 'loading' | 'ok' | 'error' | 'notfound'
+
 export default function ClassDetail() {
   const classId = Number(useRouter().params.classId)
+  const validId = Number.isInteger(classId) && classId > 0
+  const [state, setState] = useState<LoadState>(validId ? 'loading' : 'notfound')
   const [cls, setCls] = useState<ClassOut | null>(null)
-  const [rows, setRows] = useState<Row[] | null>(null)
+  const [rows, setRows] = useState<Row[]>([])
   const [lastSubject, setLastSubject] = useState<string | null>(null)
   const [sheet, setSheet] = useState(false)
+  const loadSeq = useRef(0)
 
   const load = async () => {
+    if (!validId) return
+    const seq = ++loadSeq.current
     try {
       const [classes, me, assignments] = await Promise.all([
         request<ClassOut[]>('GET', '/api/classes'),
         request<{ last_subject: string | null }>('GET', '/api/me').catch(() => null),
         request<AssignmentOut[]>('GET', `/api/classes/${classId}/assignments`),
       ])
-      setCls(classes.find((c) => c.id === classId) ?? null)
+      if (seq !== loadSeq.current) return
+      const found = classes.find((c) => c.id === classId) ?? null
+      setCls(found)
       setLastSubject(me ? me.last_subject : null)
-      const next = await Promise.all(
-        assignments.map(async (assignment) => ({
+      if (!found) {
+        setState('notfound')
+        return
+      }
+      // Show the list now; progress pills fill in as each request returns.
+      setRows((old) =>
+        assignments.map((assignment) => ({
           assignment,
-          progress: await request<ProgressOut>('GET', `/api/assignments/${assignment.id}/progress`).catch(
-            () => null,
-          ),
+          progress: old.find((r) => r.assignment.id === assignment.id)?.progress ?? null,
         })),
       )
-      setRows(next)
+      setState('ok')
+      assignments.forEach((assignment) => {
+        request<ProgressOut>('GET', `/api/assignments/${assignment.id}/progress`)
+          .then((progress) => {
+            if (seq !== loadSeq.current) return
+            setRows((old) => old.map((r) => (r.assignment.id === assignment.id ? { ...r, progress } : r)))
+          })
+          .catch(() => undefined)
+      })
     } catch (e) {
+      if (seq !== loadSeq.current) return
       Taro.showToast({ title: errorText(e), icon: 'none' })
-      setRows((old) => old ?? [])
+      setState((old) => (old === 'ok' ? 'ok' : 'error'))
     }
   }
 
@@ -48,6 +69,13 @@ export default function ClassDetail() {
     void load()
   })
 
+  const retry = () => {
+    setState('loading')
+    void load()
+  }
+  const toClassList = () => {
+    void Taro.reLaunch({ url: '/pages/index/index' })
+  }
   const openRoster = () => {
     void Taro.navigateTo({ url: `/pages/class-edit/index?classId=${classId}` })
   }
@@ -55,10 +83,29 @@ export default function ClassDetail() {
     void Taro.navigateTo({ url: `/pages/assignment/index?assignmentId=${id}` })
   }
 
-  if (rows === null) {
+  if (state === 'loading') {
     return (
       <View className='page'>
         <Text className='label'>加载中…</Text>
+      </View>
+    )
+  }
+  if (state === 'notfound') {
+    return (
+      <View className='page'>
+        <Text className='label'>找不到这个班级</Text>
+        <Button className='big-btn' onClick={toClassList}>
+          回到班级列表
+        </Button>
+      </View>
+    )
+  }
+  if (state === 'error') {
+    return (
+      <View className='page'>
+        <Text className='label' onClick={retry}>
+          加载失败，点这里重试
+        </Text>
       </View>
     )
   }
@@ -87,7 +134,7 @@ export default function ClassDetail() {
         })
       )}
       <View className='bottom-bar'>
-        <Button className='big-btn' disabled={!cls} onClick={() => setSheet(true)}>
+        <Button className='big-btn' onClick={() => setSheet(true)}>
           新建作业
         </Button>
       </View>
