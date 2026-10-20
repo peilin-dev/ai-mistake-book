@@ -18,6 +18,7 @@ if ENV_TEST.exists():
 
 from app.config import Settings, set_settings  # noqa: E402
 from app.db import Base  # noqa: E402
+from app.auth.wechat import WeChatAuthError, WxSession, get_wechat_client  # noqa: E402
 from app.deps import get_db  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.models import Assignment, Class_, Subject, Teacher  # noqa: E402
@@ -64,14 +65,30 @@ async def db(settings):
     await engine.dispose()
 
 
+class FakeWeChatClient:
+    def __init__(self) -> None:
+        self.sessions: dict[str, WxSession] = {}
+
+    async def code2session(self, code: str) -> WxSession:
+        if code not in self.sessions:
+            raise WeChatAuthError("invalid code")
+        return self.sessions[code]
+
+
+@pytest.fixture
+def fake_wx():
+    return FakeWeChatClient()
+
+
 @pytest_asyncio.fixture
-async def client(db, settings):
+async def client(db, settings, fake_wx):
     app = create_app()
 
     async def _get_db():
         yield db
 
     app.dependency_overrides[get_db] = _get_db
+    app.dependency_overrides[get_wechat_client] = lambda: fake_wx
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
         yield c

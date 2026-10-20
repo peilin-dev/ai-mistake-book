@@ -6,7 +6,7 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = "mysql+aiomysql://root:@localhost:3306/cuotiben"
     REDIS_URL: str = "redis://localhost:6379/0"
-    JWT_SECRET: str = "dev-secret-change-me"
+    JWT_SECRET: str = "dev-secret-change-me-please-0123456789"
     JWT_EXPIRE_DAYS: int = 7
     WX_APPID: str = ""
     WX_SECRET: str = ""
