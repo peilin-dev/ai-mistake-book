@@ -128,7 +128,7 @@ async def _write_phase(
         select(Student.id, Student.name).where(Student.class_id == ctx.class_id))]
     match = match_student(name, roster, await _previous_student(db, page), settings.NAME_MATCH_THRESHOLD)
     page.student_id, page.recognized_name = match.student_id, name
-    old_submissions, old_crops = await _clear_results(db, page_id)
+    old_submissions, old_crops = await clear_page_results(db, page_id)
     submission_id = await get_or_create_submission(db, ctx.assignment_id, match.student_id)
 
     rows = []
@@ -222,7 +222,7 @@ async def attach_following_pages(db: AsyncSession, page: Page, submission_id: in
         seq += 1
 
 
-async def _clear_results(db: AsyncSession, page_id: int) -> tuple[set[int | None], list[str]]:
+async def clear_page_results(db: AsyncSession, page_id: int) -> tuple[set[int | None], list[str]]:
     """Delete this page's previous results (job retries); return their submissions and crops."""
     old = (await db.execute(
         select(QuestionResult.submission_id, QuestionResult.crop_key).where(QuestionResult.page_id == page_id)

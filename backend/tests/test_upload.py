@@ -333,3 +333,90 @@ async def test_non_ascii_signature_is_403(client, storage):
     await storage.put("a/b.jpg", b"DATA", "image/jpeg")
     r = await client.get("/api/files/a/b.jpg", params={"expires": 9999999999, "sig": "签名"})
     assert r.status_code == 403
+
+
+# --- replace a failed page (M3 Task 2) ---
+from tests.conftest import count_results, storage_exists  # noqa: E402
+
+
+async def test_replace_failed_page_keeps_seq(auth_client, failed_page, make_jpeg, enqueued, db):
+    seq = failed_page.seq
+    r = await auth_client.post(f"/api/pages/{failed_page.id}:replace",
+                               files={"file": ("n.jpg", make_jpeg(9), "image/jpeg")})
+    body = r.json()
+    assert r.status_code == 200 and body["seq"] == seq and body["status"] == "queued"
+    assert body["duplicate"] is False and body["page_id"] == failed_page.id
+    assert enqueued[-1] == failed_page.id
+    await db.refresh(failed_page)
+    assert failed_page.status.value == "queued" and failed_page.fail_reason is None
+    assert failed_page.retry_count == 1 and failed_page.original_deleted_at is None
+    assert failed_page.student_id is None and failed_page.recognized_name is None
+
+
+async def test_replace_swaps_original_file(auth_client, failed_page, make_jpeg, storage, db, enqueued):
+    r = await auth_client.post(f"/api/pages/{failed_page.id}:replace",
+                               files={"file": ("n.png", make_jpeg(9), "image/jpeg")})
+    assert r.status_code == 200
+    await db.refresh(failed_page)
+    assert await storage_exists(storage, failed_page.image_key)
+    assert failed_page.image_key.endswith(f"/{failed_page.id}.jpg")
+
+
+async def test_replace_only_failed_pages(auth_client, uploaded_page, make_jpeg):
+    r = await auth_client.post(f"/api/pages/{uploaded_page.id}:replace",
+                               files={"file": ("n.jpg", make_jpeg(9), "image/jpeg")})
+    assert r.status_code == 409 and r.json()["detail"] == "只有失败的卷子可以重拍"
+
+
+async def test_replace_with_existing_photo_409(auth_client, failed_page, second_page_bytes):
+    r = await auth_client.post(f"/api/pages/{failed_page.id}:replace",
+                               files={"file": ("n.jpg", second_page_bytes, "image/jpeg")})
+    assert r.status_code == 409 and r.json()["detail"] == "这张照片已经传过了"
+
+
+async def test_replace_foreign_page_404(auth_client, other_teacher_failed_page, make_jpeg):
+    r = await auth_client.post(f"/api/pages/{other_teacher_failed_page.id}:replace",
+                               files={"file": ("n.jpg", make_jpeg(9), "image/jpeg")})
+    assert r.status_code == 404
+
+
+async def test_replace_missing_page_404(auth_client, make_jpeg):
+    r = await auth_client.post("/api/pages/999999:replace",
+                               files={"file": ("n.jpg", make_jpeg(9), "image/jpeg")})
+    assert r.status_code == 404
+
+
+async def test_replace_rejects_non_image_415(auth_client, failed_page):
+    r = await auth_client.post(f"/api/pages/{failed_page.id}:replace",
+                               files={"file": ("n.txt", b"hello world", "text/plain")})
+    assert r.status_code == 415
+
+
+async def test_replace_quota_exhausted_429(auth_client, failed_page, make_jpeg, monkeypatch):
+    from app.assignments import router as r_mod
+    from app.quota.service import QuotaExceeded
+
+    async def boom(db, teacher_id):
+        raise QuotaExceeded()
+
+    monkeypatch.setattr(r_mod, "check_quota", boom)
+    r = await auth_client.post(f"/api/pages/{failed_page.id}:replace",
+                               files={"file": ("n.jpg", make_jpeg(9), "image/jpeg")})
+    assert r.status_code == 429 and r.json()["detail"] == "本月批改额度已用完"
+
+
+async def test_replace_clears_old_results(auth_client, failed_page_with_results, make_jpeg, db, storage, enqueued):
+    from sqlalchemy import select
+    from app.models import QuestionResult, Submission
+    page = failed_page_with_results
+    crop_keys = [k for k in (await db.execute(
+        select(QuestionResult.crop_key).where(QuestionResult.page_id == page.id))).scalars()]
+    r = await auth_client.post(f"/api/pages/{page.id}:replace",
+                               files={"file": ("n.png", make_jpeg(9), "image/jpeg")})
+    assert r.status_code == 200
+    assert await count_results(db, page.id) == 0
+    sub = (await db.execute(select(Submission))).scalar_one()
+    await db.refresh(sub)
+    assert sub.total_score == 0 and sub.needs_review_count == 0
+    for key in crop_keys:
+        assert not await storage_exists(storage, key)

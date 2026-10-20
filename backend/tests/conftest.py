@@ -1,4 +1,4 @@
-﻿import asyncio
+import asyncio
 import os
 from pathlib import Path
 
@@ -227,7 +227,7 @@ def enqueued(app) -> list[int]:
     """page_ids received by the (overridden) enqueue dependency."""
     calls: list[int] = []
 
-    async def _enqueue(page_id: int) -> None:
+    async def _enqueue(page_id: int, retry: int = 0) -> None:
         calls.append(page_id)
 
     app.dependency_overrides[get_enqueuer] = lambda: _enqueue
@@ -522,3 +522,83 @@ async def page_factory(db, storage, make_assignment):
     return _make
 
 
+
+
+# --- M3 Task 2 fixtures ---
+import hashlib as _hashlib  # noqa: E402
+
+from sqlalchemy import func as _func, select as _select  # noqa: E402
+
+
+async def count_results(db, page_id: int) -> int:
+    return (await db.execute(
+        _select(_func.count()).select_from(QuestionResult).where(QuestionResult.page_id == page_id)
+    )).scalar_one()
+
+
+@pytest_asyncio.fixture
+async def failed_page_factory(db, storage, my_assignment, teacher):
+    """Factory: a failed Page of my_assignment (original stored), optionally with old results."""
+    seq_counter = 0
+
+    async def _make(reason: str = "unreadable", with_results: bool = False) -> Page:
+        nonlocal seq_counter
+        seq_counter += 1
+        data = paper_jpeg(seed=100 + seq_counter)
+        page = Page(assignment_id=my_assignment.id, seq=seq_counter, image_key="",
+                    image_sha256=_hashlib.sha256(data).hexdigest(),
+                    status=PageStatus.failed, fail_reason=reason)
+        db.add(page)
+        await db.flush()
+        page.image_key = f"originals/{teacher.id}/{my_assignment.id}/{page.id}.jpg"
+        await storage.put(page.image_key, data, "image/jpeg")
+        if with_results:
+            student = Student(class_id=my_assignment.class_id, name="张三")
+            db.add(student)
+            await db.flush()
+            sub = Submission(assignment_id=my_assignment.id, student_id=student.id, total_score=2)
+            db.add(sub)
+            await db.flush()
+            page.student_id, page.recognized_name = student.id, "张三"
+            for no in ("1", "2"):
+                key = f"crops/{teacher.id}/{my_assignment.id}/old-{page.id}-{no}.jpg"
+                await storage.put(key, paper_jpeg(50, 50), "image/jpeg")
+                db.add(make_result(page.id, sub.id, no, crop_key=key))
+        await db.commit()
+        return page
+
+    return _make
+
+
+@pytest_asyncio.fixture
+async def failed_page(failed_page_factory) -> Page:
+    return await failed_page_factory("unreadable")
+
+
+@pytest_asyncio.fixture
+async def failed_page_with_results(failed_page_factory) -> Page:
+    return await failed_page_factory("unreadable", with_results=True)
+
+
+@pytest_asyncio.fixture
+async def second_page_bytes(db, storage, my_assignment, teacher, failed_page) -> bytes:
+    """Original bytes of another page of the same assignment."""
+    data = paper_jpeg(seed=200)
+    page = Page(assignment_id=my_assignment.id, seq=failed_page.seq + 1, image_key="",
+                image_sha256=_hashlib.sha256(data).hexdigest(), status=PageStatus.done)
+    db.add(page)
+    await db.flush()
+    page.image_key = f"originals/{teacher.id}/{my_assignment.id}/{page.id}.jpg"
+    await storage.put(page.image_key, data, "image/jpeg")
+    await db.commit()
+    return data
+
+
+@pytest_asyncio.fixture
+async def other_teacher_failed_page(db, make_assignment) -> Page:
+    a = await make_assignment()
+    page = Page(assignment_id=a.id, seq=1, image_key="originals/x/y/1.jpg", image_sha256="foreign",
+                status=PageStatus.failed, fail_reason="unreadable")
+    db.add(page)
+    await db.commit()
+    return page

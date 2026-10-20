@@ -18,7 +18,7 @@ from app.config import get_settings
 from app.deps import current_teacher, get_db
 from app.ai.base import VisionModel
 from app.grading.answer_key import AnswerKeyItem, extract_answer_key, get_answer_key_model
-from app.grading.pipeline import lock_assignment
+from app.grading.pipeline import clear_page_results, lock_assignment, recompute_submission
 from app.models import (
     AnswerItem,
     AnswerKeyStatus,
@@ -356,6 +356,87 @@ async def upload_page(
     await _enqueue_or_503(enqueue, page_id)  # page stays queued; a re-upload retries
     response.status_code = 201
     return PageUploadOut(page_id=page_id, seq=seq, status=PageStatus.queued, duplicate=False)
+
+
+@router.post("/pages/{page_id}:replace", response_model=PageUploadOut)
+async def replace_page(
+    page_id: int,
+    file: UploadFile,
+    teacher: Teacher = Depends(current_teacher),
+    db: AsyncSession = Depends(get_db),
+    storage: Storage = Depends(get_storage),
+    enqueue: EnqueueGradePage = Depends(get_enqueuer),
+):
+    """Retake a failed page in place: same seq, old results and files dropped, graded again."""
+    assignment_id = (await db.execute(select(Page.assignment_id).where(Page.id == page_id))).scalar_one_or_none()
+    if assignment_id is None:
+        raise HTTPException(status_code=404, detail="page not found")
+    try:
+        await own_assignment(db, teacher, assignment_id)
+    except HTTPException:
+        raise HTTPException(status_code=404, detail="page not found") from None
+    teacher_id = teacher.id  # plain local: ORM attrs expire after a rollback
+    data = await read_limited(file)
+    kind = sniff_image(data)
+    if kind is None:
+        raise HTTPException(status_code=415, detail="only JPEG/PNG/HEIC images are accepted")
+    ext, content_type = kind
+    sha = hashlib.sha256(data).hexdigest()
+
+    await lock_assignment(db, assignment_id)
+    page = (
+        await db.execute(select(Page).where(Page.id == page_id).execution_options(populate_existing=True))
+    ).scalar_one_or_none()
+    if page is None:  # deleted while we waited for the lock
+        await db.rollback()
+        raise HTTPException(status_code=404, detail="page not found")
+    if page.status != PageStatus.failed:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="只有失败的卷子可以重拍")
+    clash = (
+        await db.execute(
+            select(Page.id).where(
+                Page.assignment_id == assignment_id, Page.image_sha256 == sha, Page.id != page_id
+            )
+        )
+    ).first()
+    if clash is not None:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="这张照片已经传过了")
+    try:
+        await check_quota(db, teacher_id)
+    except QuotaExceeded:
+        await db.rollback()
+        raise HTTPException(status_code=429, detail="本月批改额度已用完") from None
+
+    old_original = page.image_key
+    new_key = f"originals/{teacher_id}/{assignment_id}/{page_id}.{ext}"
+    try:
+        old_submissions, old_crops = await clear_page_results(db, page_id)
+        for sid in old_submissions - {None}:
+            await recompute_submission(db, sid)
+        await storage.put(new_key, data, content_type)
+        page.image_key, page.image_sha256 = new_key, sha
+        page.original_deleted_at = None
+        page.student_id = page.recognized_name = None
+        page.status, page.fail_reason = PageStatus.queued, None
+        page.retry_count += 1
+        seq, retry = page.seq, page.retry_count
+        await db.commit()
+    except IntegrityError:  # the same photo was uploaded concurrently
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="这张照片已经传过了") from None
+    except BaseException:
+        await db.rollback()
+        raise
+    for key in {*old_crops, old_original} - {new_key}:  # best effort; the sweeper catches leftovers
+        try:
+            await storage.delete(key)
+        except Exception:
+            log.warning("could not delete old file of replaced page %s", page_id)
+    await _enqueue_or_503(enqueue, page_id, retry)
+    return PageUploadOut(page_id=page_id, seq=seq, status=PageStatus.queued, duplicate=False)
+
 
 class AnswerKeyOut(BaseModel):
     answer_key_status: AnswerKeyStatus
