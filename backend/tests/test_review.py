@@ -188,6 +188,39 @@ async def test_review_reasons(auth_client, db, my_assignment, unmatched_page, ro
     assert review["pages_unassigned"][0]["image_url"]
 
 
+async def test_review_question_carries_page_for_fuzzy_fix(
+    auth_client, db, my_assignment, my_class, roster_zhangsan, make_done_page, storage
+):
+    from datetime import datetime
+
+    from app.models import Student
+
+    lisi = Student(class_id=my_class.id, name="李四")
+    db.add(lisi)
+    page = await make_done_page(1, roster_zhangsan.id, "张小三")
+    sub = Submission(assignment_id=my_assignment.id, student_id=roster_zhangsan.id)
+    db.add(sub)
+    await db.flush()
+    db.add(make_result(page.id, sub.id, "1", needs_review=True))
+    await db.commit()
+    pid, key, lid = page.id, page.image_key, lisi.id
+
+    item = (await auth_client.get(f"/api/assignments/{my_assignment.id}/review")).json()["questions"][0]
+    assert item["page_id"] == pid and item["recognized_name"] == "张小三"
+    assert item["image_url"] == storage.signed_url(key)
+    r = await auth_client.patch(f"/api/pages/{item['page_id']}", json={"student_id": lid})
+    assert r.status_code == 200 and r.json()["student_id"] == lid
+    assert (await auth_client.get(f"/api/assignments/{my_assignment.id}/review")).json()["questions"] == []
+
+    (await db.get(Page, pid)).student_id = roster_zhangsan.id
+    p = await db.get(Page, pid)
+    p.original_deleted_at = datetime(2026, 1, 1)
+    await db.execute(QuestionResult.__table__.update().values(needs_review=True))
+    await db.commit()
+    item = (await auth_client.get(f"/api/assignments/{my_assignment.id}/review")).json()["questions"][0]
+    assert item["image_url"] is None
+
+
 async def test_image_url_null_after_original_deleted(auth_client, db, unmatched_page):
     from datetime import datetime
 

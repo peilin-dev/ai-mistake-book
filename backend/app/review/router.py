@@ -83,7 +83,7 @@ async def review_queue(
         ).order_by(Page.seq)
     )).scalars()
     rows = (await db.execute(
-        select(QuestionResult, Page.student_id, Student.name)
+        select(QuestionResult, Page, Student.name)
         .join(Page, Page.id == QuestionResult.page_id)
         .outerjoin(Student, Student.id == Page.student_id)
         .where(
@@ -106,10 +106,14 @@ async def review_queue(
             {
                 **_question_fields(r),
                 "student_name": name,
-                "reason": _reason(student_id, r, threshold),
+                "reason": _reason(page.student_id, r, threshold),
                 "crop_url": storage.signed_url(r.crop_key) if r.crop_key else None,
+                # The page lets the teacher fix a fuzzy student match via PATCH /pages/{page_id}.
+                "page_id": page.id,
+                "recognized_name": page.recognized_name,
+                "image_url": None if page.original_deleted_at else storage.signed_url(page.image_key),
             }
-            for r, student_id, name in rows
+            for r, page, name in rows
         ],
     }
 
