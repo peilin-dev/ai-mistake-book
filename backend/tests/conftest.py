@@ -222,13 +222,22 @@ def jpeg_bytes(make_jpeg) -> bytes:
     return make_jpeg(0)
 
 
+class _Calls(list):
+    """List of enqueued page_ids; `.retries` holds the matching retry arguments."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.retries: list[int] = []
+
+
 @pytest.fixture
 def enqueued(app) -> list[int]:
     """page_ids received by the (overridden) enqueue dependency."""
-    calls: list[int] = []
+    calls: _Calls = _Calls()
 
     async def _enqueue(page_id: int, retry: int = 0) -> None:
         calls.append(page_id)
+        calls.retries.append(retry)
 
     app.dependency_overrides[get_enqueuer] = lambda: _enqueue
     return calls

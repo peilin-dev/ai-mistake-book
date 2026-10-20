@@ -346,20 +346,35 @@ async def test_replace_failed_page_keeps_seq(auth_client, failed_page, make_jpeg
     body = r.json()
     assert r.status_code == 200 and body["seq"] == seq and body["status"] == "queued"
     assert body["duplicate"] is False and body["page_id"] == failed_page.id
-    assert enqueued[-1] == failed_page.id
+    assert enqueued[-1] == failed_page.id and enqueued.retries[-1] == 1
     await db.refresh(failed_page)
     assert failed_page.status.value == "queued" and failed_page.fail_reason is None
     assert failed_page.retry_count == 1 and failed_page.original_deleted_at is None
     assert failed_page.student_id is None and failed_page.recognized_name is None
 
 
-async def test_replace_swaps_original_file(auth_client, failed_page, make_jpeg, storage, db, enqueued):
-    r = await auth_client.post(f"/api/pages/{failed_page.id}:replace",
-                               files={"file": ("n.png", make_jpeg(9), "image/jpeg")})
+async def test_replace_swaps_original_file(auth_client, failed_page_with_results, storage, db, enqueued):
+    import io
+    from PIL import Image
+    from sqlalchemy import select
+    from app.models import QuestionResult
+    page = failed_page_with_results
+    old_key = page.image_key
+    assert old_key.endswith(".jpg")
+    crop_keys = list((await db.execute(
+        select(QuestionResult.crop_key).where(QuestionResult.page_id == page.id))).scalars())
+    assert crop_keys and all([await storage_exists(storage, k) for k in crop_keys])
+    buf = io.BytesIO()
+    Image.new("RGB", (16, 16), (1, 2, 3)).save(buf, format="PNG")
+    png = buf.getvalue()
+    r = await auth_client.post(f"/api/pages/{page.id}:replace", files={"file": ("n.png", png, "image/png")})
     assert r.status_code == 200
-    await db.refresh(failed_page)
-    assert await storage_exists(storage, failed_page.image_key)
-    assert failed_page.image_key.endswith(f"/{failed_page.id}.jpg")
+    await db.refresh(page)
+    assert page.image_key.endswith(f"/{page.id}.png")
+    assert not await storage_exists(storage, old_key)
+    assert await storage.get(page.image_key) == png
+    for k in crop_keys:
+        assert not await storage_exists(storage, k)
 
 
 async def test_replace_only_failed_pages(auth_client, uploaded_page, make_jpeg):
@@ -392,17 +407,11 @@ async def test_replace_rejects_non_image_415(auth_client, failed_page):
     assert r.status_code == 415
 
 
-async def test_replace_quota_exhausted_429(auth_client, failed_page, make_jpeg, monkeypatch):
-    from app.assignments import router as r_mod
-    from app.quota.service import QuotaExceeded
-
-    async def boom(db, teacher_id):
-        raise QuotaExceeded()
-
-    monkeypatch.setattr(r_mod, "check_quota", boom)
+async def test_replace_is_quota_neutral(auth_client, failed_page, make_jpeg, settings, enqueued):
+    settings.MONTHLY_PAGE_QUOTA = 1  # the failed page already used the whole quota
     r = await auth_client.post(f"/api/pages/{failed_page.id}:replace",
                                files={"file": ("n.jpg", make_jpeg(9), "image/jpeg")})
-    assert r.status_code == 429 and r.json()["detail"] == "本月批改额度已用完"
+    assert r.status_code == 200 and r.json()["status"] == "queued"
 
 
 async def test_replace_clears_old_results(auth_client, failed_page_with_results, make_jpeg, db, storage, enqueued):

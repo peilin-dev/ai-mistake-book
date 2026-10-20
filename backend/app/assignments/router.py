@@ -403,11 +403,7 @@ async def replace_page(
     if clash is not None:
         await db.rollback()
         raise HTTPException(status_code=409, detail="这张照片已经传过了")
-    try:
-        await check_quota(db, teacher_id)
-    except QuotaExceeded:
-        await db.rollback()
-        raise HTTPException(status_code=429, detail="本月批改额度已用完") from None
+    # Quota-neutral: a replace adds no Page row, and the failed page was counted at its first upload.
 
     old_original = page.image_key
     new_key = f"originals/{teacher_id}/{assignment_id}/{page_id}.{ext}"
