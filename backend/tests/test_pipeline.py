@@ -12,7 +12,7 @@ from app.ai.fake import FakeModel
 from app.grading.crop import crop, prepare_image
 from app.grading.pipeline import grade_page
 from app.grading.prompts import build_grading_prompt
-from app.db import make_engine as make_worker_engine
+from app.db import make_engine
 from app.jobs.worker import WorkerSettings, grade_page_job
 from app.models import KnowledgePoint, Page, QuestionResult, Student, Submission, Subject, UsageRecord
 from tests.conftest import graded, q
@@ -207,7 +207,7 @@ async def test_crop_key_and_content(db, storage, uploaded_page, roster_zhangsan,
 
 @pytest.fixture
 async def job_ctx(settings, storage):
-    engine = make_worker_engine(settings.DATABASE_URL)
+    engine = make_engine(settings.DATABASE_URL)
     ctx = {"sessionmaker": async_sessionmaker(engine, expire_on_commit=False), "storage": storage}
     yield ctx
     await engine.dispose()
@@ -326,7 +326,7 @@ def test_prompt_without_answer_key_asks_model_to_solve():
 
 @pytest.fixture
 async def rc_sessionmaker(settings):
-    engine = make_worker_engine(settings.DATABASE_URL)
+    engine = make_engine(settings.DATABASE_URL)
     yield async_sessionmaker(engine, expire_on_commit=False)
     await engine.dispose()
 

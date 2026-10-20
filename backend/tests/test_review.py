@@ -209,7 +209,8 @@ async def test_read_after_lock_sees_concurrent_commit(db, settings, unmatched_pa
     pid, aid = unmatched_page.id, unmatched_page.assignment_id
     await db.execute(update(Page).where(Page.id == pid).values(status=PageStatus.processing))
     await db.commit()
-    assert (await db.get(Page, pid)).status == PageStatus.processing  # A's first read
+    # a real consistent read (establishes the InnoDB snapshot under REPEATABLE READ)
+    assert (await db.execute(select(Page.status).where(Page.id == pid))).scalar() == PageStatus.processing
     engine = make_engine(settings.DATABASE_URL)
     async with async_sessionmaker(engine)() as b:
         await b.execute(update(Page).where(Page.id == pid).values(status=PageStatus.done))
