@@ -2,6 +2,6 @@
 __pycache__/
 .env
 .env.*
-storage/
+/backend/storage/
 *.egg-info/
 .pytest_cache/

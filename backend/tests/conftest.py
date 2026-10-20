@@ -184,3 +184,58 @@ async def make_assignment(db):
         return a
 
     return _make
+
+
+# --- Task 6 fixtures ---
+import io  # noqa: E402
+
+from PIL import Image  # noqa: E402
+
+from app.assignments.router import get_enqueuer  # noqa: E402
+from app.storage.base import get_storage  # noqa: E402
+from app.storage.local import LocalStorage  # noqa: E402
+
+
+@pytest_asyncio.fixture
+async def my_assignment(db, my_class) -> Assignment:
+    a = Assignment(class_id=my_class.id, subject=Subject.math, title="math hw")
+    db.add(a)
+    await db.commit()
+    return a
+
+
+@pytest.fixture
+def make_jpeg():
+    """Factory: valid JPEGs whose bytes differ per n."""
+
+    def _make(n: int = 0) -> bytes:
+        img = Image.new("RGB", (16, 16), (n * 37 % 256, n * 91 % 256, (n * 53 + 10) % 256))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG")
+        return buf.getvalue()
+
+    return _make
+
+
+@pytest.fixture
+def jpeg_bytes(make_jpeg) -> bytes:
+    return make_jpeg(0)
+
+
+@pytest.fixture
+def enqueued(app) -> list[int]:
+    """page_ids received by the (overridden) enqueue dependency."""
+    calls: list[int] = []
+
+    async def _enqueue(page_id: int) -> None:
+        calls.append(page_id)
+
+    app.dependency_overrides[get_enqueuer] = lambda: _enqueue
+    return calls
+
+
+@pytest.fixture
+def storage(app, settings) -> LocalStorage:
+    s = LocalStorage(Path(settings.STORAGE_DIR))
+    app.dependency_overrides[get_storage] = lambda: s
+    return s

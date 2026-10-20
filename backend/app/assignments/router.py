@@ -1,8 +1,11 @@
+import hashlib
+from collections.abc import Awaitable, Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile
 from pydantic import BaseModel, ConfigDict, StringConstraints
 from sqlalchemy import case, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.assignments.access import own_assignment
@@ -17,6 +20,8 @@ from app.models import (
     Subject,
     Teacher,
 )
+from app.quota.service import QuotaExceeded, check_quota
+from app.storage.base import Storage, get_storage
 
 router = APIRouter(tags=["assignments"])
 
@@ -117,3 +122,113 @@ async def assignment_progress(
         failed=failed,
         needs_review=needs_review,
     )
+
+
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+HEIC_BRANDS = {b"heic", b"heix", b"heim", b"heis", b"mif1", b"msf1"}
+
+EnqueueGradePage = Callable[[int], Awaitable[None]]
+
+
+def get_enqueuer() -> EnqueueGradePage:
+    async def enqueue_grade_page(page_id: int) -> None:
+        # PLACEHOLDER: Task 10 replaces this with an arq enqueue.
+        return None
+
+    return enqueue_grade_page
+
+
+def sniff_image(data: bytes) -> tuple[str, str] | None:
+    """(extension, content_type) decided by magic bytes, never by client metadata."""
+    if data.startswith(b"\xff\xd8\xff"):
+        return "jpg", "image/jpeg"
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png", "image/png"
+    if data[4:8] == b"ftyp" and data[8:12] in HEIC_BRANDS:
+        return "heic", "image/heic"
+    return None
+
+
+async def read_limited(file: UploadFile) -> bytes:
+    chunks: list[bytes] = []
+    total = 0
+    while chunk := await file.read(64 * 1024):
+        total += len(chunk)
+        if total > MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail="file too large (max 10 MB)")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+class PageUploadOut(BaseModel):
+    page_id: int
+    seq: int
+    status: PageStatus
+    duplicate: bool
+
+
+@router.post("/assignments/{assignment_id}/pages", response_model=PageUploadOut)
+async def upload_page(
+    assignment_id: int,
+    file: UploadFile,
+    response: Response,
+    teacher: Teacher = Depends(current_teacher),
+    db: AsyncSession = Depends(get_db),
+    storage: Storage = Depends(get_storage),
+    enqueue: EnqueueGradePage = Depends(get_enqueuer),
+):
+    assignment = await own_assignment(db, teacher, assignment_id)
+    data = await read_limited(file)
+    kind = sniff_image(data)
+    if kind is None:
+        raise HTTPException(status_code=415, detail="only JPEG/PNG/HEIC images are accepted")
+    ext, content_type = kind
+    sha = hashlib.sha256(data).hexdigest()
+
+    async def existing() -> Page | None:
+        return (
+            await db.execute(
+                select(Page).where(Page.assignment_id == assignment.id, Page.image_sha256 == sha)
+            )
+        ).scalar_one_or_none()
+
+    def duplicate_out(page: Page) -> PageUploadOut:
+        response.status_code = 200
+        return PageUploadOut(page_id=page.id, seq=page.seq, status=page.status, duplicate=True)
+
+    if (page := await existing()) is not None:
+        return duplicate_out(page)
+
+    try:
+        await check_quota(db, teacher.id)
+    except QuotaExceeded:
+        raise HTTPException(status_code=429, detail="本月批改额度已用完") from None
+
+    max_seq = (
+        await db.execute(select(func.max(Page.seq)).where(Page.assignment_id == assignment.id))
+    ).scalar_one()
+    page = Page(
+        assignment_id=assignment.id,
+        seq=(max_seq or 0) + 1,
+        image_key="",  # real key needs page.id; set right after the flush
+        image_sha256=sha,
+        status=PageStatus.queued,
+    )
+    db.add(page)
+    try:
+        await db.flush()
+    except IntegrityError:  # concurrent identical upload won the race
+        await db.rollback()
+        if (page := await existing()) is not None:
+            return duplicate_out(page)
+        raise
+    page.image_key = f"originals/{teacher.id}/{assignment.id}/{page.id}.{ext}"
+    try:
+        await storage.put(page.image_key, data, content_type)
+        await db.commit()
+    except BaseException:
+        await db.rollback()
+        raise
+    await enqueue(page.id)
+    response.status_code = 201
+    return PageUploadOut(page_id=page.id, seq=page.seq, status=page.status, duplicate=False)

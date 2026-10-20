@@ -21,6 +21,7 @@ dependencies = [
     "pillow-heif",
     "pyjwt",
     "pyyaml",
+    "tzdata",
     "python-multipart",
 ]
 
