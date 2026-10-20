@@ -82,7 +82,7 @@ def fake_wx():
 
 
 @pytest.fixture
-def app(db, fake_wx):
+def app(db, fake_wx, settings):
     app = create_app()
 
     async def _get_db():

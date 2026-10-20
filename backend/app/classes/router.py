@@ -1,10 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel, ConfigDict, StringConstraints, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.classes.access import own_class
 from app.classes.roster import parse_roster
 from app.deps import current_teacher, get_db
 from app.models import Class_, Student, Teacher
@@ -38,17 +39,6 @@ class ImportIn(BaseModel):
 class ImportOut(BaseModel):
     created: int
     students: list[StudentOut]
-
-
-async def _own_class(class_id: int, teacher: Teacher, db: AsyncSession) -> Class_:
-    cls = (
-        await db.execute(
-            select(Class_).where(Class_.id == class_id, Class_.teacher_id == teacher.id)
-        )
-    ).scalar_one_or_none()
-    if cls is None:
-        raise HTTPException(status_code=404, detail="class not found")
-    return cls
 
 
 async def _roster(class_id: int, db: AsyncSession) -> list[Student]:
@@ -87,7 +77,7 @@ async def import_students(
     teacher: Teacher = Depends(current_teacher),
     db: AsyncSession = Depends(get_db),
 ):
-    await _own_class(class_id, teacher, db)
+    await own_class(db, teacher, class_id)
     existing = {(s.name, s.student_no) for s in await _roster(class_id, db)}
     created = 0
     for entry in parse_roster(body.text):
@@ -105,7 +95,7 @@ async def list_students(
     teacher: Teacher = Depends(current_teacher),
     db: AsyncSession = Depends(get_db),
 ):
-    await _own_class(class_id, teacher, db)
+    await own_class(db, teacher, class_id)
     return await _roster(class_id, db)
 
 
@@ -115,7 +105,7 @@ async def delete_class(
     teacher: Teacher = Depends(current_teacher),
     db: AsyncSession = Depends(get_db),
 ):
-    cls = await _own_class(class_id, teacher, db)
+    cls = await own_class(db, teacher, class_id)
     await db.delete(cls)
     await db.commit()
     return Response(status_code=204)
