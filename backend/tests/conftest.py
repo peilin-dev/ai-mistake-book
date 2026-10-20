@@ -239,3 +239,38 @@ def storage(app, settings) -> LocalStorage:
     s = LocalStorage(Path(settings.STORAGE_DIR))
     app.dependency_overrides[get_storage] = lambda: s
     return s
+
+# --- Task 7 fixtures ---
+import json as _json  # noqa: E402
+
+
+class MockTransport(httpx.AsyncBaseTransport):
+    """Records requests and replays canned responses (last one repeats)."""
+
+    def __init__(self) -> None:
+        self.requests: list[httpx.Request] = []
+        self._replies: list[httpx.Response | Exception] = []
+
+    def reply(self, body: dict | str, status: int = 200) -> None:
+        content = body if isinstance(body, str) else _json.dumps(body)
+        self._replies.append(httpx.Response(status, content=content.encode()))
+
+    def fail(self, exc: Exception) -> None:
+        self._replies.append(exc)
+
+    @property
+    def last_body(self) -> dict:
+        return _json.loads(self.requests[-1].content)
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        await request.aread()
+        self.requests.append(request)
+        item = self._replies[min(len(self.requests), len(self._replies)) - 1]
+        if isinstance(item, Exception):
+            raise item
+        return httpx.Response(item.status_code, content=item.content, request=request)
+
+
+@pytest.fixture
+def mock_transport() -> MockTransport:
+    return MockTransport()

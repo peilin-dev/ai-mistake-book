@@ -14,6 +14,15 @@ class Settings(BaseSettings):
     DASHSCOPE_API_KEY: str = ""
     ARK_API_KEY: str = ""
 
+    # "<provider>:<model>", provider is qwen or doubao.
+    MODEL_FOR_GRADING: str = "qwen:qwen-vl-max"
+    MODEL_FOR_ANSWER_KEY: str = "qwen:qwen-vl-max"
+    MODEL_FOR_PRACTICE_GENERATE: str = "qwen:qwen-vl-max"
+    # Placeholder: the operator must set this to their own Ark model / endpoint id.
+    # Must use a different provider than MODEL_FOR_PRACTICE_GENERATE (spec section 8).
+    MODEL_FOR_PRACTICE_VERIFY: str = "doubao:doubao-vision"
+    MODEL_TIMEOUT_S: float = 120
+
     REVIEW_CONFIDENCE_THRESHOLD: float = 0.8
     NAME_MATCH_THRESHOLD: float = 0.8
     MONTHLY_PAGE_QUOTA: int = 300

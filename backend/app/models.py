@@ -9,6 +9,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -207,4 +208,4 @@ class UsageRecord(_Base):
     purpose: Mapped[str] = mapped_column(String(32))
     input_tokens: Mapped[int] = mapped_column(Integer, default=0)
     output_tokens: Mapped[int] = mapped_column(Integer, default=0)
-    cost_fen: Mapped[float] = mapped_column(Float, default=0)
+    cost_fen: Mapped[float] = mapped_column(Numeric(10, 4, asdecimal=False), default=0)
