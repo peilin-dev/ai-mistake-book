@@ -10,7 +10,9 @@ from app.ai.base import ModelCallError
 from app.ai.registry import get_model
 from app.config import get_settings
 from app.db import make_engine
+from app.assignments.router import grade_job_id
 from app.jobs.cleanup import purge_old_originals
+from app.jobs.requeue import STALE_AFTER, stale_queued_pages
 from app.grading.pipeline import grade_page, set_page_status
 from app.models import PageStatus
 from app.storage.base import get_storage
@@ -37,6 +39,16 @@ async def purge_originals_job(ctx: dict) -> None:
         await purge_old_originals(db, ctx["storage"], now, get_settings().ORIGINAL_RETENTION_DAYS)
 
 
+async def requeue_stale_job(ctx: dict) -> None:
+    """Re-enqueue pages stuck in queued (e.g. enqueue hit 503 and nobody resent them)."""
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    async with ctx["sessionmaker"]() as db:
+        stale = await stale_queued_pages(db, now, STALE_AFTER)
+    for page_id, retry in stale:
+        # Same job id as the original enqueue: arq ignores it if that job still exists.
+        await ctx["redis"].enqueue_job("grade_page_job", page_id, _job_id=grade_job_id(page_id, retry))
+
+
 async def startup(ctx: dict) -> None:
     engine = make_engine(get_settings().DATABASE_URL)
     ctx["engine"] = engine
@@ -51,7 +63,10 @@ async def shutdown(ctx: dict) -> None:
 
 class WorkerSettings:
     functions = [grade_page_job]
-    cron_jobs = [cron(purge_originals_job, hour=3, minute=0, second=0)]
+    cron_jobs = [
+        cron(purge_originals_job, hour=3, minute=0, second=0),
+        cron(requeue_stale_job, second=0, run_at_startup=True),  # every minute, and once at startup
+    ]
     timezone = ZoneInfo("Asia/Shanghai")  # cron times are evaluated in this zone
     max_tries = MAX_TRIES
     # Two model attempts plus image work and DB writes must fit in one job.
