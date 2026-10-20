@@ -147,3 +147,49 @@ async def test_delete_cascades_full_chain(auth_client, my_class, teacher, db):
     assert await count(Submission, Submission.assignment_id == asg_id) == 0
     assert await count(QuestionResult, QuestionResult.page_id == page_id) == 0
     assert await count(Teacher, Teacher.id == teacher_id) == 1
+
+
+async def _class_with_files(db, storage, cls):
+    from datetime import datetime
+
+    asg = Assignment(class_id=cls.id, subject="math", title="hw")
+    db.add(asg)
+    await db.flush()
+    live = Page(assignment_id=asg.id, seq=1, image_key="originals/t/1.jpg", image_sha256="a")
+    purged = Page(assignment_id=asg.id, seq=2, image_key="originals/t/2.jpg", image_sha256="b",
+                  original_deleted_at=datetime(2026, 1, 1))
+    db.add_all([live, purged])
+    await db.flush()
+    db.add(QuestionResult(page_id=purged.id, question_no="1", crop_key="crops/t/9.jpg"))
+    await db.commit()
+    for key in ("originals/t/1.jpg", "crops/t/9.jpg", "keep/other.jpg"):
+        await storage.put(key, b"x", "image/jpeg")
+
+
+async def test_delete_class_removes_originals_and_crops(auth_client, my_class, db, storage):
+    from tests.conftest import storage_exists
+
+    await _class_with_files(db, storage, my_class)
+    assert (await auth_client.delete(f"/api/classes/{my_class.id}")).status_code == 204
+    assert not await storage_exists(storage, "originals/t/1.jpg")
+    assert not await storage_exists(storage, "crops/t/9.jpg")
+    assert await storage_exists(storage, "keep/other.jpg")
+
+
+async def test_delete_class_survives_storage_errors(app, auth_client, my_class, db, storage):
+    from app.storage.base import get_storage
+
+    await _class_with_files(db, storage, my_class)
+    deleted: list[str] = []
+
+    class Flaky:
+        async def delete(self, key):
+            deleted.append(key)
+            raise OSError("disk gone")
+
+    app.dependency_overrides[get_storage] = lambda: Flaky()
+    cid = my_class.id
+    assert (await auth_client.delete(f"/api/classes/{cid}")).status_code == 204
+    assert sorted(deleted) == ["crops/t/9.jpg", "originals/t/1.jpg"]  # purged original skipped
+    db.expire_all()
+    assert await db.get(Class_, cid) is None

@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response
@@ -8,8 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.classes.access import own_class
 from app.classes.roster import parse_roster
 from app.deps import current_teacher, get_db
-from app.models import Class_, Student, Teacher
+from app.models import Assignment, Class_, Page, QuestionResult, Student, Teacher
+from app.storage.base import Storage, get_storage
 
+log = logging.getLogger(__name__)
 router = APIRouter(prefix="/classes", tags=["classes"])
 
 
@@ -104,8 +107,26 @@ async def delete_class(
     class_id: int,
     teacher: Teacher = Depends(current_teacher),
     db: AsyncSession = Depends(get_db),
+    storage: Storage = Depends(get_storage),
 ):
     cls = await own_class(db, teacher, class_id)
+    pages = (
+        select(Page.id).join(Assignment, Assignment.id == Page.assignment_id)
+        .where(Assignment.class_id == class_id)
+    )
+    originals = (await db.execute(
+        select(Page.id, Page.image_key).where(Page.id.in_(pages), Page.original_deleted_at.is_(None))
+    )).all()
+    crops = (await db.execute(
+        select(QuestionResult.id, QuestionResult.crop_key)
+        .where(QuestionResult.page_id.in_(pages), QuestionResult.crop_key.is_not(None))
+    )).all()
     await db.delete(cls)
-    await db.commit()
+    await db.commit()  # rows cascade; files are removed best-effort afterwards
+    for kind, files in (("page", originals), ("question_result", crops)):
+        for row_id, key in files:
+            try:
+                await storage.delete(key)
+            except Exception:
+                log.warning("delete_class %s: failed to delete file of %s %s", class_id, kind, row_id)
     return Response(status_code=204)
