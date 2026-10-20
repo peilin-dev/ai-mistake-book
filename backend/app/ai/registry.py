@@ -1,4 +1,4 @@
-from typing import Literal
+﻿from typing import Literal
 
 from app.ai.base import VisionModel
 from app.ai.openai_compat import OpenAICompatModel
@@ -26,12 +26,19 @@ def _setting(settings: Settings, purpose: str) -> str:
         raise ValueError(f"unknown purpose {purpose!r}") from None
 
 
+def build_model(spec: str) -> VisionModel:
+    """Build a model from a "provider:model" spec."""
+    provider, model = _parse(spec)
+    base_url, key_attr = _PROVIDERS[provider]
+    return OpenAICompatModel(provider, base_url, getattr(get_settings(), key_attr), model)
+
+
 def get_model(purpose: Purpose) -> VisionModel:
     settings = get_settings()
-    provider, model = _parse(_setting(settings, purpose))
+    provider, _ = _parse(_setting(settings, purpose))
     if purpose == "practice_verify":
         gen_provider, _ = _parse(_setting(settings, "practice_generate"))
         if provider == gen_provider:
             raise ValueError("practice_verify must use a different provider than practice_generate")
-    base_url, key_attr = _PROVIDERS[provider]
-    return OpenAICompatModel(provider, base_url, getattr(settings, key_attr), model)
+    return build_model(_setting(settings, purpose))
+
