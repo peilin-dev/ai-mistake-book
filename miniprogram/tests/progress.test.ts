@@ -1,6 +1,6 @@
-﻿import { describe, expect, it } from 'vitest'
-import { isFinished, progressText } from '../src/lib/progress'
-import type { ProgressOut, SubmissionOut } from '../src/lib/types'
+import { describe, expect, it } from 'vitest'
+import { answerKeyAction, assignmentHints, bottomActions, isFinished, progressText } from '../src/lib/progress'
+import type { AssignmentOut, ProgressOut, SubmissionOut } from '../src/lib/types'
 
 const p = (o: Partial<ProgressOut>): ProgressOut => ({
   total: 0, queued: 0, processing: 0, done: 0, failed: 0, needs_review: 0, ...o,
@@ -27,5 +27,38 @@ describe('progressText', () => {
   })
   it('zero state', () => {
     expect(progressText(p({}), [], 0)).toEqual({ pages: '已批 0/0 张', students: '已出成绩 0/0 人' })
+  })
+})
+
+describe('assignmentHints', () => {
+  const a = (o: Partial<AssignmentOut>): AssignmentOut => ({
+    id: 1, class_id: 1, subject: 'math', title: 't', answer_key_status: 'confirmed', has_answer_key: true, ...o,
+  })
+  it('rosterEmptyHint', () => {
+    expect(assignmentHints(a({}), 0)).toEqual(['这个班还没有名单，先导入名单才能认出学生'])
+  })
+  it('noAnswerKeyHint', () => {
+    expect(assignmentHints(a({ has_answer_key: false, answer_key_status: 'none' }), 30)).toEqual([
+      '本次没有答案卷，答案由 AI 判断',
+    ])
+  })
+  it('both hints, roster first', () => {
+    expect(assignmentHints(a({ has_answer_key: false }), 0)).toHaveLength(2)
+  })
+  it('no hints when all good', () => expect(assignmentHints(a({}), 30)).toEqual([]))
+})
+
+describe('answerKeyAction', () => {
+  it('maps status to action', () => {
+    expect(answerKeyAction('none')).toBe('shoot')
+    expect(answerKeyAction('pending')).toBe('confirm')
+    expect(answerKeyAction('confirmed')).toBe('confirmed')
+  })
+})
+
+describe('bottomActions', () => {
+  it('shows review and results only when relevant', () => {
+    expect(bottomActions(p({}), 0)).toEqual({ review: 0, results: false })
+    expect(bottomActions(p({ total: 3, done: 3, needs_review: 2 }), 1)).toEqual({ review: 2, results: true })
   })
 })
