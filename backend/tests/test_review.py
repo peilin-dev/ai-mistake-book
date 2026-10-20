@@ -118,6 +118,38 @@ async def test_assign_forward_resolves_following_nameless_page(
     assert qr.submission_id is not None and qr.needs_review is False
 
 
+async def test_reassign_moves_continuation_pages(
+    auth_client, db, my_assignment, my_class, roster_zhangsan, make_done_page
+):
+    from app.models import Student
+
+    lisi = Student(class_id=my_class.id, name="李四")
+    db.add(lisi)
+    await db.commit()
+    p1 = await make_done_page(1, roster_zhangsan.id, "张小三")  # fuzzy match -> 张三
+    p2 = await make_done_page(2, roster_zhangsan.id, None)  # nameless continuation
+    sub_a = Submission(assignment_id=my_assignment.id, student_id=roster_zhangsan.id,
+                       total_score=4, needs_review_count=1)
+    db.add(sub_a)
+    await db.flush()
+    db.add_all([make_result(p1.id, sub_a.id, "1", needs_review=True),
+                make_result(p2.id, sub_a.id, "2")])
+    await db.commit()
+    p1_id, p2_id, a_id, b_id = p1.id, p2.id, sub_a.id, lisi.id
+
+    r = await auth_client.patch(f"/api/pages/{p1_id}", json={"student_id": b_id})
+    assert r.status_code == 200
+    db.expire_all()
+    assert (await db.get(Page, p1_id)).student_id == b_id
+    assert (await db.get(Page, p2_id)).student_id == b_id
+    sub_b = (await db.execute(select(Submission).where(Submission.student_id == b_id))).scalar_one()
+    sids = (await db.execute(select(QuestionResult.submission_id))).scalars().all()
+    assert set(sids) == {sub_b.id} and len(sids) == 2
+    assert sub_b.total_score == 4
+    old = await db.get(Submission, a_id)
+    assert old.total_score == 0 and old.needs_review_count == 0
+
+
 async def test_assign_page_not_done_is_409(auth_client, db, unmatched_page, roster_zhangsan):
     unmatched_page.status = PageStatus.processing
     await db.commit()

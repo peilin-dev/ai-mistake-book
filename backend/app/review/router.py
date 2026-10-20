@@ -9,6 +9,7 @@ from app.assignments.access import own_assignment
 from app.deps import current_teacher, get_db
 from app.grading.pipeline import (
     attach_following_pages,
+    fresh_page,
     get_or_create_submission,
     lock_assignment,
     recompute_submission,
@@ -154,11 +155,39 @@ async def assign_student(
         if not r.reviewed:  # teacher confirmed the student, so only the other rules remain
             r.needs_review = needs_review(r.confidence, r.answer_verified, "exact",
                                           settings.REVIEW_CONFIDENCE_THRESHOLD)
-    await attach_following_pages(db, page, submission_id, settings)
+    last = page
+    if old_student_id is not None and old_student_id != student:
+        # Nameless pages that continued this page followed the old student; move them too.
+        last, moved = await _move_continuation(db, page, old_student_id, submission_id)
+        old_submissions |= moved
+    await attach_following_pages(db, last, submission_id, settings)
     for sid in old_submissions | {submission_id}:
         await recompute_submission(db, sid)
     await db.commit()
     return {"page_id": page.id, "student_id": page.student_id}
+
+
+async def _move_continuation(
+    db: AsyncSession, page: Page, old_student_id: int, submission_id: int
+) -> tuple[Page, set[int]]:
+    """Move done, nameless pages after `page` still on the old student; return the last
+    page moved (or `page`) and the submissions their results left."""
+    last, left = page, set()
+    seq = page.seq + 1
+    while (nxt := await fresh_page(db, Page.assignment_id == page.assignment_id, Page.seq == seq)) is not None:
+        if (nxt.status != PageStatus.done or nxt.recognized_name is not None
+                or nxt.student_id != old_student_id):
+            break
+        nxt.student_id = page.student_id
+        stmt = select(QuestionResult).where(QuestionResult.page_id == nxt.id).execution_options(
+            populate_existing=True)
+        for row in (await db.execute(stmt)).scalars():
+            if row.submission_id is not None:
+                left.add(row.submission_id)
+            row.submission_id = submission_id
+        last = nxt
+        seq += 1
+    return last, left
 
 
 async def _own_result(db: AsyncSession, teacher: Teacher, result_id: int) -> tuple[int, int]:
