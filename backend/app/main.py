@@ -1,13 +1,22 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
+from app.assignments.router import close_arq_pool
 from app.assignments.router import router as assignments_router
 from app.auth.router import router as auth_router
 from app.classes.router import router as classes_router
 from app.storage.router import router as storage_router
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    await close_arq_pool(app)
+
+
 def create_app() -> FastAPI:
-    app = FastAPI(title="AI Mistake Book")
+    app = FastAPI(title="AI Mistake Book", lifespan=lifespan)
 
     @app.get("/healthz")
     async def healthz() -> dict[str, bool]:

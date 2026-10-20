@@ -1,8 +1,11 @@
+import asyncio
 import hashlib
 from collections.abc import Awaitable, Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile
+from arq import create_pool
+from arq.connections import RedisSettings
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response, UploadFile
 from pydantic import BaseModel, ConfigDict, StringConstraints
 from sqlalchemy import case, func, select
 from sqlalchemy.exc import IntegrityError
@@ -10,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.assignments.access import own_assignment
 from app.classes.access import own_class
+from app.config import get_settings
 from app.deps import current_teacher, get_db
 from app.models import (
     AnswerKeyStatus,
@@ -130,10 +134,28 @@ HEIC_BRANDS = {b"heic", b"heix", b"heim", b"heis", b"mif1", b"msf1"}
 EnqueueGradePage = Callable[[int], Awaitable[None]]
 
 
-def get_enqueuer() -> EnqueueGradePage:
+async def _arq_pool(app: FastAPI):
+    """One arq pool per app, created on first use; closed by the app lifespan."""
+    lock = getattr(app.state, "arq_lock", None)
+    if lock is None:
+        lock = app.state.arq_lock = asyncio.Lock()
+    async with lock:
+        if getattr(app.state, "arq_pool", None) is None:
+            app.state.arq_pool = await create_pool(RedisSettings.from_dsn(get_settings().REDIS_URL))
+    return app.state.arq_pool
+
+
+async def close_arq_pool(app: FastAPI) -> None:
+    pool = getattr(app.state, "arq_pool", None)
+    if pool is not None:
+        app.state.arq_pool = None
+        await pool.aclose()
+
+
+def get_enqueuer(request: Request) -> EnqueueGradePage:
     async def enqueue_grade_page(page_id: int) -> None:
-        # PLACEHOLDER: Task 10 replaces this with an arq enqueue.
-        return None
+        pool = await _arq_pool(request.app)
+        await pool.enqueue_job("grade_page_job", page_id, _job_id=f"grade:{page_id}")
 
     return enqueue_grade_page
 

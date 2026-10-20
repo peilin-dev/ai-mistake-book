@@ -297,3 +297,85 @@ class MockTransport(httpx.AsyncBaseTransport):
 @pytest.fixture
 def mock_transport() -> MockTransport:
     return MockTransport()
+
+# --- Task 10 fixtures ---
+from app.models import AnswerItem, AnswerKeyStatus, Page, PageStatus, Student  # noqa: E402
+
+
+def q(**kw) -> dict:
+    """One question as the grading model returns it (spec 7.1)."""
+    item = {
+        "no": "1",
+        "question_text": "3 + 4 = ?",
+        "student_answer": "7",
+        "correct_answer": "7",
+        "is_subjective": False,
+        "is_correct": True,
+        "score": 2,
+        "max_score": 2,
+        "confidence": 0.95,
+        "bbox": [0.1, 0.1, 0.9, 0.2],
+        "knowledge_point_id": None,
+        "error_reason": None,
+    }
+    item.update(kw)
+    return item
+
+
+def graded(student_name: str | None = None, questions: list[dict] | None = None) -> dict:
+    return {"student_name": student_name, "questions": questions or []}
+
+
+def paper_jpeg(width: int = 600, height: int = 800, seed: int = 0) -> bytes:
+    img = Image.new("RGB", (width, height), (255, 255, (250 + seed) % 256))
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    return buf.getvalue()
+
+
+@pytest_asyncio.fixture
+async def make_page(db, storage, my_assignment, teacher):
+    """Factory: a queued Page of my_assignment whose JPEG is really stored."""
+
+    async def _make(seq: int) -> Page:
+        data = paper_jpeg(seed=seq)
+        page = Page(assignment_id=my_assignment.id, seq=seq, image_key="",
+                    image_sha256=f"sha{seq}", status=PageStatus.queued)
+        db.add(page)
+        await db.flush()
+        page.image_key = f"originals/{teacher.id}/{my_assignment.id}/{page.id}.jpg"
+        await storage.put(page.image_key, data, "image/jpeg")
+        await db.commit()
+        return page
+
+    return _make
+
+
+@pytest_asyncio.fixture
+async def uploaded_page(make_page) -> Page:
+    return await make_page(1)
+
+
+@pytest_asyncio.fixture
+async def two_uploaded_pages(make_page) -> list[Page]:
+    return [await make_page(1), await make_page(2)]
+
+
+@pytest_asyncio.fixture
+async def roster_zhangsan(db, my_class) -> Student:
+    s = Student(class_id=my_class.id, name="张三")
+    db.add(s)
+    await db.commit()
+    return s
+
+
+@pytest_asyncio.fixture
+async def confirmed_key_q1_q2(db, my_assignment) -> list[AnswerItem]:
+    my_assignment.answer_key_status = AnswerKeyStatus.confirmed
+    items = [
+        AnswerItem(assignment_id=my_assignment.id, question_no="1", answer="7", max_score=2),
+        AnswerItem(assignment_id=my_assignment.id, question_no="2", answer="12", max_score=4),
+    ]
+    db.add_all(items)
+    await db.commit()
+    return items
