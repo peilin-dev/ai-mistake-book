@@ -177,7 +177,8 @@ async def upload_page(
     storage: Storage = Depends(get_storage),
     enqueue: EnqueueGradePage = Depends(get_enqueuer),
 ):
-    assignment = await own_assignment(db, teacher, assignment_id)
+    await own_assignment(db, teacher, assignment_id)
+    teacher_id = teacher.id  # plain locals: ORM attrs expire after a rollback
     data = await read_limited(file)
     kind = sniff_image(data)
     if kind is None:
@@ -188,7 +189,7 @@ async def upload_page(
     async def existing() -> Page | None:
         return (
             await db.execute(
-                select(Page).where(Page.assignment_id == assignment.id, Page.image_sha256 == sha)
+                select(Page).where(Page.assignment_id == assignment_id, Page.image_sha256 == sha)
             )
         ).scalar_one_or_none()
 
@@ -200,15 +201,15 @@ async def upload_page(
         return duplicate_out(page)
 
     try:
-        await check_quota(db, teacher.id)
+        await check_quota(db, teacher_id)
     except QuotaExceeded:
         raise HTTPException(status_code=429, detail="本月批改额度已用完") from None
 
     max_seq = (
-        await db.execute(select(func.max(Page.seq)).where(Page.assignment_id == assignment.id))
+        await db.execute(select(func.max(Page.seq)).where(Page.assignment_id == assignment_id))
     ).scalar_one()
     page = Page(
-        assignment_id=assignment.id,
+        assignment_id=assignment_id,
         seq=(max_seq or 0) + 1,
         image_key="",  # real key needs page.id; set right after the flush
         image_sha256=sha,
@@ -222,13 +223,14 @@ async def upload_page(
         if (page := await existing()) is not None:
             return duplicate_out(page)
         raise
-    page.image_key = f"originals/{teacher.id}/{assignment.id}/{page.id}.{ext}"
+    page.image_key = f"originals/{teacher_id}/{assignment_id}/{page.id}.{ext}"
     try:
         await storage.put(page.image_key, data, content_type)
+        page_id, seq = page.id, page.seq
         await db.commit()
     except BaseException:
         await db.rollback()
         raise
-    await enqueue(page.id)
+    await enqueue(page_id)
     response.status_code = 201
-    return PageUploadOut(page_id=page.id, seq=page.seq, status=page.status, duplicate=False)
+    return PageUploadOut(page_id=page_id, seq=seq, status=PageStatus.queued, duplicate=False)

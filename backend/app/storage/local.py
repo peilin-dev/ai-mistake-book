@@ -8,7 +8,7 @@ from app.config import get_settings
 
 
 def is_safe_key(key: str) -> bool:
-    return bool(key) and not key.startswith("/") and ".." not in key and "\\" not in key
+    return bool(key) and not key.startswith("/") and ".." not in key and "\\" not in key and ":" not in key
 
 
 class LocalStorage:
@@ -18,7 +18,10 @@ class LocalStorage:
     def _path(self, key: str) -> Path:
         if not is_safe_key(key):
             raise ValueError(f"unsafe storage key: {key!r}")
-        return self.root / key
+        path = (self.root / key).resolve()
+        if not path.is_relative_to(self.root.resolve()):
+            raise ValueError(f"unsafe storage key: {key!r}")
+        return path
 
     async def put(self, key: str, data: bytes, content_type: str) -> None:
         path = self._path(key)

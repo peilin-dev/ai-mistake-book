@@ -138,11 +138,43 @@ async def test_signed_url_tampered_or_expired_403(client, storage):
     assert (await client.get("/api/files/a/b.jpg")).status_code in (403, 422)
 
 
-async def test_files_route_rejects_traversal(client, storage):
-    r = await client.get("/api/files/a/..%2f..%2fsecret?expires=9999999999&sig=x")
-    assert r.status_code in (400, 403)
-    assert storage.signed_url("x") .startswith("/api/files/x?expires=")
+@pytest.mark.parametrize("raw", ["..%2Fx", "C:/x", "a%5C..%5Cb", "a/..%2F..%2Fsecret"])
+async def test_files_route_rejects_unsafe_keys_400(client, storage, raw):
+    r = await client.get(f"/api/files/{raw}?expires=9999999999&sig=x")
+    assert r.status_code == 400
 
+
+@pytest.mark.parametrize("key", ["../x", "C:/x", "C:foo", "a\\..\\b", "/abs", "a/../../b"])
+async def test_local_storage_rejects_unsafe_keys(storage, key):
+    with pytest.raises(ValueError):
+        await storage.put(key, b"1", "x")
+    with pytest.raises(ValueError):
+        await storage.get(key)
+
+
+async def test_concurrent_duplicate_race_returns_existing(
+    auth_client, my_assignment, jpeg_bytes, enqueued, storage, db, monkeypatch
+):
+    """A competing identical upload lands after our dedupe lookup missed."""
+    import hashlib
+
+    import app.assignments.router as router_mod
+
+    winner = {}
+
+    async def racing_check_quota(db_, teacher_id):
+        p = Page(assignment_id=my_assignment.id, seq=1, image_key="k",
+                 image_sha256=hashlib.sha256(jpeg_bytes).hexdigest())
+        db_.add(p)
+        await db_.commit()
+        winner["id"] = p.id
+
+    monkeypatch.setattr(router_mod, "check_quota", racing_check_quota)
+    r = await auth_client.post(url_of(my_assignment),
+                               files={"file": ("a.jpg", jpeg_bytes, "image/jpeg")})
+    assert r.status_code == 200
+    assert r.json()["duplicate"] is True and r.json()["page_id"] == winner["id"]
+    assert enqueued == []
 
 async def test_local_storage_missing_key(storage):
     with pytest.raises(FileNotFoundError):
