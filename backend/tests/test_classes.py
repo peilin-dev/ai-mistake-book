@@ -193,3 +193,48 @@ async def test_delete_class_survives_storage_errors(app, auth_client, my_class, 
     assert sorted(deleted) == ["crops/t/9.jpg", "originals/t/1.jpg"]  # purged original skipped
     db.expire_all()
     assert await db.get(Class_, cid) is None
+
+
+async def add_student(db, cls, name, student_no=None) -> Student:
+    s = Student(class_id=cls.id, name=name, student_no=student_no)
+    db.add(s)
+    await db.commit()
+    return s
+
+
+async def test_rename_student(auth_client, my_class, db):
+    s = await add_student(db, my_class, "张三")
+    r = await auth_client.patch(f"/api/students/{s.id}", json={"name": " 张珊 ", "student_no": "2024001"})
+    assert r.status_code == 200 and r.json()["name"] == "张珊" and r.json()["student_no"] == "2024001"
+
+
+async def test_rename_student_validation_and_partial(auth_client, my_class, db):
+    s = await add_student(db, my_class, "王五", "7")
+    assert (await auth_client.patch(f"/api/students/{s.id}", json={"name": "   "})).status_code == 422
+    assert (await auth_client.patch(f"/api/students/{s.id}", json={"name": "x" * 65})).status_code == 422
+    r = await auth_client.patch(f"/api/students/{s.id}", json={"student_no": None})
+    assert r.status_code == 200 and r.json()["name"] == "王五" and r.json()["student_no"] is None
+    r = await auth_client.patch(f"/api/students/{s.id}", json={})
+    assert r.status_code == 200 and r.json()["name"] == "王五"
+
+
+async def test_delete_student_without_results(auth_client, my_class, db):
+    s = await add_student(db, my_class, "李四")
+    assert (await auth_client.delete(f"/api/students/{s.id}")).status_code == 204
+
+
+async def test_cannot_delete_student_with_results(auth_client, graded_submission):
+    r = await auth_client.delete(f"/api/students/{graded_submission.student_id}")
+    assert r.status_code == 409 and r.json()["detail"] == "已有成绩的学生不能删除，可以改名"
+
+
+async def test_cannot_delete_student_referenced_only_by_page(auth_client, make_done_page, roster_zhangsan):
+    await make_done_page(1, roster_zhangsan.id, "张三")
+    r = await auth_client.delete(f"/api/students/{roster_zhangsan.id}")
+    assert r.status_code == 409
+
+
+async def test_foreign_student_404(auth_client, other_class_student):
+    assert (await auth_client.patch(f"/api/students/{other_class_student.id}", json={"name": "x"})).status_code == 404
+    assert (await auth_client.delete(f"/api/students/{other_class_student.id}")).status_code == 404
+    assert (await auth_client.delete("/api/students/999999")).status_code == 404

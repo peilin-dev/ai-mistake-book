@@ -1,7 +1,7 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, ConfigDict, StringConstraints, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,11 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.classes.access import own_class
 from app.classes.roster import parse_roster
 from app.deps import current_teacher, get_db
-from app.models import Assignment, Class_, Page, QuestionResult, Student, Teacher
+from app.models import Assignment, Class_, Page, QuestionResult, Student, Submission, Teacher
 from app.storage.base import Storage, get_storage
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/classes", tags=["classes"])
+students_router = APIRouter(prefix="/students", tags=["classes"])
 
 
 class ClassIn(BaseModel):
@@ -33,6 +34,11 @@ class StudentOut(BaseModel):
     id: int
     name: str
     student_no: str | None
+
+
+class StudentPatch(BaseModel):
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)] | None = None
+    student_no: str | None = None
 
 
 class ImportIn(BaseModel):
@@ -129,4 +135,46 @@ async def delete_class(
                 await storage.delete(key)
             except Exception:
                 log.warning("delete_class %s: failed to delete file of %s %s", class_id, kind, row_id)
+    return Response(status_code=204)
+
+async def _own_student(db: AsyncSession, teacher: Teacher, student_id: int) -> Student:
+    """Resolve a student via student -> class -> teacher; 404 for missing or foreign."""
+    student = await db.get(Student, student_id)
+    if student is None:
+        raise HTTPException(status_code=404, detail="student not found")
+    await own_class(db, teacher, student.class_id)
+    return student
+
+
+@students_router.patch("/{student_id}", response_model=StudentOut)
+async def update_student(
+    student_id: int,
+    body: StudentPatch,
+    teacher: Teacher = Depends(current_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    student = await _own_student(db, teacher, student_id)
+    if "name" in body.model_fields_set and body.name is not None:
+        student.name = body.name
+    if "student_no" in body.model_fields_set:
+        student.student_no = body.student_no
+    await db.commit()
+    return student
+
+
+@students_router.delete("/{student_id}", status_code=204)
+async def delete_student(
+    student_id: int,
+    teacher: Teacher = Depends(current_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    student = await _own_student(db, teacher, student_id)
+    has_results = (await db.execute(
+        select(Submission.id).where(Submission.student_id == student_id).limit(1)
+        .union_all(select(Page.id).where(Page.student_id == student_id).limit(1))
+    )).first() is not None
+    if has_results:
+        raise HTTPException(status_code=409, detail="已有成绩的学生不能删除，可以改名")
+    await db.delete(student)
+    await db.commit()
     return Response(status_code=204)

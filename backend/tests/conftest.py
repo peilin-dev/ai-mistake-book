@@ -451,7 +451,8 @@ async def graded_submission(db, my_assignment, roster_zhangsan, make_done_page):
           make_result(page.id, sub.id, "2", is_correct=False, score=0, max_score=4)]
     db.add_all(qs)
     await db.commit()
-    return SimpleNamespace(id=sub.id, total_score=2, questions=qs, page=page)
+    return SimpleNamespace(id=sub.id, student_id=roster_zhangsan.id, total_score=2,
+                           questions=qs, page=page)
 
 
 @pytest_asyncio.fixture
