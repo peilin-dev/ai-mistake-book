@@ -1,0 +1,1 @@
+export default definePageConfig({ navigationBarTitleText: '成绩详情' })

@@ -66,7 +66,7 @@ export interface QuestionResultOut {
   model_score: number | null
   crop_url: string | null
   /** false: the answer was judged by the AI (no confirmed answer key). */
-  answer_verified?: boolean
+  answer_verified: boolean
 }
 
 export interface SubmissionOut {

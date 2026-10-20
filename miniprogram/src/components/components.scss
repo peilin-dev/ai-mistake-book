@@ -47,4 +47,6 @@
   margin: 0 16px 16px 0;
   font-size: 30px;
 }
+.picker-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 28px 32px; }
+.picker-no { margin: 0; }
 .subject-on { background: #d9f2e0; border-color: #07c160; color: #1d7a3a; }
