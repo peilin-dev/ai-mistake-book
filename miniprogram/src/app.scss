@@ -3,3 +3,42 @@ page {
   color: #222;
   font-size: 30px;
 }
+
+.page { padding: 24px; padding-bottom: 180px; }
+
+.card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 24px;
+}
+
+.big-btn {
+  width: 100%;
+  background: #07c160;
+  color: #fff;
+  font-size: 34px;
+  border-radius: 16px;
+  line-height: 100px;
+}
+.big-btn::after { border: none; }
+.ghost-btn { background: #fff; color: #07c160; border: 2px solid #07c160; }
+
+.bottom-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 24px;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.label { color: #777; font-size: 26px; margin-bottom: 12px; display: block; }
+.field {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  font-size: 32px;
+  margin-bottom: 24px;
+}

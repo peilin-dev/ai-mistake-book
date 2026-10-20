@@ -1,0 +1,19 @@
+.pill {
+  display: inline-block;
+  padding: 4px 16px;
+  border-radius: 24px;
+  font-size: 26px;
+}
+.pill-warn { background: #fff3cd; color: #8a6100; }
+.pill-ok { background: #d9f2e0; color: #1d7a3a; }
+.pill-busy { background: #e1ecff; color: #2557b8; }
+.pill-gray { background: #eee; color: #666; }
+
+.empty-guide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 160px 48px 0;
+}
+.empty-title { font-size: 40px; font-weight: bold; margin-bottom: 16px; }
+.empty-hint { color: #777; margin-bottom: 64px; text-align: center; }
