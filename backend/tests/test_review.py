@@ -171,7 +171,7 @@ async def test_review_reasons(auth_client, db, my_assignment, unmatched_page, ro
     await db.flush()
     db.add_all([
         make_result(page2.id, sub.id, "a", needs_review=True, confidence=0.5),
-        make_result(page2.id, sub.id, "b", needs_review=True, answer_verified=False),
+        make_result(page2.id, sub.id, "b", needs_review=True, answer_verified=False, answer_mismatch=True),
         make_result(page2.id, sub.id, "c", needs_review=True),
         make_result(page2.id, sub.id, "d", needs_review=False),
     ])
@@ -181,7 +181,7 @@ async def test_review_reasons(auth_client, db, my_assignment, unmatched_page, ro
     assert set(by_no) == {"1", "2", "a", "b", "c"}
     assert by_no["1"]["reason"] == "student_uncertain" and by_no["1"]["student_name"] is None
     assert by_no["a"]["reason"] == "low_confidence" and by_no["a"]["student_name"] == "张三"
-    assert by_no["b"]["reason"] == "unverified_answer"
+    assert by_no["b"]["reason"] == "answer_mismatch"
     assert by_no["c"]["reason"] == "student_uncertain"
     assert [q["question_no"] for q in review["questions"]][:2] == ["1", "2"]  # page seq order
     assert review["pages_unassigned"][0]["recognized_name"] == "张小三"
@@ -283,3 +283,52 @@ async def test_read_after_lock_sees_concurrent_commit(db, settings, unmatched_pa
     await engine.dispose()
     await lock_assignment(db, aid)
     assert (await fresh_page(db, Page.id == pid)).status == PageStatus.done
+
+
+# --- M3 Task 4: no-answer-key review by class majority ---
+
+@pytest.fixture
+async def mismatch_result(db, my_assignment, roster_zhangsan, make_done_page) -> QuestionResult:
+    page = await make_done_page(1, roster_zhangsan.id, "张三")
+    sub = Submission(assignment_id=my_assignment.id, student_id=roster_zhangsan.id, needs_review_count=1)
+    db.add(sub)
+    await db.flush()
+    r = make_result(page.id, sub.id, "3", answer_verified=False, answer_mismatch=True, needs_review=True)
+    db.add(r)
+    await db.commit()
+    r.assignment_id = my_assignment.id  # convenience for the test
+    return r
+
+
+async def test_review_reason_answer_mismatch(auth_client, mismatch_result):
+    items = (await auth_client.get(f"/api/assignments/{mismatch_result.assignment_id}/review")).json()["questions"]
+    assert items[0]["reason"] == "answer_mismatch"
+
+
+async def test_unverified_without_mismatch_is_not_its_own_reason(auth_client, db, mismatch_result):
+    mismatch_result.answer_mismatch = False  # still needs_review: falls back to student_uncertain
+    await db.commit()
+    items = (await auth_client.get(f"/api/assignments/{mismatch_result.assignment_id}/review")).json()["questions"]
+    assert items[0]["reason"] == "student_uncertain"
+
+
+async def test_assign_keeps_answer_mismatch_flag(auth_client, db, unmatched_page, roster_zhangsan):
+    qs = (await db.execute(select(QuestionResult).where(QuestionResult.page_id == unmatched_page.id)
+                           .order_by(QuestionResult.id))).scalars().all()
+    qs[0].answer_mismatch = True
+    await db.commit()
+    pid = unmatched_page.id
+    await auth_client.patch(f"/api/pages/{pid}", json={"student_id": roster_zhangsan.id})
+    db.expire_all()
+    qs = (await db.execute(select(QuestionResult).where(QuestionResult.page_id == pid)
+                           .order_by(QuestionResult.id))).scalars().all()
+    assert [q.needs_review for q in qs] == [True, False]
+
+
+async def test_assignment_has_answer_key_flag(auth_client, my_assignment):
+    body = (await auth_client.get(f"/api/assignments/{my_assignment.id}")).json()
+    assert body["has_answer_key"] is False and body["class_id"] == my_assignment.class_id
+
+
+async def test_assignment_has_answer_key_when_confirmed(auth_client, my_assignment, confirmed_key_q1_q2):
+    assert (await auth_client.get(f"/api/assignments/{my_assignment.id}")).json()["has_answer_key"] is True

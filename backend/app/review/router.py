@@ -61,8 +61,8 @@ def _reason(page_student_id: int | None, r: QuestionResult, threshold: float) ->
         return "student_uncertain"
     if r.confidence < threshold:
         return "low_confidence"
-    if not r.answer_verified:
-        return "unverified_answer"
+    if r.answer_mismatch:
+        return "answer_mismatch"
     return "student_uncertain"  # fuzzy name match
 
 
@@ -157,8 +157,8 @@ async def assign_student(
     for r in results:
         r.submission_id = submission_id
         if not r.reviewed:  # teacher confirmed the student, so only the other rules remain
-            r.needs_review = needs_review(r.confidence, r.answer_verified, "exact",
-                                          settings.REVIEW_CONFIDENCE_THRESHOLD)
+            r.needs_review = needs_review(r.confidence, "exact", settings.REVIEW_CONFIDENCE_THRESHOLD,
+                                          r.answer_mismatch)
     last = page
     if old_student_id is not None and old_student_id != student:
         # Nameless pages that continued this page followed the old student; move them too.

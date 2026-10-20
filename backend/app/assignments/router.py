@@ -7,7 +7,7 @@ from typing import Annotated
 from arq import create_pool
 from arq.connections import RedisSettings
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response, UploadFile
-from pydantic import BaseModel, ConfigDict, StringConstraints, model_validator
+from pydantic import BaseModel, ConfigDict, StringConstraints, computed_field, model_validator
 from sqlalchemy import case, delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,6 +51,12 @@ class AssignmentOut(BaseModel):
     subject: Subject
     title: str
     answer_key_status: AnswerKeyStatus
+
+    @computed_field
+    @property
+    def has_answer_key(self) -> bool:
+        """False: the mini program shows that answers were judged by the AI."""
+        return self.answer_key_status == AnswerKeyStatus.confirmed
 
 
 class ProgressOut(BaseModel):

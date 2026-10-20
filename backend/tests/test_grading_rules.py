@@ -20,18 +20,24 @@ VALID_Q = {
 }
 
 
-@pytest.mark.parametrize("conf,verified,status,expected", [
-    (0.95, True, "exact", False),
-    (0.79, True, "exact", True),
-    (0.95, False, "exact", True),
-    (0.95, True, "fuzzy", True),
-    (0.95, True, "ambiguous", True),
-    (0.95, True, "none", True),
-    (0.95, True, "continued", False),
-    (0.8, True, "exact", False),
+@pytest.mark.parametrize("conf,status,mismatch,expected", [
+    (0.95, "exact", False, False),
+    (0.79, "exact", False, True),
+    (0.95, "exact", True, True),
+    (0.95, "fuzzy", False, True),
+    (0.95, "ambiguous", False, True),
+    (0.95, "none", False, True),
+    (0.95, "continued", False, False),
+    (0.95, "continued", True, True),
+    (0.8, "exact", False, False),
 ])
-def test_needs_review(conf, verified, status, expected):
-    assert needs_review(conf, verified, status, 0.8) is expected
+def test_needs_review(conf, status, mismatch, expected):
+    assert needs_review(conf, status, 0.8, answer_mismatch=mismatch) is expected
+
+
+def test_unverified_alone_not_reviewed():
+    assert needs_review(0.95, "exact", 0.8) is False
+    assert needs_review(0.95, "exact", 0.8, answer_mismatch=True) is True
 
 
 def test_bbox_must_be_ordered():

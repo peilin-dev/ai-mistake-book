@@ -42,8 +42,8 @@ async def test_grades_page_and_creates_submission(db, storage, uploaded_page, ro
     assert sub.total_score == 2
     results = await _results(db)
     assert results[0].crop_key is None and results[1].crop_key is not None
-    assert all(r.answer_verified is False and r.needs_review for r in results)  # 无答案卷
-    assert sub.needs_review_count == 2
+    assert all(r.answer_verified is False and not r.needs_review for r in results)  # 无答案卷，单张不比较
+    assert sub.needs_review_count == 0
     assert all(r.submission_id == sub.id and r.page_id == page.id for r in results)
 
 
@@ -120,7 +120,7 @@ async def test_regrading_same_page_does_not_duplicate(db, storage, uploaded_page
     await grade_page(db, storage, model, uploaded_page.id)
     assert len(await _results(db)) == 2
     sub = (await db.execute(select(Submission))).scalar_one()
-    assert sub.total_score == 2 and sub.needs_review_count == 2
+    assert sub.total_score == 2 and sub.needs_review_count == 0
 
 
 async def test_answer_key_overrides_answer_and_clips_score(db, storage, uploaded_page, confirmed_key_q1_q2,
@@ -132,7 +132,7 @@ async def test_answer_key_overrides_answer_and_clips_score(db, storage, uploaded
     r1, r9 = await _results(db)
     assert (r1.correct_answer, r1.max_score, r1.score, r1.answer_verified) == ("7", 2, 2, True)
     assert (r9.correct_answer, r9.max_score, r9.score, r9.answer_verified) == ("自解", 3, 3, False)
-    assert r9.needs_review is True and r1.needs_review is False
+    assert r9.needs_review is False and r1.needs_review is False  # unverified alone is not reviewed
 
 
 async def test_is_correct_comes_from_model_even_with_key(db, storage, uploaded_page, confirmed_key_q1_q2,
@@ -358,7 +358,7 @@ async def test_concurrent_pages_of_same_student_share_one_submission(
         for pid, no in zip(ids, ("1", "2"))))
     await _reset(db)
     sub = (await db.execute(select(Submission))).scalar_one()
-    assert sub.student_id == student_id and sub.total_score == 4 and sub.needs_review_count == 2
+    assert sub.student_id == student_id and sub.total_score == 4 and sub.needs_review_count == 0
     pages = [await db.get(Page, pid) for pid in ids]
     assert [p.status for p in pages] == ["done", "done"]
     assert all(r.submission_id == sub.id for r in await _results(db))

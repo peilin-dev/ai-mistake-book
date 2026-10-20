@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.base import ModelCallError, ModelOutputError, VisionModel
 from app.ai.usage import record_usage
 from app.config import Settings, get_settings
+from app.grading.consensus import refresh_answer_consensus
 from app.grading.crop import crop, prepare_image
 from app.grading.matching import match_student
 from app.grading.prompts import build_grading_prompt
@@ -135,8 +136,7 @@ async def _write_phase(
     for gq in result.questions:
         row = _result_row(gq, ctx.answers.get(gq.no), ctx.allowed_kps)
         row.page_id, row.submission_id = page_id, submission_id
-        row.needs_review = needs_review(row.confidence, row.answer_verified, match.status,
-                                        settings.REVIEW_CONFIDENCE_THRESHOLD)
+        row.needs_review = needs_review(row.confidence, match.status, settings.REVIEW_CONFIDENCE_THRESHOLD)
         db.add(row)
         rows.append((row, gq))
     await db.flush()  # ids for crop keys
@@ -146,11 +146,14 @@ async def _write_phase(
             data = await asyncio.to_thread(crop, ctx.image, gq.bbox)
             await storage.put(row.crop_key, data, "image/jpeg")
 
+    # Done before the consensus refresh so this page's rows take part in the majority.
+    page.status, page.fail_reason = PageStatus.done, None
+    unverified_nos = {row.question_no for row, _ in rows if not row.answer_verified}
+    touched = await refresh_answer_consensus(db, ctx.assignment_id, unverified_nos, settings)
     if submission_id is not None:
         await attach_following_pages(db, page, submission_id, settings)
-    for sid in (old_submissions | {submission_id}) - {None}:
+    for sid in (old_submissions | touched | {submission_id}) - {None}:
         await recompute_submission(db, sid)
-    page.status, page.fail_reason = PageStatus.done, None
     await db.commit()  # releases the assignment lock
     for crop_key in old_crops:
         await storage.delete(crop_key)
@@ -217,8 +220,8 @@ async def attach_following_pages(db: AsyncSession, page: Page, submission_id: in
             populate_existing=True)
         for row in (await db.execute(stmt)).scalars():
             row.submission_id = submission_id
-            row.needs_review = needs_review(row.confidence, row.answer_verified, "continued",
-                                            settings.REVIEW_CONFIDENCE_THRESHOLD)
+            row.needs_review = needs_review(row.confidence, "continued", settings.REVIEW_CONFIDENCE_THRESHOLD,
+                                            row.answer_mismatch)
         seq += 1
 
 
