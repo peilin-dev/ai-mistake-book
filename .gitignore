@@ -5,3 +5,7 @@ __pycache__/
 /backend/storage/
 *.egg-info/
 .pytest_cache/
+
+/miniprogram/node_modules/
+/miniprogram/dist/
+/miniprogram/.swc/

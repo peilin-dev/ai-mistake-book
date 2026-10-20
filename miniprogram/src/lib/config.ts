@@ -1,0 +1,1 @@
+export const API_BASE: string = (process.env.TARO_APP_API_BASE || '').replace(/\/+$/, '')
