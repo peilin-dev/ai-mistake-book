@@ -406,3 +406,66 @@ async def confirmed_key_q1_q2(db, my_assignment) -> list[AnswerItem]:
     db.add_all(items)
     await db.commit()
     return items
+
+
+# --- Task 12 fixtures ---
+from types import SimpleNamespace  # noqa: E402
+
+from app.models import QuestionResult, Submission  # noqa: E402
+
+
+def make_result(page_id: int, submission_id: int | None, no: str, **kw) -> QuestionResult:
+    fields = dict(question_no=no, question_text="t", student_answer="a", correct_answer="a",
+                  answer_verified=True, is_correct=True, score=2, max_score=2, confidence=0.95,
+                  needs_review=False, reviewed=False, crop_key=None)
+    fields.update(kw)
+    return QuestionResult(page_id=page_id, submission_id=submission_id, **fields)
+
+
+@pytest_asyncio.fixture
+async def make_done_page(db, storage, my_assignment, teacher):
+    """Factory: a done Page of my_assignment with a stored image."""
+
+    async def _make(seq: int, student_id: int | None = None, name: str | None = None) -> Page:
+        page = Page(assignment_id=my_assignment.id, seq=seq, image_key="", image_sha256=f"d{seq}",
+                    status=PageStatus.done, student_id=student_id, recognized_name=name)
+        db.add(page)
+        await db.flush()
+        page.image_key = f"originals/{teacher.id}/{my_assignment.id}/{page.id}.jpg"
+        await storage.put(page.image_key, paper_jpeg(seed=seq), "image/jpeg")
+        await db.commit()
+        return page
+
+    return _make
+
+
+@pytest_asyncio.fixture
+async def graded_submission(db, my_assignment, roster_zhangsan, make_done_page):
+    """Submission with q1 judged correct (2/2) and q2 wrong (0/4); total 2."""
+    page = await make_done_page(10, roster_zhangsan.id, "张三")
+    sub = Submission(assignment_id=my_assignment.id, student_id=roster_zhangsan.id,
+                     total_score=2, needs_review_count=0)
+    db.add(sub)
+    await db.flush()
+    qs = [make_result(page.id, sub.id, "1"),
+          make_result(page.id, sub.id, "2", is_correct=False, score=0, max_score=4)]
+    db.add_all(qs)
+    await db.commit()
+    return SimpleNamespace(id=sub.id, total_score=2, questions=qs, page=page)
+
+
+@pytest_asyncio.fixture
+async def unmatched_page(db, make_done_page) -> Page:
+    page = await make_done_page(1, None, "张小三")
+    db.add_all([make_result(page.id, None, "1", needs_review=True),
+                make_result(page.id, None, "2", needs_review=True, is_correct=False, score=0, max_score=4)])
+    await db.commit()
+    return page
+
+
+@pytest_asyncio.fixture
+async def other_class_student(db, other_teacher_class) -> Student:
+    s = Student(class_id=other_teacher_class.id, name="外班生")
+    db.add(s)
+    await db.commit()
+    return s

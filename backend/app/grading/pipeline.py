@@ -98,15 +98,15 @@ async def _model_phase(
 async def _write_phase(
     db: AsyncSession, storage: Storage, page_id: int, ctx: _Context, result: GradedPage, settings: Settings
 ) -> None:
-    await db.execute(select(Assignment.id).where(Assignment.id == ctx.assignment_id).with_for_update())
-    page = await _fresh_page(db, Page.id == page_id)
+    await lock_assignment(db, ctx.assignment_id)
+    page = await fresh_page(db, Page.id == page_id)
     name = _clean_name(result.student_name)
     roster = [(sid, n) for sid, n in await db.execute(
         select(Student.id, Student.name).where(Student.class_id == ctx.class_id))]
     match = match_student(name, roster, await _previous_student(db, page), settings.NAME_MATCH_THRESHOLD)
     page.student_id, page.recognized_name = match.student_id, name
     old_submissions, old_crops = await _clear_results(db, page_id)
-    submission_id = await _submission_id(db, ctx.assignment_id, match.student_id)
+    submission_id = await get_or_create_submission(db, ctx.assignment_id, match.student_id)
 
     rows = []
     for gq in result.questions:
@@ -124,9 +124,9 @@ async def _write_phase(
             await storage.put(row.crop_key, data, "image/jpeg")
 
     if submission_id is not None:
-        await _attach_following_pages(db, page, submission_id, settings)
+        await attach_following_pages(db, page, submission_id, settings)
     for sid in (old_submissions | {submission_id}) - {None}:
-        await _recompute_submission(db, sid)
+        await recompute_submission(db, sid)
     page.status, page.fail_reason = PageStatus.done, None
     await db.commit()  # releases the assignment lock
     for crop_key in old_crops:
@@ -138,7 +138,11 @@ def _clean_name(name: str | None) -> str | None:
     return name[:64] or None
 
 
-async def _fresh_page(db: AsyncSession, *where) -> Page | None:
+async def lock_assignment(db: AsyncSession, assignment_id: int) -> None:
+    await db.execute(select(Assignment.id).where(Assignment.id == assignment_id).with_for_update())
+
+
+async def fresh_page(db: AsyncSession, *where) -> Page | None:
     stmt = select(Page).where(*where).limit(1).execution_options(populate_existing=True)
     return (await db.execute(stmt)).scalar_one_or_none()
 
@@ -179,10 +183,10 @@ async def _previous_student(db: AsyncSession, page: Page) -> int | None:
     return (await db.execute(stmt)).scalar_one_or_none()
 
 
-async def _attach_following_pages(db: AsyncSession, page: Page, submission_id: int, settings: Settings) -> None:
+async def attach_following_pages(db: AsyncSession, page: Page, submission_id: int, settings: Settings) -> None:
     """Nameless pages finished before this one become its continuation (spec 7.2)."""
     seq = page.seq + 1
-    while (nxt := await _fresh_page(db, Page.assignment_id == page.assignment_id, Page.seq == seq)) is not None:
+    while (nxt := await fresh_page(db, Page.assignment_id == page.assignment_id, Page.seq == seq)) is not None:
         if nxt.status != PageStatus.done or nxt.student_id is not None or nxt.recognized_name is not None:
             break
         nxt.student_id = page.student_id
@@ -204,7 +208,7 @@ async def _clear_results(db: AsyncSession, page_id: int) -> tuple[set[int | None
     return {sid for sid, _ in old}, [key for _, key in old if key]
 
 
-async def _submission_id(db: AsyncSession, assignment_id: int, student_id: int | None) -> int | None:
+async def get_or_create_submission(db: AsyncSession, assignment_id: int, student_id: int | None) -> int | None:
     """Get or create; safe without savepoints because the assignment lock is held."""
     if student_id is None:
         return None
@@ -242,7 +246,7 @@ def _result_row(gq: GradedQuestion, item: AnswerItem | None, allowed_kps: set[in
     )
 
 
-async def _recompute_submission(db: AsyncSession, submission_id: int) -> None:
+async def recompute_submission(db: AsyncSession, submission_id: int) -> None:
     pending = case((and_(QuestionResult.needs_review.is_(True), QuestionResult.reviewed.is_(False)), 1), else_=0)
     total, review_count = (await db.execute(
         select(func.coalesce(func.sum(QuestionResult.score), 0), func.coalesce(func.sum(pending), 0))
