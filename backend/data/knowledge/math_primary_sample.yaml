@@ -1,0 +1,71 @@
+# 小学数学 五、六年级知识点样例（依据义务教育数学课程标准的四大领域）
+# 供 M1 联调使用；全科数据由 M2 产出。
+subject: math
+grade_band: [5, 6]
+nodes:
+  - code: M-NA
+    name: 数与代数
+    children:
+      - code: M-NA-01
+        name: 数与运算
+        children:
+          - {code: M-NA-01-01, name: 小数的意义和性质}
+          - {code: M-NA-01-02, name: 小数乘除法}
+          - {code: M-NA-01-03, name: 分数加减法}
+          - {code: M-NA-01-04, name: 分数乘除法, grade_band: [6, 6]}
+          - {code: M-NA-01-05, name: 因数与倍数}
+          - {code: M-NA-01-06, name: 分数与小数互化}
+          - {code: M-NA-01-07, name: 四则混合运算}
+      - code: M-NA-02
+        name: 数的认识
+        children:
+          - {code: M-NA-02-01, name: 分数的意义和基本性质}
+          - {code: M-NA-02-02, name: 百分数的意义}
+          - {code: M-NA-02-03, name: 负数的初步认识, grade_band: [6, 6]}
+      - code: M-NA-03
+        name: 式与方程
+        children:
+          - {code: M-NA-03-01, name: 用字母表示数}
+          - {code: M-NA-03-02, name: 简易方程}
+          - {code: M-NA-03-03, name: 比和比例, grade_band: [6, 6]}
+          - {code: M-NA-03-04, name: 正比例与反比例, grade_band: [6, 6]}
+  - code: M-GM
+    name: 图形与几何
+    children:
+      - code: M-GM-01
+        name: 图形的认识
+        children:
+          - {code: M-GM-01-01, name: 多边形的面积}
+          - {code: M-GM-01-02, name: 圆的认识与周长, grade_band: [6, 6]}
+          - {code: M-GM-01-03, name: 圆的面积, grade_band: [6, 6]}
+          - {code: M-GM-01-04, name: 长方体和正方体的表面积与体积}
+          - {code: M-GM-01-05, name: 圆柱与圆锥, grade_band: [6, 6]}
+      - code: M-GM-02
+        name: 图形的位置与运动
+        children:
+          - {code: M-GM-02-01, name: 用数对确定位置}
+          - {code: M-GM-02-02, name: 图形的平移旋转与轴对称}
+          - {code: M-GM-02-03, name: 比例尺与图形的放缩, grade_band: [6, 6]}
+  - code: M-SP
+    name: 统计与概率
+    children:
+      - code: M-SP-01
+        name: 数据的收集与整理
+        children:
+          - {code: M-SP-01-01, name: 平均数与条形统计图}
+          - {code: M-SP-01-02, name: 折线统计图}
+          - {code: M-SP-01-03, name: 扇形统计图, grade_band: [6, 6]}
+      - code: M-SP-02
+        name: 可能性
+        children:
+          - {code: M-SP-02-01, name: 事件发生的可能性}
+          - {code: M-SP-02-02, name: 可能性的大小与游戏公平性, grade_band: [5, 5]}
+  - code: M-PR
+    name: 综合与实践
+    children:
+      - code: M-PR-01
+        name: 主题活动与项目学习
+        children:
+          - {code: M-PR-01-01, name: 数学广角-找次品}
+          - {code: M-PR-01-02, name: 鸡兔同笼与假设策略}
+          - {code: M-PR-01-03, name: 用百分数解决生活问题, grade_band: [6, 6]}

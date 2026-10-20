@@ -240,6 +240,29 @@ def storage(app, settings) -> LocalStorage:
     app.dependency_overrides[get_storage] = lambda: s
     return s
 
+# --- Task 8 fixtures ---
+import yaml as _yaml  # noqa: E402
+
+
+@pytest.fixture
+def sample_yaml() -> Path:
+    return Path(__file__).resolve().parent.parent / "data" / "knowledge" / "math_primary_sample.yaml"
+
+
+@pytest.fixture
+def count_nodes():
+    """Counts every node (inner and leaf) in a knowledge YAML file."""
+
+    def _count(path: Path) -> int:
+        def walk(nodes) -> int:
+            return sum(1 + walk(n.get("children") or []) for n in nodes)
+
+        doc = _yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+        return walk(doc["nodes"])
+
+    return _count
+
+
 # --- Task 7 fixtures ---
 import json as _json  # noqa: E402
 

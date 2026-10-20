@@ -168,11 +168,12 @@ class Submission(_Base):
 class KnowledgePoint(_Base):
     __tablename__ = "knowledge_points"
     subject: Mapped[Subject] = mapped_column(_enum(Subject, "subject"))
-    grade_band: Mapped[str] = mapped_column(String(16))
+    grade_min: Mapped[int] = mapped_column(Integer)  # inclusive
+    grade_max: Mapped[int] = mapped_column(Integer)  # inclusive
     parent_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("knowledge_points.id", ondelete="CASCADE"), index=True
     )
-    code: Mapped[str] = mapped_column(String(64))
+    code: Mapped[str] = mapped_column(String(64), unique=True)
     name: Mapped[str] = mapped_column(String(128))
 
 
