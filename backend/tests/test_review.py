@@ -332,3 +332,10 @@ async def test_assignment_has_answer_key_flag(auth_client, my_assignment):
 
 async def test_assignment_has_answer_key_when_confirmed(auth_client, my_assignment, confirmed_key_q1_q2):
     assert (await auth_client.get(f"/api/assignments/{my_assignment.id}")).json()["has_answer_key"] is True
+
+async def test_submission_questions_include_answer_verified(auth_client, db, graded_submission):
+    q2 = graded_submission.questions[1]
+    q2.answer_verified = False
+    await db.commit()
+    sub = (await auth_client.get(f"/api/submissions/{graded_submission.id}")).json()
+    assert [q["answer_verified"] for q in sub["questions"]] == [True, False]

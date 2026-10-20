@@ -52,6 +52,7 @@ def _result_out(r: QuestionResult, storage: Storage) -> dict:
         "reviewed": r.reviewed,
         "model_is_correct": r.model_is_correct,
         "model_score": r.model_score,
+        "answer_verified": r.answer_verified,
         "crop_url": storage.signed_url(r.crop_key) if r.crop_key else None,
     }
 
