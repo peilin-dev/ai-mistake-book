@@ -1,4 +1,5 @@
 import { View, Text, ScrollView } from '@tarojs/components'
+import Taro from '@tarojs/taro'
 import type { StudentOut } from '../lib/types'
 import './components.scss'
 
@@ -6,10 +7,17 @@ interface Props {
   students: StudentOut[]
   onPick: (s: StudentOut) => void
   onClose: () => void
+  /** Roster page of this class; shows "名单里没有这个学生？去添加" when given. */
+  addUrl?: string | null
 }
 
 /** Bottom sheet: tap a name to choose that student. */
-export default function StudentPicker({ students, onPick, onClose }: Props) {
+export default function StudentPicker({ students, onPick, onClose, addUrl }: Props) {
+  const goAdd = () => {
+    if (!addUrl) return
+    onClose()
+    void Taro.navigateTo({ url: addUrl })
+  }
   return (
     <View className='sheet-mask' onClick={onClose}>
       <View className='sheet' onClick={(e) => e.stopPropagation()}>
@@ -26,6 +34,15 @@ export default function StudentPicker({ students, onPick, onClose }: Props) {
             ))}
           </ScrollView>
         )}
+        {addUrl ? (
+          <Text
+            className='label'
+            style={{ display: 'block', textAlign: 'center', color: '#07c160', padding: '24px 0 8px' }}
+            onClick={goAdd}
+          >
+            名单里没有这个学生？去添加
+          </Text>
+        ) : null}
       </View>
     </View>
   )

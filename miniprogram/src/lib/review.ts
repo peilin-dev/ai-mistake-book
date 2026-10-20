@@ -20,6 +20,23 @@ export function buildQueue(r: ReviewOut): ReviewItem[] {
   ]
 }
 
+/** 先跳过: the head item goes to the back of the local queue, so the rest stay reachable. */
+export function skipHead(items: ReviewItem[]): ReviewItem[] {
+  if (items.length < 2) return items.slice()
+  return [...items.slice(1), items[0]]
+}
+
+/**
+ * After the queue is reloaded from the backend, put the items the teacher skipped back at the
+ * end (in the order they were skipped) so a reload does not bring them straight back up.
+ */
+export function deferSkipped(items: ReviewItem[], skippedKeys: string[]): ReviewItem[] {
+  const byKey = new Map(items.map((i) => [i.key, i]))
+  const deferred = skippedKeys.filter((k) => byKey.has(k))
+  const set = new Set(deferred)
+  return [...items.filter((i) => !set.has(i.key)), ...deferred.map((k) => byKey.get(k)!)]
+}
+
 export function reasonText(reason: ReviewQuestion['reason']): string {
   switch (reason) {
     case 'low_confidence':

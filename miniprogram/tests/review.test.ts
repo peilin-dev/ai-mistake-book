@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
-import { buildQueue, parseScore, reasonText, refreshesExpiredImageUrls } from '../src/lib/review'
+import {
+  buildQueue,
+  deferSkipped,
+  parseScore,
+  reasonText,
+  refreshesExpiredImageUrls,
+  skipHead,
+} from '../src/lib/review'
 import type { ReviewOut, ReviewQuestion } from '../src/lib/types'
 
 const q = (id: number, o: Partial<ReviewQuestion> = {}): ReviewQuestion => ({
@@ -38,6 +45,30 @@ describe('buildQueue', () => {
   })
   it('is empty when nothing to review', () => {
     expect(buildQueue({ pages_unassigned: [], questions: [] })).toEqual([])
+  })
+})
+
+describe('skipHead', () => {
+  it('moves the head item to the end', () => {
+    const items = buildQueue(review())
+    expect(skipHead(items).map((i) => i.key)).toEqual(['q1', 'q2', 'p9'])
+    expect(items.map((i) => i.key)).toEqual(['p9', 'q1', 'q2']) // not mutated
+  })
+  it('leaves empty and single-item queues alone', () => {
+    expect(skipHead([])).toEqual([])
+    const one = buildQueue(review({ questions: [] }))
+    expect(skipHead(one).map((i) => i.key)).toEqual(['p9'])
+  })
+})
+
+describe('deferSkipped', () => {
+  it('keeps skipped items at the end, in the order they were skipped, after a reload', () => {
+    const fresh = buildQueue(review({ questions: [q(1), q(2), q(3)] }))
+    expect(deferSkipped(fresh, ['q1', 'p9']).map((i) => i.key)).toEqual(['q2', 'q3', 'q1', 'p9'])
+  })
+  it('ignores skipped keys no longer in the queue', () => {
+    const fresh = buildQueue(review())
+    expect(deferSkipped(fresh, ['q7', 'q1']).map((i) => i.key)).toEqual(['p9', 'q2', 'q1'])
   })
 })
 

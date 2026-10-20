@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { View, Text, Button, Image, Input } from '@tarojs/components'
-import Taro, { useRouter } from '@tarojs/taro'
+import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { ApiError, request } from '../../lib/api'
 import { errorText } from '../../lib/messages'
 import {
   buildQueue,
+  deferSkipped,
   parseScore,
   reasonText,
   refreshesExpiredImageUrls,
+  skipHead,
   type ReviewItem,
 } from '../../lib/review'
 import type { AssignmentOut, ReviewOut, StudentOut } from '../../lib/types'
@@ -27,19 +29,24 @@ export default function Review() {
   const [scoreText, setScoreText] = useState('')
   const [busy, setBusy] = useState(false)
   const working = useRef(false)
+  const classId = useRef<number | null>(null)
+  /** Keys the teacher put off with 先跳过, oldest first; they stay at the back across reloads. */
+  const skipped = useRef<string[]>([])
   const fetchReview = () => request<ReviewOut>('GET', `/api/assignments/${assignmentId}/review`)
   const refresher = useRef(refreshesExpiredImageUrls(fetchReview))
+  const queueFrom = (r: ReviewOut) => deferSkipped(buildQueue(r), skipped.current)
 
   const load = async () => {
     if (!validId) return
     try {
       const a = await request<AssignmentOut>('GET', `/api/assignments/${assignmentId}`)
+      classId.current = a.class_id
       const [roster, review] = await Promise.all([
         request<StudentOut[]>('GET', `/api/classes/${a.class_id}/students`),
         fetchReview(),
       ])
       setStudents(roster)
-      setItems(buildQueue(review))
+      setItems(queueFrom(review))
       setState('ok')
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
@@ -54,6 +61,14 @@ export default function Review() {
   useEffect(() => {
     void load()
   }, [])
+
+  // Back from 去添加 (class-edit): pick up students added there.
+  useDidShow(() => {
+    if (classId.current === null) return
+    request<StudentOut[]>('GET', `/api/classes/${classId.current}/students`)
+      .then(setStudents)
+      .catch(() => undefined)
+  })
 
   const retryLoad = () => {
     setState('loading')
@@ -72,12 +87,44 @@ export default function Review() {
     try {
       await fn()
     } catch (e) {
-      Taro.showToast({ title: errorText(e), icon: 'none' })
+      if (e instanceof ApiError && (e.status === 404 || e.status === 409)) {
+        // This item changed elsewhere (already handled, page re-shot…): don't stay stuck on it.
+        await reloadQueue('这一项已经变了，已为你刷新')
+      } else {
+        Taro.showToast({ title: errorText(e), icon: 'none' })
+      }
     } finally {
       working.current = false
       setBusy(false)
     }
   }
+
+  const reloadQueue = async (notice: string) => {
+    try {
+      setItems(queueFrom(await fetchReview()))
+      setScoring(false)
+      setScoreText('')
+      Taro.showToast({ title: notice, icon: 'none' })
+    } catch (e) {
+      Taro.showToast({ title: errorText(e), icon: 'none' })
+    }
+  }
+
+  /** 先跳过: put the head item at the back so everything behind it stays reachable. */
+  const skipItem = () => {
+    if (working.current) return
+    setItems((old) => {
+      const head = old[0]
+      if (head) skipped.current = [...skipped.current.filter((k) => k !== head.key), head.key]
+      return skipHead(old)
+    })
+    setPicking(false)
+    setScoring(false)
+    setScoreText('')
+  }
+
+  const addStudentUrl = () =>
+    classId.current === null ? null : `/pages/class-edit/index?classId=${classId.current}`
 
   const advance = () => {
     setItems((old) => old.slice(1))
@@ -110,7 +157,7 @@ export default function Review() {
       await request('PATCH', `/api/pages/${pageId}`, { student_id: s.id })
       // The follow-up pages moved with this one, so the queue may have changed: reload it.
       try {
-        setItems(buildQueue(await fetchReview()))
+        setItems(queueFrom(await fetchReview()))
         setDoneCount((n) => n + 1)
       } catch {
         advance()
@@ -176,7 +223,7 @@ export default function Review() {
 
   if (item.kind === 'page') {
     return (
-      <View className='page' style={{ paddingBottom: '260px' }}>
+      <View className='page' style={{ paddingBottom: items.length > 1 ? '380px' : '260px' }}>
         <Text className='label'>第 {progress} 项</Text>
         <View className='card'>
           <Text style={{ fontSize: '36px', fontWeight: 'bold', display: 'block' }}>这张卷子是谁的？</Text>
@@ -199,9 +246,19 @@ export default function Review() {
           <Button className='big-btn' disabled={busy} onClick={() => setPicking(true)}>
             选择学生
           </Button>
+          {items.length > 1 ? (
+            <Button className='big-btn ghost-btn' style={{ marginTop: '16px' }} disabled={busy} onClick={skipItem}>
+              先跳过
+            </Button>
+          ) : null}
         </View>
         {picking ? (
-          <StudentPicker students={students} onPick={(s) => assign(item.pageId, s)} onClose={() => setPicking(false)} />
+          <StudentPicker
+            students={students}
+            addUrl={addStudentUrl()}
+            onPick={(s) => assign(item.pageId, s)}
+            onClose={() => setPicking(false)}
+          />
         ) : null}
       </View>
     )
@@ -277,14 +334,31 @@ export default function Review() {
                 改分
               </Button>
             </View>
-            <Button className='big-btn ghost-btn' style={{ marginTop: '16px' }} disabled={busy} onClick={() => setPicking(true)}>
-              换学生
-            </Button>
+            <View style={{ display: 'flex', marginTop: '16px' }}>
+              <Button
+                className='big-btn ghost-btn'
+                style={items.length > 1 ? { marginRight: '16px' } : undefined}
+                disabled={busy}
+                onClick={() => setPicking(true)}
+              >
+                换学生
+              </Button>
+              {items.length > 1 ? (
+                <Button className='big-btn ghost-btn' disabled={busy} onClick={skipItem}>
+                  先跳过
+                </Button>
+              ) : null}
+            </View>
           </View>
         )}
       </View>
       {picking ? (
-        <StudentPicker students={students} onPick={(s) => assign(q.page_id, s)} onClose={() => setPicking(false)} />
+        <StudentPicker
+          students={students}
+          addUrl={addStudentUrl()}
+          onPick={(s) => assign(q.page_id, s)}
+          onClose={() => setPicking(false)}
+        />
       ) : null}
     </View>
   )
