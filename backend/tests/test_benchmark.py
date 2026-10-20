@@ -1,4 +1,4 @@
-﻿import csv
+import csv
 import json
 from io import BytesIO
 from pathlib import Path
@@ -158,3 +158,32 @@ async def test_run_benchmark_cost_from_price_table(bench, tmp_path, monkeypatch)
     rows = await run_benchmark(bench, {"p": Priced("m1"), "u": Priced("unknown")}, tmp_path / "c.csv", concurrency=3)
     assert {r["cost_fen"] for r in rows if r["model"] == "p"} == {4.0}
     assert {r["cost_fen"] for r in rows if r["model"] == "u"} == {0.0}
+
+
+async def test_summary_cost_and_latency_semantics(bench, tmp_path, monkeypatch):
+    from app.ai.base import ModelResult
+    from app.config import get_settings
+    monkeypatch.setitem(get_settings().PRICE_FEN_PER_1K, "m", (1.0, 0.0))
+    _case(bench, "c3", "math", [{"no": "1", "is_correct": True, "score": 1}])
+
+    class Mixed:
+        provider = "fake"
+
+        def __init__(self):
+            self.n = 0
+
+        async def complete_json(self, prompt, images):
+            self.n += 1
+            if self.n == 1:
+                return ModelResult(_valid(), 1000, 0, "m", "fake")  # ok, cost 1
+            if self.n == 2:
+                return ModelResult({"questions": "bad"}, 3000, 0, "m", "fake")  # invalid, billed cost 3
+            raise ModelCallError("down")  # not billed
+
+    rows = await run_benchmark(bench, {"x": Mixed()}, tmp_path / "m.csv")
+    assert sorted(r["status"] for r in rows) == ["call_error", "invalid_output", "ok"]
+    with (tmp_path / "m_summary.csv").open(encoding="utf-8-sig", newline="") as f:
+        allrow = next(r for r in csv.DictReader(f) if r["subject"] == "ALL")
+    ok_row = next(r for r in rows if r["status"] == "ok")
+    assert float(allrow["avg_cost_fen"]) == pytest.approx(2.0)  # (1 + 3) / 2
+    assert float(allrow["avg_latency_s"]) == pytest.approx(ok_row["latency_s"])

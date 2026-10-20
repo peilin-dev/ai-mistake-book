@@ -1,4 +1,4 @@
-﻿"""Benchmark vision models on hand-labelled exam photos (spec section 8).
+"""Benchmark vision models on hand-labelled exam photos (spec section 8).
 
 Usage: python scripts/benchmark_models.py --dir bench --models qwen:qwen-vl-max doubao:<model> --out bench_report.csv
 Layout: bench/<case_id>/page.jpg + truth.json {subject, grade, questions: [{no, is_correct, score}]}
@@ -8,11 +8,15 @@ import asyncio
 import csv
 import json
 import logging
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
 
 from pydantic import ValidationError
+
+if __name__ == "__main__":  # `python scripts/benchmark_models.py` puts scripts/ on sys.path, not backend/
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.ai.base import ModelCallError, ModelOutputError, VisionModel
 from app.ai.registry import build_model
@@ -87,19 +91,22 @@ def _ratio(num: float, den: float):
 
 
 def _summarize(rows: list[dict]) -> list[dict]:
+    """Per model x subject (+ ALL). agree_rate/coverage/avg_latency_s use ok rows (coverage over all
+    truth questions); avg_cost_fen averages every billed row (ok + invalid_output), excluding call_error."""
     out = []
     for name in dict.fromkeys(r["model"] for r in rows):
         mrows = [r for r in rows if r["model"] == name]
         groups = [(s, [r for r in mrows if r["subject"] == s]) for s in dict.fromkeys(r["subject"] for r in mrows)]
         for subject, grp in groups + [("ALL", mrows)]:
             ok = [r for r in grp if r["status"] == "ok"]
+            # Paid calls: a response came back (ok or invalid_output with usage); call_error is not billed.
+            billed = [r for r in grp if r["cost_fen"] is not None]
             out.append({
                 "model": name, "subject": subject, "cases": len(grp), "ok_cases": len(ok),
                 "agree_rate": _ratio(sum(r["correct_agree"] for r in ok), sum(r["matched"] for r in ok)),
                 "coverage": _ratio(sum(r["matched"] for r in ok), sum(r["total"] for r in grp)),
-                "avg_latency_s": _ratio(sum(r["latency_s"] for r in grp if r["latency_s"] is not None),
-                                        len([r for r in grp if r["latency_s"] is not None])),
-                "avg_cost_fen": _ratio(sum(r["cost_fen"] for r in ok), len(ok)),
+                "avg_latency_s": _ratio(sum(r["latency_s"] for r in ok), len(ok)),
+                "avg_cost_fen": _ratio(sum(r["cost_fen"] for r in billed), len(billed)),
             })
     return out
 
@@ -158,3 +165,5 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
+

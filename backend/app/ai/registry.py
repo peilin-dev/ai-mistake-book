@@ -1,4 +1,4 @@
-﻿from typing import Literal
+from typing import Literal
 
 from app.ai.base import VisionModel
 from app.ai.openai_compat import OpenAICompatModel
