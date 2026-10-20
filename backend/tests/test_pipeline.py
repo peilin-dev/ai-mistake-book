@@ -407,3 +407,51 @@ async def test_late_continuation_stops_at_first_named_page(
     assert students == [student_id, student_id, None, None]
     sub = (await db.execute(select(Submission))).scalar_one()
     assert sub.total_score == 4
+
+# --- final review fix 5/8: vanished pages and done pages ---
+
+class DeletingModel(FakeModel):
+    """Deletes the page (as a class delete would) while the model call is in flight."""
+
+    def __init__(self, responses, db, page_id):
+        super().__init__(responses)
+        self._db, self._page_id = db, page_id
+
+    async def complete_json(self, prompt, images):
+        from sqlalchemy import delete
+
+        await self._db.execute(delete(Page).where(Page.id == self._page_id))
+        await self._db.commit()
+        return await super().complete_json(prompt, images)
+
+
+async def test_page_deleted_during_grading_returns_quietly(db, rc_sessionmaker, storage, uploaded_page):
+    page_id = uploaded_page.id
+    model = DeletingModel([graded(student_name=None, questions=[q(no="1")])], db, page_id)
+    await _grade_in_new_session(rc_sessionmaker, storage, model, page_id)  # no exception
+    await _reset(db)
+    assert await db.get(Page, page_id) is None
+    assert (await db.execute(select(func.count(QuestionResult.id)))).scalar() == 0
+
+
+async def test_job_on_vanished_page_after_model_error_returns_quietly(db, job_ctx, uploaded_page):
+    page_id = uploaded_page.id
+    job_ctx.update(model=DeletingModel([ModelCallError("503")], db, page_id), job_try=3)
+    assert await grade_page_job(job_ctx, page_id) is None
+    job_ctx.update(model=FakeModel([]), job_try=1)
+    assert await grade_page_job(job_ctx, page_id) is None  # page already gone
+
+
+async def test_done_page_is_not_regraded(db, storage, uploaded_page, roster_zhangsan):
+    page_id = uploaded_page.id
+    await grade_page(db, storage, FakeModel([graded(student_name="张三", questions=[q(no="1")])]), page_id)
+    r = (await db.execute(select(QuestionResult))).scalar_one()
+    r.score, r.reviewed = 1, True  # a teacher correction
+    await db.commit()
+    model = FakeModel([graded(student_name="张三", questions=[q(no="9")])])
+    await grade_page(db, storage, model, page_id)  # duplicate delivery of the job
+    assert model.prompts == []
+    await _reset(db)
+    r = (await db.execute(select(QuestionResult))).scalar_one()
+    assert (r.question_no, r.score, r.reviewed) == ("1", 1, True)
+    assert (await db.execute(select(func.count(UsageRecord.id)))).scalar() == 1

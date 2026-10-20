@@ -51,16 +51,29 @@ class _Context:
     image: bytes
 
 
-async def set_page_status(db: AsyncSession, page_id: int, status: PageStatus, reason: str | None) -> None:
-    page = await db.get(Page, page_id)  # reloads if a rollback expired it
+class PageGone(Exception):
+    """The page (or its assignment/class) was deleted while the job ran."""
+
+
+async def set_page_status(db: AsyncSession, page_id: int, status: PageStatus, reason: str | None) -> bool:
+    """Update and commit; False (nothing written) when the page no longer exists."""
+    page = await fresh_page(db, Page.id == page_id)
+    if page is None:
+        await db.rollback()
+        return False
     page.status, page.fail_reason = status, reason
     await db.commit()
+    return True
 
 
 async def grade_page(db: AsyncSession, storage: Storage, model: VisionModel, page_id: int) -> None:
     page = await db.get(Page, page_id)
     if page is None:
         log.warning("grade_page: page %s not found", page_id)
+        return
+    if page.status == PageStatus.done:
+        # arq delivers at least once; regrading would erase teacher corrections.
+        log.info("grade_page: page %s already done, skipping", page_id)
         return
     await set_page_status(db, page_id, PageStatus.processing, None)
     try:
@@ -73,11 +86,17 @@ async def grade_page(db: AsyncSession, storage: Storage, model: VisionModel, pag
         await _write_phase(db, storage, page_id, ctx, result, get_settings())
     except ModelCallError:
         # Keep usage already recorded; arq decides whether to retry.
-        await set_page_status(db, page_id, PageStatus.queued, None)
+        if not await set_page_status(db, page_id, PageStatus.queued, None):
+            log.info("grade_page: page %s deleted during grading", page_id)
+            return
         raise
-    except Exception:
-        log.exception("grade_page: page %s failed", page_id)
+    except Exception as e:
         await db.rollback()
+        if isinstance(e, PageGone) or await fresh_page(db, Page.id == page_id) is None:
+            await db.rollback()
+            log.info("grade_page: page %s deleted during grading", page_id)
+            return
+        log.exception("grade_page: page %s failed", page_id)
         await set_page_status(db, page_id, PageStatus.failed, "internal_error")
         raise
 
@@ -86,7 +105,9 @@ async def _model_phase(
     db: AsyncSession, storage: Storage, model: VisionModel, page: Page
 ) -> tuple[_Context, GradedPage | None]:
     assignment = await db.get(Assignment, page.assignment_id)
-    cls = await db.get(Class_, assignment.class_id)
+    cls = await db.get(Class_, assignment.class_id) if assignment is not None else None
+    if cls is None:
+        raise PageGone()
     image = await asyncio.to_thread(prepare_image, await storage.get(page.image_key))
     answers = await _answer_key(db, assignment)
     kps = await candidates(db, assignment.subject, cls.grade)
@@ -100,6 +121,8 @@ async def _write_phase(
 ) -> None:
     await lock_assignment(db, ctx.assignment_id)
     page = await fresh_page(db, Page.id == page_id)
+    if page is None:
+        raise PageGone()
     name = _clean_name(result.student_name)
     roster = [(sid, n) for sid, n in await db.execute(
         select(Student.id, Student.name).where(Student.class_id == ctx.class_id))]
