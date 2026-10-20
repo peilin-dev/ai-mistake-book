@@ -269,6 +269,31 @@ class PageUploadOut(BaseModel):
     duplicate: bool
 
 
+async def _requeue_failed(
+    db: AsyncSession, page_id: int, enqueue: EnqueueGradePage, duplicate: bool = False
+) -> PageUploadOut | None:
+    """The one place a transiently failed page goes back to queued (+retry_count) and is enqueued.
+
+    Returns None, changing nothing, when the page is gone or is not (or no longer) a retryable
+    failure once the assignment lock is held; callers decide what that means.
+    """
+    assignment_id = (await db.execute(select(Page.assignment_id).where(Page.id == page_id))).scalar_one_or_none()
+    if assignment_id is None:
+        return None
+    await lock_assignment(db, assignment_id)
+    page = (
+        await db.execute(select(Page).where(Page.id == page_id).execution_options(populate_existing=True))
+    ).scalar_one_or_none()
+    if page is None or page.status != PageStatus.failed or page.fail_reason not in RETRYABLE_FAILURES:
+        await db.rollback()
+        return None
+    page.status, page.fail_reason = PageStatus.queued, None
+    page.retry_count += 1
+    seq, retry = page.seq, page.retry_count
+    await db.commit()
+    await _enqueue_or_503(enqueue, page_id, retry)
+    return PageUploadOut(page_id=page_id, seq=seq, status=PageStatus.queued, duplicate=duplicate)
+
 @router.post("/assignments/{assignment_id}/pages", response_model=PageUploadOut)
 async def upload_page(
     assignment_id: int,
@@ -298,20 +323,14 @@ async def upload_page(
     async def duplicate_out(page: Page) -> PageUploadOut:
         if page.status == PageStatus.failed and page.fail_reason in RETRYABLE_FAILURES:
             # Re-uploading a page that failed for a transient reason retries it.
-            await lock_assignment(db, assignment_id)
+            out = await _requeue_failed(db, page.id, enqueue, duplicate=True)
+            if out is not None:
+                response.status_code = 200
+                return out
+            # Lost a race: someone else already moved it on; report its current state below.
             page = (await db.execute(
                 select(Page).where(Page.id == page.id).execution_options(populate_existing=True)
-            )).scalar_one()
-            if page.status == PageStatus.failed and page.fail_reason in RETRYABLE_FAILURES:
-                page.status, page.fail_reason = PageStatus.queued, None
-                page.retry_count += 1
-            page_id, seq, status, retry = page.id, page.seq, page.status, page.retry_count
-            await db.commit()
-            if status == PageStatus.queued:
-                await _enqueue_or_503(enqueue, page_id, retry)
-            response.status_code = 200
-            return PageUploadOut(page_id=page_id, seq=seq, status=status, duplicate=True)
-        # A queued duplicate may be a retry after a failed enqueue; the job id keeps it idempotent.
+            )).scalar_one()        # A queued duplicate may be a retry after a failed enqueue; the job id keeps it idempotent.
         if page.status == PageStatus.queued:
             await _enqueue_or_503(enqueue, page.id, page.retry_count)
         response.status_code = 200
@@ -433,6 +452,26 @@ async def replace_page(
     await _enqueue_or_503(enqueue, page_id, retry)
     return PageUploadOut(page_id=page_id, seq=seq, status=PageStatus.queued, duplicate=False)
 
+
+@router.post("/pages/{page_id}:retry", response_model=PageUploadOut)
+async def retry_page(
+    page_id: int,
+    teacher: Teacher = Depends(current_teacher),
+    db: AsyncSession = Depends(get_db),
+    enqueue: EnqueueGradePage = Depends(get_enqueuer),
+):
+    """Grade again a page that failed for a transient reason (no new photo, no quota)."""
+    assignment_id = (await db.execute(select(Page.assignment_id).where(Page.id == page_id))).scalar_one_or_none()
+    if assignment_id is None:
+        raise HTTPException(status_code=404, detail="page not found")
+    try:
+        await own_assignment(db, teacher, assignment_id)
+    except HTTPException:
+        raise HTTPException(status_code=404, detail="page not found") from None
+    out = await _requeue_failed(db, page_id, enqueue)
+    if out is None:
+        raise HTTPException(status_code=409, detail="这张需要重拍")
+    return out
 
 class AnswerKeyOut(BaseModel):
     answer_key_status: AnswerKeyStatus

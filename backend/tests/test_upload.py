@@ -429,3 +429,54 @@ async def test_replace_clears_old_results(auth_client, failed_page_with_results,
     assert sub.total_score == 0 and sub.needs_review_count == 0
     for key in crop_keys:
         assert not await storage_exists(storage, key)
+
+
+async def test_retry_model_unavailable(auth_client, failed_page_factory, enqueued, db):
+    p = await failed_page_factory("model_unavailable")
+    r = await auth_client.post(f"/api/pages/{p.id}:retry")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "queued" and body["duplicate"] is False
+    assert body["page_id"] == p.id and body["seq"] == p.seq
+    assert enqueued[-1] == p.id and enqueued.retries[-1] == 1
+    await db.refresh(p)
+    assert p.status.value == "queued" and p.fail_reason is None and p.retry_count == 1
+
+
+async def test_retry_internal_error(auth_client, failed_page_factory, enqueued):
+    p = await failed_page_factory("internal_error")
+    r = await auth_client.post(f"/api/pages/{p.id}:retry")
+    assert r.status_code == 200 and enqueued[-1] == p.id
+
+
+@pytest.mark.parametrize("reason", ["unreadable", "model_output_invalid"])
+async def test_retry_non_retryable_is_409(auth_client, failed_page_factory, enqueued, reason):
+    pid = (await failed_page_factory(reason)).id
+    r = await auth_client.post(f"/api/pages/{pid}:retry")
+    assert r.status_code == 409 and r.json()["detail"] == "这张需要重拍"
+    assert pid not in enqueued
+
+
+async def test_retry_non_failed_page_is_409(auth_client, uploaded_page, enqueued):
+    r = await auth_client.post(f"/api/pages/{uploaded_page.id}:retry")
+    assert r.status_code == 409 and r.json()["detail"] == "这张需要重拍"
+
+
+async def test_retry_foreign_and_missing_404(auth_client, other_teacher_failed_page):
+    r = await auth_client.post(f"/api/pages/{other_teacher_failed_page.id}:retry")
+    assert r.status_code == 404
+    assert (await auth_client.post("/api/pages/999999:retry")).status_code == 404
+
+
+async def test_retry_twice_second_is_409(auth_client, failed_page_factory, enqueued):
+    p = await failed_page_factory("model_unavailable")
+    assert (await auth_client.post(f"/api/pages/{p.id}:retry")).status_code == 200
+    assert (await auth_client.post(f"/api/pages/{p.id}:retry")).status_code == 409
+    assert list(enqueued.retries) == [1]
+
+
+async def test_retry_is_quota_neutral(auth_client, failed_page_factory, settings, enqueued):
+    settings.MONTHLY_PAGE_QUOTA = 1
+    p = await failed_page_factory("model_unavailable")
+    r = await auth_client.post(f"/api/pages/{p.id}:retry")
+    assert r.status_code == 200
