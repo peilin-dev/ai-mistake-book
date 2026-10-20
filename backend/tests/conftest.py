@@ -19,6 +19,7 @@ if ENV_TEST.exists():
 from app.config import Settings, set_settings  # noqa: E402
 from app.db import Base  # noqa: E402
 from app.auth.wechat import WeChatAuthError, WxSession, get_wechat_client  # noqa: E402
+from app.auth.tokens import issue_token  # noqa: E402
 from app.deps import get_db  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.models import Assignment, Class_, Subject, Teacher  # noqa: E402
@@ -93,6 +94,40 @@ async def client(db, settings, fake_wx):
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
 
+
+
+@pytest_asyncio.fixture
+async def teacher(db) -> Teacher:
+    t = Teacher(unionid="u-auth", mp_openid="o-auth")
+    db.add(t)
+    await db.commit()
+    return t
+
+
+@pytest_asyncio.fixture
+async def auth_client(client, teacher):
+    """The `client`, logged in as `teacher`."""
+    client.headers["Authorization"] = f"Bearer {issue_token(teacher.id)}"
+    return client
+
+
+@pytest_asyncio.fixture
+async def my_class(db, teacher) -> Class_:
+    c = Class_(teacher_id=teacher.id, name="五(2)班", grade=5)
+    db.add(c)
+    await db.commit()
+    return c
+
+
+@pytest_asyncio.fixture
+async def other_teacher_class(db) -> Class_:
+    other = Teacher(unionid="u-other", mp_openid="o-other")
+    db.add(other)
+    await db.flush()
+    c = Class_(teacher_id=other.id, name="别人的班", grade=5)
+    db.add(c)
+    await db.commit()
+    return c
 
 
 @pytest_asyncio.fixture
