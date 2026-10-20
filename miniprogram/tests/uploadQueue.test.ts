@@ -74,7 +74,7 @@ describe('UploadQueue', () => {
     q2.add('a')
     q2.add('b')
     await flush()
-    expect(u413).toHaveBeenCalledTimes(2) // a once, b once
+    expect(u413).toHaveBeenCalledTimes(1) // fails at once, queue pauses so b never uploads
     expect(q2.items()[0]).toMatchObject({ state: 'failed', message: '照片太大了，请重拍这张' })
 
     const u415 = vi.fn<Uploader>().mockRejectedValue(new ApiError(415, ''))
@@ -87,62 +87,118 @@ describe('UploadQueue', () => {
 
   it('manualRetryRequeuesAtSamePosition', async () => {
     const calls: string[] = []
-    const failFirst = new Set(['b'])
-    const uploader: Uploader = async (f) => {
+    let fail = true
+    const q = new UploadQueue(async (f) => {
       calls.push(f)
-      if (failFirst.has(f)) throw new ApiError(404, '')
+      if (f === 'b' && fail) throw new ApiError(404, '')
       return ok()
-    }
-    const q = new UploadQueue(uploader)
-    const a = q.add('a')
+    })
+    q.add('a')
     const b = q.add('b')
+    q.add('c')
+    q.add('d')
     await flush()
-    expect(q.items().map((i) => i.state)).toEqual(['done', 'failed'])
-    // block the queue so c stays waiting while b is retried
-    let release!: () => void
-    const gate = new Promise<void>((r) => (release = r))
-    const q2calls: string[] = []
-    const q2 = new UploadQueue(async (f) => {
-      q2calls.push(f)
-      if (f === 'x') await gate
-      if (f === 'b' && q2calls.filter((c) => c === 'b').length === 1) throw new ApiError(404, '')
-      return ok()
-    })
-    q2.add('x')
-    const b2 = q2.add('b')
-    q2.add('c')
-    release()
+    expect(calls).toEqual(['a', 'b'])
+    fail = false
+    q.retry(b)
     await flush()
-    expect(q2calls).toEqual(['x', 'b', 'c'])
-    expect(q2.items().map((i) => i.state)).toEqual(['done', 'failed', 'done'])
-    // now add d (waiting behind a held state is not possible); verify retry goes before later waiting items
-    const q3calls: string[] = []
-    let hold!: () => void
-    const gate3 = new Promise<void>((r) => (hold = r))
-    const q3 = new UploadQueue(async (f) => {
-      q3calls.push(f)
-      if (f === 'a') return ok()
-      if (f === 'b' && q3calls.filter((c) => c === 'b').length === 1) throw new ApiError(404, '')
-      if (f === 'c') await gate3
-      return ok()
-    })
-    q3.add('a')
-    const bId = q3.add('b')
-    q3.add('c')
-    q3.add('d')
-    await flush()
-    // a done, b failed, c uploading (blocked), d waiting
-    expect(q3.items().map((i) => i.state)).toEqual(['done', 'failed', 'uploading', 'waiting'])
-    q3.retry(bId)
-    expect(q3.items()[1].state).toBe('waiting')
-    hold()
-    await flush()
-    expect(q3calls).toEqual(['a', 'b', 'c', 'b', 'd'])
-    expect(a).toBeTruthy()
-    expect(b).toBeTruthy()
-    expect(b2).toBeTruthy()
+    expect(calls).toEqual(['a', 'b', 'b', 'c', 'd'])
   })
 
+  it('pausesOnFailureUntilRetried', async () => {
+    const calls: string[] = []
+    let bFails = true
+    const q = new UploadQueue(async (f) => {
+      calls.push(f)
+      if (f === 'b' && bFails) throw new ApiError(404, '')
+      return ok()
+    })
+    q.add('a')
+    const bId = q.add('b')
+    q.add('c')
+    await flush()
+    expect(calls).toEqual(['a', 'b'])
+    expect(q.items().map((i) => i.state)).toEqual(['done', 'failed', 'waiting'])
+    expect(q.paused).toEqual({ localId: bId, message: '出了点问题，请稍后再试' })
+    expect(q.pendingCount()).toBe(2)
+    q.retry(q.items()[0].localId) // not the paused item: no-op
+    await flush()
+    expect(calls).toEqual(['a', 'b'])
+    bFails = false
+    q.retry(bId)
+    await flush()
+    expect(calls).toEqual(['a', 'b', 'b', 'c'])
+    expect(q.paused).toBeNull()
+    expect(q.items().every((i) => i.state === 'done')).toBe(true)
+  })
+
+  it('skipContinuesWithNext', async () => {
+    const calls: string[] = []
+    const q = new UploadQueue(async (f) => {
+      calls.push(f)
+      if (f === 'b') throw new ApiError(415, '')
+      return ok()
+    })
+    q.add('a')
+    const bId = q.add('b')
+    q.add('c')
+    await flush()
+    expect(calls).toEqual(['a', 'b'])
+    q.skip(bId)
+    await flush()
+    expect(calls).toEqual(['a', 'b', 'c'])
+    expect(q.items().map((i) => i.state)).toEqual(['done', 'skipped', 'done'])
+    expect(q.items()[1].message).toBe('已跳过，这张需要重新拍')
+    expect(q.paused).toBeNull()
+  })
+
+  it('retry is a no-op after quota stop', async () => {
+    const q = new UploadQueue(async () => {
+      throw new ApiError(429, '本月批改额度已用完')
+    })
+    const id = q.add('a')
+    await flush()
+    q.retry(id)
+    expect(q.items()[0].state).toBe('held')
+  })
+
+  it('throwing listener does not disturb uploads', async () => {
+    const calls: string[] = []
+    const q = new UploadQueue(async (f) => {
+      calls.push(f)
+      return ok()
+    })
+    q.onChange(() => {
+      throw new Error('boom')
+    })
+    q.add('a')
+    q.add('b')
+    await flush()
+    expect(calls).toEqual(['a', 'b'])
+    expect(q.items().map((i) => i.state)).toEqual(['done', 'done'])
+  })
+
+  it('dispose mid-upload lets in-flight finish, uploads nothing else, silences listeners', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    const uploader = vi.fn<Uploader>(async () => {
+      await gate
+      return ok()
+    })
+    const q = new UploadQueue(uploader)
+    const cb = vi.fn()
+    q.onChange(cb)
+    q.add('a')
+    q.add('b')
+    await flush()
+    q.dispose()
+    const n = cb.mock.calls.length
+    release()
+    await flush()
+    expect(uploader).toHaveBeenCalledTimes(1)
+    expect(q.items()[0].state).toBe('done')
+    expect(cb.mock.calls.length).toBe(n)
+  })
   it('duplicateCountsAsDone', async () => {
     const q = new UploadQueue(async () => ({ page_id: 7, seq: 1, duplicate: true }))
     q.add('a')
@@ -258,3 +314,5 @@ describe('UploadQueue', () => {
     expect(cb.mock.calls.length).toBe(n)
   })
 })
+
+

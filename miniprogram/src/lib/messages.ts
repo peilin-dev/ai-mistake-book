@@ -22,7 +22,7 @@ export function failReasonAction(reason: string | null): FailAction | null {
   return RETRY_REASONS.includes(reason) ? 'retry' : 'retake'
 }
 
-function isNetworkError(e: unknown): boolean {
+export function isNetworkError(e: unknown): boolean {
   if (e instanceof ApiError) return e.status === 0
   const msg =
     e instanceof Error ? e.message : (e as { errMsg?: unknown } | null | undefined)?.errMsg
@@ -36,4 +36,5 @@ export function errorText(e: unknown): string {
   if (isNetworkError(e)) return '网络不太好，请稍后再试'
   return '出了点问题，请稍后再试'
 }
+
 

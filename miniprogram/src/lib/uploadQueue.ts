@@ -1,9 +1,9 @@
 ﻿import { ApiError } from './api'
-import { errorText } from './messages'
+import { errorText, isNetworkError } from './messages'
 
 export type Uploader = (filePath: string) => Promise<{ page_id: number; seq: number; duplicate: boolean }>
 
-export type QueueState = 'waiting' | 'uploading' | 'done' | 'failed' | 'held'
+export type QueueState = 'waiting' | 'uploading' | 'done' | 'failed' | 'held' | 'skipped'
 
 export interface QueueItem {
   localId: string
@@ -15,26 +15,22 @@ export interface QueueItem {
 
 const QUOTA_TEXT = '本月批改额度已用完'
 const RECEIVED_TEXT = '已收到，稍后会自动开始批改'
+const SKIPPED_TEXT = '已跳过，这张需要重新拍'
 const RESEND_DELAY_MS = 30_000
-
-function isNetwork(e: unknown): boolean {
-  if (e instanceof ApiError) return e.status === 0
-  const msg = e instanceof Error ? e.message : (e as { errMsg?: unknown } | null | undefined)?.errMsg
-  return typeof msg === 'string' && msg.includes('request:fail')
-}
 
 function statusOf(e: unknown): number | null {
   return e instanceof ApiError ? e.status : null
 }
 
 function isRetryable(e: unknown): boolean {
-  if (isNetwork(e)) return true
+  if (isNetworkError(e)) return true
   const s = statusOf(e)
-  return s !== null && s >= 500 && s !== 503
+  return s !== null && s >= 500
 }
 
 export class UploadQueue {
   stopped: null | 'quota' = null
+  paused: null | { localId: string; message: string } = null
 
   private list: QueueItem[] = []
   private listeners = new Set<() => void>()
@@ -69,18 +65,31 @@ export class UploadQueue {
   }
 
   pendingCount(): number {
-    return this.list.filter((i) => i.state === 'waiting' || i.state === 'uploading').length
+    return this.list.filter((i) => i.state === 'waiting' || i.state === 'uploading').length +
+      (this.paused ? 1 : 0)
   }
 
   retry(localId: string): void {
+    if (this.stopped !== null || this.paused?.localId !== localId) return
     const item = this.list.find((i) => i.localId === localId)
     if (!item || item.state !== 'failed') return
     item.state = 'waiting'
     item.message = undefined
+    this.paused = null
     this.emit()
     void this.pump()
   }
 
+  skip(localId: string): void {
+    if (this.paused?.localId !== localId) return
+    const item = this.list.find((i) => i.localId === localId)
+    if (!item || item.state !== 'failed') return
+    item.state = 'skipped'
+    item.message = SKIPPED_TEXT
+    this.paused = null
+    this.emit()
+    void this.pump()
+  }
   onChange(cb: () => void): () => void {
     this.listeners.add(cb)
     return () => {
@@ -92,17 +101,24 @@ export class UploadQueue {
     this.disposed = true
     this.timers.forEach((t) => clearTimeout(t))
     this.timers.clear()
+    this.listeners.clear()
   }
 
   private emit(): void {
-    this.listeners.forEach((cb) => cb())
+    for (const cb of [...this.listeners]) {
+      try {
+        cb()
+      } catch (err) {
+        console.warn('upload queue listener failed', err)
+      }
+    }
   }
 
   private async pump(): Promise<void> {
     if (this.running) return
     this.running = true
     try {
-      while (!this.disposed && this.stopped === null) {
+      while (!this.disposed && this.stopped === null && this.paused === null) {
         const item = this.list.find((i) => i.state === 'waiting')
         if (!item) break
         await this.process(item)
@@ -149,6 +165,7 @@ export class UploadQueue {
         }
         item.state = 'failed'
         item.message = errorText(e)
+        this.paused = { localId: item.localId, message: item.message }
         this.emit()
         return
       }
@@ -165,3 +182,4 @@ export class UploadQueue {
     this.timers.add(t)
   }
 }
+
