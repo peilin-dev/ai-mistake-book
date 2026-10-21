@@ -28,7 +28,8 @@ cd backend
 | `REDIS_URL` | 有密码时写 `redis://:密码@localhost:6379/0` |
 | `WX_APPID` / `WX_SECRET` | 登录用，见第四节 |
 | `JWT_SECRET` | 本地可用默认值 |
-| `DASHSCOPE_API_KEY` | 真实批改用的通义千问 key |
+| `DASHSCOPE_API_KEY` | 真实批改用的通义千问 key（百炼控制台 → API Key） |
+| `QWEN_BASE_URL` | 百炼业务空间 key（`sk-ws-` 开头）必须填业务空间专属地址，即控制台"按量付费 Base URL"：`https://ws-<id>.cn-beijing.maas.aliyuncs.com/compatible-mode/v1` |
 | `STORAGE_DIR` | 图片存放目录，默认 `storage` |
 
 健康检查：浏览器打开 `http://127.0.0.1:8000/healthz` 应返回 `{"ok":true}`。
@@ -41,7 +42,7 @@ $env:REDIS_URL = "redis://:密码@localhost:6379/0"   # 或写进 .env
 .venv\Scripts\python -m arq app.jobs.worker.WorkerSettings
 ```
 
-Worker 需要可连接的 Redis 和 `DASHSCOPE_API_KEY`（默认模型 `qwen:qwen-vl-max`）。API 上传时也会往 Redis 入队，Redis 连不上时上传返回"已收到，稍后会自动开始批改"（503 提示）。
+Worker 需要可连接的 Redis、`DASHSCOPE_API_KEY` 和 `QWEN_BASE_URL`（默认模型 `qwen:qwen3-vl-plus`；百炼业务空间里没有 `qwen-vl-max`）。API 上传时也会往 Redis 入队，Redis 连不上时上传返回"已收到，稍后会自动开始批改"（503 提示）。
 
 ### 没有 Worker / 没有 Redis 时怎么做界面测试
 

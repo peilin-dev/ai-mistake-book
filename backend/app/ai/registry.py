@@ -6,9 +6,10 @@ from app.config import Settings, get_settings
 
 Purpose = Literal["grading", "answer_key", "practice_generate", "practice_verify"]
 
+# provider -> (base URL setting, API key setting)
 _PROVIDERS = {
-    "qwen": ("https://dashscope.aliyuncs.com/compatible-mode/v1", "DASHSCOPE_API_KEY"),
-    "doubao": ("https://ark.cn-beijing.volces.com/api/v3", "ARK_API_KEY"),
+    "qwen": ("QWEN_BASE_URL", "DASHSCOPE_API_KEY"),
+    "doubao": ("ARK_BASE_URL", "ARK_API_KEY"),
 }
 
 
@@ -29,8 +30,9 @@ def _setting(settings: Settings, purpose: str) -> str:
 def build_model(spec: str) -> VisionModel:
     """Build a model from a "provider:model" spec."""
     provider, model = _parse(spec)
-    base_url, key_attr = _PROVIDERS[provider]
-    return OpenAICompatModel(provider, base_url, getattr(get_settings(), key_attr), model)
+    url_attr, key_attr = _PROVIDERS[provider]
+    settings = get_settings()
+    return OpenAICompatModel(provider, getattr(settings, url_attr), getattr(settings, key_attr), model)
 
 
 def get_model(purpose: Purpose) -> VisionModel:

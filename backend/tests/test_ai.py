@@ -113,6 +113,14 @@ def test_get_model_by_purpose(settings):
         "doubao", "https://ark.cn-beijing.volces.com/api/v3", "ak")
 
 
+def test_base_url_comes_from_settings(settings):
+    settings.QWEN_BASE_URL = "https://ws-abc.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+    settings.ARK_BASE_URL = "https://ark.example/api/v3"
+    settings.MODEL_FOR_GRADING = "qwen:qwen-vl-max"
+    assert get_model("grading").base_url == "https://ws-abc.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+    assert get_model("practice_verify").base_url == "https://ark.example/api/v3"
+
+
 @pytest.mark.parametrize("value", ["nocolon", "openai:gpt", "qwen:", ":m"])
 def test_get_model_bad_value(settings, value):
     settings.MODEL_FOR_GRADING = value

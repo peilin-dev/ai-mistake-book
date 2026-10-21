@@ -13,11 +13,16 @@ class Settings(BaseSettings):
     STORAGE_DIR: str = "storage"
     DASHSCOPE_API_KEY: str = ""
     ARK_API_KEY: str = ""
+    # OpenAI-compatible endpoints. A Bailian workspace key (sk-ws-...) needs the
+    # workspace's own domain: https://ws-<id>.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
+    QWEN_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    ARK_BASE_URL: str = "https://ark.cn-beijing.volces.com/api/v3"
 
     # "<provider>:<model>", provider is qwen or doubao.
-    MODEL_FOR_GRADING: str = "qwen:qwen-vl-max"
-    MODEL_FOR_ANSWER_KEY: str = "qwen:qwen-vl-max"
-    MODEL_FOR_PRACTICE_GENERATE: str = "qwen:qwen-vl-max"
+    # qwen-vl-max is not offered in Bailian workspaces any more; qwen3-vl-plus is the vision model.
+    MODEL_FOR_GRADING: str = "qwen:qwen3-vl-plus"
+    MODEL_FOR_ANSWER_KEY: str = "qwen:qwen3-vl-plus"
+    MODEL_FOR_PRACTICE_GENERATE: str = "qwen:qwen3-vl-plus"
     # Placeholder: the operator must set this to their own Ark model / endpoint id.
     # Must use a different provider than MODEL_FOR_PRACTICE_GENERATE (spec section 8).
     MODEL_FOR_PRACTICE_VERIFY: str = "doubao:doubao-vision"
