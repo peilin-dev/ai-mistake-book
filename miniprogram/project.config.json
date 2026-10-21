@@ -2,7 +2,7 @@
   "miniprogramRoot": "dist/",
   "projectname": "mistake-book-miniprogram",
   "description": "AI 错题本 teacher mini program",
-  "appid": "touristappid",
+  "appid": "wxba2addfb56d6e412",
   "libVersion": "2.26.0",
   "setting": {
     "urlCheck": false,
