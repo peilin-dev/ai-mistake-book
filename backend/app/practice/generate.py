@@ -118,7 +118,8 @@ def answers_match(kind: str, expected: str, got: str, options: list[str] | None)
 
 # ---------- prompts ----------
 
-def _generate_prompt(source: Source, count: int, avoid_stems: list[str]) -> str:
+def _generate_prompt(source: Source, count: int, avoid_stems: list[str],
+                     replacing: tuple[str, str] | None = None) -> str:
     kp = source.knowledge_point or "（未标注）"
     parts = [
         "你是一位小学/中学老师，请根据下面这道学生做错的题，出同类型的变式题。",
@@ -127,15 +128,21 @@ def _generate_prompt(source: Source, count: int, avoid_stems: list[str]) -> str:
         f"原题正确答案：{source.correct_answer}",
         "",
         f"请出 {count} 道题，要求：",
-        "1. 与原题考查同一知识点、难度相当，只换数字、情境或问法。",
+        "1. 与原题考查同一知识点、难度相当，只换数字、情境或问法；答案也应与原题不同。",
         "2. 只出客观题，类型限于 choice（选择）、blank（填空）、judge（判断）、calc（计算）。",
         "3. 纯文字即可作答，不要依赖图片、图表；数学式用纯文本书写。",
         "4. 题目中不得出现任何学生姓名。",
         "5. 选择题给出 options（不含字母的选项文字列表），answer 填字母 A/B/C/D；判断题 answer 填“对”或“错”；填空和计算题 answer 填最终答案。",
         "6. 如果原题无法改写成客观题（如需画图、写作文、简答论述），objective 返回 false，items 为空。",
     ]
+    n = 7
+    if replacing is not None:
+        old_stem, old_answer = replacing
+        parts.append(f"{n}. 这道题用来替换下面这道题，题中的数字和答案都必须与它不同，也不能只是交换数字的顺序：")
+        parts.append(f"- 被替换的题：{old_stem}（答案：{old_answer}）")
+        n += 1
     if avoid_stems:
-        parts.append("7. 不要与下列已有题目重复：")
+        parts.append(f"{n}. 不要与下列已有题目重复，也不要只是交换其中数字的顺序：")
         parts.extend(f"- {s}" for s in avoid_stems)
     parts += [
         "",
@@ -152,6 +159,8 @@ def _verify_prompt(draft: Draft) -> str:
         parts.append("答案请只写选项字母。")
     elif draft.kind == "judge":
         parts.append("答案请只写“对”或“错”。")
+    else:
+        parts.append("如果题目在空格或问句后面已经写出了单位，答案只写数字，不要再写单位。")
     parts.append('只输出 JSON，不要其他文字：{"answer": "你的答案"}')
     return "\n".join(parts)
 
@@ -193,9 +202,10 @@ def _clean_item(raw: object) -> Draft | None:
 
 
 async def generate_drafts(db: AsyncSession, model: VisionModel, teacher_id: int, source: Source,
-                          count: int, avoid_stems: list[str]) -> list[Draft]:
+                          count: int, avoid_stems: list[str],
+                          replacing: tuple[str, str] | None = None) -> list[Draft]:
     try:
-        result = await model.complete_json(_generate_prompt(source, count, avoid_stems), [])
+        result = await model.complete_json(_generate_prompt(source, count, avoid_stems, replacing), [])
     except ModelError:
         return []
     await record_usage(db, teacher_id, "practice_generate", result)
@@ -227,13 +237,43 @@ async def verify_draft(db: AsyncSession, model: VisionModel, teacher_id: int, dr
         return False
 
 
-def dedupe(drafts: list[Draft], existing: list[str]) -> list[Draft]:
-    seen = {normalize_answer(s) for s in existing}
+_STEM_NUM = re.compile(r"\d+(?:\.\d+)?(?:/\d+)?", re.ASCII)
+
+
+def near_key(stem: str) -> tuple[str, ...] | None:
+    """The sorted numbers of a stem: '0.7 × 0.4 =' and '0.4×0.7=' share one. None below two numbers,
+    where the numbers alone say too little about the question."""
+    nums = sorted(_STEM_NUM.findall(normalize_answer(stem)))
+    return tuple(nums) if len(nums) >= 2 else None
+
+
+def dedupe(drafts: list[Draft], existing: list) -> list[Draft]:
+    """Drafts that repeat neither each other nor `existing`, in order.
+
+    A repeat is the same stem after normalization, or a near-duplicate: same kind and the same
+    numbers (swapped operands, reworded). `existing` holds stems (str, compared with any kind)
+    or (kind, stem) pairs.
+    """
+    exact: set[str] = set()
+    near_any: set[tuple[str, ...]] = set()
+    near_kind: set[tuple[str, tuple[str, ...]]] = set()
+
+    def remember(kind: str | None, stem: str) -> None:
+        exact.add(normalize_answer(stem))
+        key = near_key(stem)
+        if key is not None and kind is None:
+            near_any.add(key)
+        elif key is not None:
+            near_kind.add((kind, key))
+
+    for e in existing:
+        kind, stem = (None, e) if isinstance(e, str) else e
+        remember(kind, stem)
     out = []
     for d in drafts:
-        key = normalize_answer(d.stem)
-        if key in seen:
+        key = near_key(d.stem)
+        if normalize_answer(d.stem) in exact or (key is not None and (key in near_any or (d.kind, key) in near_kind)):
             continue
-        seen.add(key)
+        remember(d.kind, d.stem)
         out.append(d)
     return out

@@ -178,3 +178,36 @@ def test_same_form_numbers_still_match():
     assert answers_match("calc", "1/2", "1/2", None) is True
     assert answers_match("calc", "50%", "50.0%", None) is True
     assert answers_match("calc", "1/2", "1/3", None) is None
+
+# --- final review fixes ---
+
+def test_dedupe_catches_near_duplicates():
+    assert dedupe([Draft("calc", "0.7 × 0.4 =", None, "0.28")], ["0.4 × 0.7 ="]) == []
+    swapped = Draft("blank", "8 ÷ 2 = ___", None, "4")
+    assert dedupe([swapped], [("blank", "2和8的商是___")]) == []  # same kind, same numbers
+    assert dedupe([swapped], [("calc", "2 ÷ 8 =")]) == [swapped]  # another kind of question
+    a, b = Draft("calc", "1/2 + 3 =", None, "3.5"), Draft("calc", "3 + 1/2 =", None, "3.5")
+    assert dedupe([a, b], []) == [a]  # within one batch too
+    # One number (or none) is too little to call two different questions the same.
+    one = Draft("blank", "5 的倒数是___", None, "1/5")
+    assert dedupe([one], ["5 的相反数是___"]) == [one]
+    assert dedupe([Draft("judge", "正方形是长方形", None, "对")], ["圆是轴对称图形"]) != []
+
+
+async def test_generate_prompt_asks_for_different_answers_and_names_the_replaced(db, teacher):
+    m = FakeModel([{"objective": True, "items": [_item()]}, {"objective": True, "items": [_item()]}])
+    await generate_drafts(db, m, teacher.id, SRC, 2, [])
+    assert "答案也应与原题不同" in m.prompts[0] and "被替换" not in m.prompts[0]
+    await generate_drafts(db, m, teacher.id, SRC, 3, ["已有题"], replacing=("旧题 6 × 7 =", "42"))
+    p = m.prompts[1]
+    assert "被替换的题：旧题 6 × 7 =（答案：42）" in p and "数字和答案都必须与它不同" in p and "已有题" in p
+
+
+async def test_verify_prompt_number_only_when_unit_is_printed(db, teacher):
+    m = FakeModel([{"answer": "40"}, {"answer": "B"}])
+    await verify_draft(db, m, teacher.id, Draft("blank", "面积是___平方厘米", None, "40"))
+    await verify_draft(db, m, teacher.id, Draft("choice", "面积？", ["38", "40"], "B"))
+    assert "答案只写数字" in m.prompts[0]
+    assert "答案只写数字" not in m.prompts[1]
+    # The local comparison stays strict: a unit on one side only is never accepted locally.
+    assert answers_match("blank", "40", "40平方厘米", None) is None
