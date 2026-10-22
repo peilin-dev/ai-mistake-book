@@ -215,3 +215,34 @@ export interface CausesOut {
 export interface SummaryOut {
   summary: string | null
 }
+
+export type PracticeKind = 'choice' | 'blank' | 'judge' | 'calc'
+export type PracticeStatus = 'queued' | 'running' | 'done' | 'failed'
+
+/** One practice question inside a paper (backend ItemOut). */
+export interface PracticeItemOut {
+  id: number
+  position: number
+  source_no: string
+  knowledge_point: string | null
+  kind: PracticeKind | string
+  stem: string
+  options: string[] | null
+  answer: string
+  replacing: boolean
+}
+
+/** Practice paper (backend PaperOut); generated_at is a naive-UTC ISO string. */
+export interface PracticePaperOut {
+  id: number
+  scope: 'class' | 'student'
+  student_name: string | null
+  status: PracticeStatus | string
+  partial: boolean
+  sources_total: number
+  sources_done: number
+  error: string | null
+  generated_at: string | null
+  last_replace_failed_item: number | null
+  items: PracticeItemOut[]
+}
