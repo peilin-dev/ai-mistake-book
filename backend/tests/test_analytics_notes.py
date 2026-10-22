@@ -199,3 +199,42 @@ async def test_malformed_cause_output_keeps_valid_and_retries_missing(
     assert (await auth_client.post(_url(my_assignment))).json() == {"causes": {"9": "甲", "8": "乙"}}
     assert len(fake.prompts) == 3
     assert "9" not in fake.prompts[1].split("常见错误答案")[1].split("要求")[0].replace("8", "")
+
+async def test_summary_prompt_names_knowledge_point_and_question(auth_client, my_assignment, add_student,
+                                                                 install_analysis_model, db):
+    from app.models import KnowledgePoint, QuestionResult, Subject
+    sub_id = await add_student("张三", "9")
+    kp = KnowledgePoint(subject=Subject.math, grade_min=1, grade_max=6, code="kp-eq", name="简易方程")
+    db.add(kp)
+    await db.flush()
+    qr = (await db.execute(select(QuestionResult).where(
+        QuestionResult.submission_id == sub_id, QuestionResult.question_no == "2"))).scalar_one()
+    qr.knowledge_point_id = kp.id
+    qr.question_text = "解方程：\n3x = 12，求 x 的值。" + "并写出检验过程" * 10
+    await db.commit()
+    fake = install_analysis_model([{"summary": "甲"}, {"summary": "乙"}])
+    url = f"/api/submissions/{sub_id}/summary"
+    assert (await auth_client.post(url)).json() == {"summary": "甲"}
+    prompt = fake.prompts[0]
+    assert "张三" not in prompt
+    assert "知识点：简易方程" in prompt
+    excerpt = prompt.split("题目：")[1].split("）")[0]
+    assert excerpt.startswith("解方程： 3x = 12") and len(excerpt) <= 30 and excerpt.endswith("…")
+    assert "第1题对（2/2）" in prompt  # right answers carry no extra detail
+    # renaming the knowledge point changes what the model would see, so the note is regenerated
+    kp.name = "方程"
+    await db.commit()
+    assert (await auth_client.post(url)).json() == {"summary": "乙"} and len(fake.prompts) == 2
+
+
+def test_summary_prompt_without_knowledge_point_or_text():
+    from app.analytics.notes import _summary_prompt
+    from app.analytics.stats import StudentQuestion, StudentResult
+
+    q = StudentQuestion(question_no="3", score=0, max_score=2, wrong=True, answer="x", is_subjective=False,
+                        knowledge_point_id=None, crop_keys=[], question_text=None, correct_answer=None)
+    r = StudentResult(student_id=1, student_name="张三", submission_id=1, score=0, max_score=2, ratio=0,
+                      wrong_count=1, questions=[q])
+    prompt = _summary_prompt(r, [])
+    assert "第3题错（0/2）" in prompt and "知识点：" not in prompt and "题目：" not in prompt
+    assert "张三" not in prompt

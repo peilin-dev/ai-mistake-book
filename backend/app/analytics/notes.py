@@ -11,13 +11,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.base import ModelError, VisionModel
 from app.ai.registry import get_model
 from app.ai.usage import record_usage
-from app.analytics.stats import AnswerGroup, StudentResult
-from app.models import AiNote, Submission
+from app.analytics.stats import AnswerGroup, StudentQuestion, StudentResult
+from app.models import AiNote, KnowledgePoint, Submission
 
 log = logging.getLogger(__name__)
 
 CAUSE_MAX = 40
 SUMMARY_MAX = 120
+EXCERPT_MAX = 30
 MIN_GROUP = 2
 
 
@@ -113,21 +114,54 @@ async def question_causes(db: AsyncSession, model: VisionModel, teacher_id: int,
     return result
 
 
-def _summary_prompt(current: StudentResult, history: list[dict]) -> str:
-    qs = "；".join(
-        f"第{q.question_no}题{'错' if q.wrong else '对'}（{q.score:g}/{'?' if q.max_score is None else format(q.max_score, 'g')}）"
-        for q in current.questions)
+def _excerpt(text: str | None) -> str | None:
+    """Question text squeezed to one line of at most EXCERPT_MAX characters."""
+    flat = " ".join((text or "").split())
+    if not flat:
+        return None
+    return flat if len(flat) <= EXCERPT_MAX else flat[:EXCERPT_MAX - 1] + "…"
+
+
+def _question_facts(q: StudentQuestion, kp_names: dict[int, str]) -> dict:
+    """What the summary may know about one question; wrong ones carry 知识点 and a 题目 excerpt."""
+    facts = {"no": q.question_no, "wrong": q.wrong, "score": q.score, "max": q.max_score}
+    if q.wrong:
+        facts["kp"] = kp_names.get(q.knowledge_point_id) if q.knowledge_point_id is not None else None
+        facts["text"] = _excerpt(q.question_text)
+    return facts
+
+
+def _question_line(f: dict) -> str:
+    line = f"第{f['no']}题{'错' if f['wrong'] else '对'}（{f['score']:g}/{'?' if f['max'] is None else format(f['max'], 'g')}"
+    if f.get("kp"):
+        line += f"，知识点：{f['kp']}"
+    if f.get("text"):
+        line += f"，题目：{f['text']}"
+    return line + "）"
+
+
+def _summary_prompt(current: StudentResult, history: list[dict], kp_names: dict[int, str] | None = None) -> str:
+    qs = "；".join(_question_line(_question_facts(q, kp_names or {})) for q in current.questions)
     past = "；".join(
         f"{h['score']:g}/{h['max_score']:g}" for h in history if h.get("max_score")) or "无"
     return (
         "你是一位经验丰富的老师的助手。请根据下面一名学生本次作业的情况，用两三句话总结，写给老师看："
-        "指出主要的薄弱处，并结合历次成绩说明趋势。\n"
+        "指出哪类题、哪个知识点容易错，并结合历次成绩说明趋势。\n"
         f"本次总分：{current.score:g}/{current.max_score:g}\n"
         f"各题情况：{qs}\n"
         f"最近几次作业得分（新到旧，含本次）：{past}\n"
         "要求：只输出 JSON，不要输出其他文字；用中文；不超过 120 个字；不要出现学生姓名。\n"
         '输出格式：{"summary": "<总结>"}'
     )
+
+
+async def _kp_names(db: AsyncSession, current: StudentResult) -> dict[int, str]:
+    ids = {q.knowledge_point_id for q in current.questions if q.wrong and q.knowledge_point_id is not None}
+    if not ids:
+        return {}
+    return dict((await db.execute(
+        select(KnowledgePoint.id, KnowledgePoint.name).where(KnowledgePoint.id.in_(ids))
+    )).all())
 
 
 async def student_summary(db: AsyncSession, model: VisionModel, teacher_id: int, submission_id: int,
@@ -137,15 +171,16 @@ async def student_summary(db: AsyncSession, model: VisionModel, teacher_id: int,
         return None
     assignment_id = sub.assignment_id
     ref = f"submission:{submission_id}"
+    kp_names = await _kp_names(db, current)
     fp = _fingerprint([
-        [[q.question_no, q.wrong, q.score, q.max_score] for q in current.questions],
+        [_question_facts(q, kp_names) for q in current.questions],
         [[h["assignment_id"], h["score"], h["max_score"]] for h in history],
     ])
     note = await _get_note(db, assignment_id, "summary", ref)
     if note is not None and note.fingerprint == fp:
         return note.text
     try:
-        res = await model.complete_json(_summary_prompt(current, history), [])
+        res = await model.complete_json(_summary_prompt(current, history, kp_names), [])
     except ModelError:
         log.warning("summary generation failed", exc_info=True)
         return None
