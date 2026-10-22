@@ -24,6 +24,7 @@ for _ in $(seq 1 60); do
 done
 dc run --rm api alembic upgrade head
 dc up -d --remove-orphans
+dc exec -T nginx nginx -s reload  # pick up nginx.conf changes; a bind-mounted file doesn't recreate the container
 sudo docker image prune -f >/dev/null
 
 echo "health check"
