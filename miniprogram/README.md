@@ -25,7 +25,7 @@ cd backend
 | 变量 | 说明 |
 |---|---|
 | `DATABASE_URL` | `mysql+aiomysql://用户:密码@localhost:3306/库名` |
-| `REDIS_URL` | 有密码时写 `redis://:密码@localhost:6379/0` |
+| `REDIS_URL` | 有密码时写 `redis://:密码@127.0.0.1:6379/0`（用 `127.0.0.1`，不要用 `localhost`：Windows 上 `localhost` 可能先走 IPv6 导致连接超时） |
 | `WX_APPID` / `WX_SECRET` | 登录用，见第四节 |
 | `JWT_SECRET` | 本地可用默认值 |
 | `DASHSCOPE_API_KEY` | 真实批改用的通义千问 key（百炼控制台 → API Key） |
@@ -38,7 +38,7 @@ cd backend
 
 ```powershell
 cd backend
-$env:REDIS_URL = "redis://:密码@localhost:6379/0"   # 或写进 .env
+$env:REDIS_URL = "redis://:密码@127.0.0.1:6379/0"   # 或写进 .env
 .venv\Scripts\python -m arq app.jobs.worker.WorkerSettings
 ```
 

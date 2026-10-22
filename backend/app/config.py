@@ -5,7 +5,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     DATABASE_URL: str = "mysql+aiomysql://root:@localhost:3306/cuotiben"
-    REDIS_URL: str = "redis://localhost:6379/0"
+    # 127.0.0.1, not localhost: on Windows localhost may resolve to ::1 first and
+    # time out against a Redis that only listens on IPv4.
+    REDIS_URL: str = "redis://127.0.0.1:6379/0"
     JWT_SECRET: str = "dev-secret-change-me-please-0123456789"
     JWT_EXPIRE_DAYS: int = 7
     WX_APPID: str = ""
