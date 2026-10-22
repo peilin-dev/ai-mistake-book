@@ -104,8 +104,8 @@ def test_overview_numbers():
     assert [(q.question_no, q.wrong_count, q.accuracy) for q in s.questions] == [("2", 1, 0.5)]
 
 def test_attention_by_ratio_and_gap():
-    # 平均 (0.95 + 0.9 + 0.65) / 3 ≈ 0.833；王五 0.65 低于平均 ≥ 0.20 → 关注；无人 < 0.6
-    s = build_stats([sr("张三", [("1", 19, 20)]), sr("李四", [("1", 18, 20)]), sr("王五", [("1", 13, 20)])], 3, 0, 0, {})
+    # 平均 (0.95 + 0.9 + 0.6) / 3 ≈ 0.817；王五 0.6 不低于及格线，但比平均低 ≈ 0.217 ≥ 0.20 → 关注
+    s = build_stats([sr("张三", [("1", 19, 20)]), sr("李四", [("1", 18, 20)]), sr("王五", [("1", 12, 20)])], 3, 0, 0, {})
     assert [a["student_name"] for a in s.attention] == ["王五"]
 
 def test_duplicate_question_rows_count_once():
@@ -149,6 +149,7 @@ async def test_assignment_stats_counts_only_done_assigned_pages(db, my_assignmen
   - `GET /api/assignments/{id}/analytics/questions/{question_no}` → `{"question_no", "question_text", "correct_answer", "is_subjective", "knowledge_point", "wrong_count", "answered_count", "groups": [AnswerGroup...] | [], "score_buckets": [{"label", "count"}] | [], "crops": [{"student_name", "submission_id", "crop_url"}]}`；主观题 `groups == []`、`score_buckets` 为「满分 / 一半及以上 / 一半以下」三档；题号不存在 404
   - `GET /api/submissions/{id}/history` → `[{"assignment_id", "title", "created_at", "score", "max_score", "ratio"}]`：同班同学科、按作业创建时间倒序、最多 `RECENT_N` 条、只含该学生有成绩的作业（包括当前这次）
   - 所有接口他人资源 404
+  - `async def student_history(db: AsyncSession, submission_id: int) -> list[dict]`（放在 `app/analytics/stats.py`，history 接口和任务 4 的学生总结共用）
 
 - [ ] **Step 1: 写失败的测试**：`test_analytics_overview`（值与任务 2 一致）、`test_question_detail_groups_and_crops`、`test_subjective_question_detail_has_buckets`、`test_unknown_question_404`、`test_history_same_class_same_subject_latest_five`、`test_other_teacher_gets_404`（三个接口各一次）
 - [ ] **Step 2: 运行确认失败**
