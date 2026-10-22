@@ -1,5 +1,6 @@
 """Builds the export PDFs from the statistics and prunes old ones."""
 import asyncio
+import json
 import logging
 import re
 import uuid
@@ -15,11 +16,15 @@ from app.export.pdf import (
     LectureQuestion,
     LectureSheet,
     MistakeItem,
+    PracticeItem,
+    PracticeSheet,
     StudentSheet,
     render_lecture,
     render_mistakes,
+    render_practice,
 )
-from app.models import Assignment, Class_, Export, Teacher
+from app.models import Assignment, Class_, Export, PracticePaper, Student, Teacher
+from app.models import PracticeItem as PracticeItemRow
 from app.storage.base import Storage
 
 logger = logging.getLogger(__name__)
@@ -132,6 +137,36 @@ async def build_export(db: AsyncSession, storage: Storage, teacher: Teacher, ass
     if kind == "student":
         return pdf, f"{prefix}-{safe_name(sheets[0].student_name)}-错题单.pdf"
     return pdf, f"{prefix}-错题单.pdf"
+
+
+async def build_practice_export(db: AsyncSession, teacher: Teacher, assignment: Assignment,
+                                student_id: int | None, include_answers: bool) -> tuple[bytes, str]:
+    """The class practice sheet (student_id None) or one student's; only a finished paper exports."""
+    paper = (await db.execute(
+        select(PracticePaper).where(PracticePaper.assignment_id == assignment.id,
+                                    PracticePaper.student_key == (student_id or 0))
+    )).scalar_one_or_none()
+    if paper is None or paper.status != "done":
+        raise NothingToExport("还没有可以导出的练习纸")
+    rows = (await db.execute(
+        select(PracticeItemRow).where(PracticeItemRow.paper_id == paper.id).order_by(PracticeItemRow.position)
+    )).scalars().all()
+    if not rows:
+        raise NothingToExport("还没有可以导出的练习纸")
+    cls = await db.get(Class_, assignment.class_id)
+    student_name = None
+    if student_id is not None:
+        student = await db.get(Student, student_id)
+        student_name = student.name if student else None
+    items = [PracticeItem(number=n, kind=r.kind, stem=r.stem, options=json.loads(r.options) if r.options else None,
+                          answer=r.answer) for n, r in enumerate(rows, 1)]
+    sheet = PracticeSheet(
+        class_name=cls.name, title=assignment.title, date=_date(assignment.created_at),
+        signature=teacher.display_name or "老师", student_name=student_name, items=items,
+        include_answers=include_answers)
+    prefix = safe_name(f"{cls.name}-{assignment.title}")
+    name = f"{prefix}-{safe_name(student_name)}-练习纸.pdf" if student_name else f"{prefix}-练习纸.pdf"
+    return await asyncio.to_thread(render_practice, sheet), name
 
 
 async def store_export(db: AsyncSession, storage: Storage, teacher_id: int, kind: str, pdf: bytes) -> str:

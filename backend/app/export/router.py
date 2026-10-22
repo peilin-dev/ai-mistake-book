@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.analytics.stats import load_student_results
 from app.assignments.access import own_assignment
 from app.deps import current_teacher, get_db
-from app.export.service import NothingToExport, build_export, store_export
+from app.export.service import NothingToExport, build_export, build_practice_export, store_export
 from app.models import Submission, Teacher
 from app.storage.base import Storage, get_storage
 
@@ -21,8 +21,9 @@ LINK_TTL_S = 600
 
 
 class ExportIn(BaseModel):
-    kind: Literal["lecture", "student", "class_students"]
+    kind: Literal["lecture", "student", "class_students", "practice", "practice_student"]
     submission_id: int | None = None
+    include_answers: bool = True
 
 
 @router.post("/assignments/{assignment_id}/exports", status_code=201)
@@ -35,7 +36,8 @@ async def create_export(
 ) -> dict:
     assignment = await own_assignment(db, teacher, assignment_id)
     results = []
-    if body.kind == "student":
+    practice_student_id = None
+    if body.kind in ("student", "practice_student"):
         if body.submission_id is None:
             raise HTTPException(422, "submission_id required")
         sub = (await db.execute(
@@ -44,11 +46,18 @@ async def create_export(
         )).scalar_one_or_none()
         if sub is None:
             raise HTTPException(404, "submission not found")
-        results = await load_student_results(db, assignment_id, sub.student_id)
+        if body.kind == "student":
+            results = await load_student_results(db, assignment_id, sub.student_id)
+        else:
+            practice_student_id = sub.student_id
     elif body.kind == "class_students":
         results = await load_student_results(db, assignment_id)
     try:
-        pdf, filename = await build_export(db, storage, teacher, assignment, body.kind, results)
+        if body.kind in ("practice", "practice_student"):
+            pdf, filename = await build_practice_export(
+                db, teacher, assignment, practice_student_id, body.include_answers)
+        else:
+            pdf, filename = await build_export(db, storage, teacher, assignment, body.kind, results)
     except NothingToExport as e:
         raise HTTPException(409, str(e)) from None
     except Exception:

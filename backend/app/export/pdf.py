@@ -77,6 +77,29 @@ class StudentSheet:
     items: list[MistakeItem]
 
 
+OPTION_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+
+@dataclass
+class PracticeItem:
+    number: int
+    kind: str
+    stem: str
+    options: list[str] | None
+    answer: str
+
+
+@dataclass
+class PracticeSheet:
+    class_name: str
+    title: str
+    date: str
+    signature: str
+    student_name: str | None
+    items: list[PracticeItem]
+    include_answers: bool
+
+
 def font_path() -> str:
     configured = get_settings().PDF_FONT_PATH
     if configured:
@@ -258,6 +281,27 @@ def render_mistakes(sheets: list[StudentSheet]) -> bytes:
             block.append(Spacer(1, CORRECTION_SPACE))
             story.append(KeepTogether(block))
     _SheetTracker.install(doc, sheets, by_page)
+    doc.build(story)
+    return buf.getvalue()
+
+
+def render_practice(sheet: PracticeSheet) -> bytes:
+    _register_font()
+    st = _styles()
+    buf = io.BytesIO()
+    doc = _doc(buf, _header_text(sheet.class_name, sheet.title, sheet.date, sheet.signature, sheet.student_name))
+    story = [_p("同类题练习", st["title"])]
+    for it in sheet.items:
+        block = [_p(f"{it.number}. {it.stem}", st["body"])]
+        for letter, opt in zip(OPTION_LETTERS, it.options or []):
+            block.append(_p(f"{letter}. {opt}", st["body"]))
+        block.append(Spacer(1, CORRECTION_SPACE))
+        story.append(KeepTogether(block))
+    if sheet.include_answers:
+        story.append(PageBreak())
+        story.append(_p("参考答案", st["title"]))
+        for it in sheet.items:
+            story.append(_p(f"{it.number}. {it.answer}", st["body"]))
     doc.build(story)
     return buf.getvalue()
 

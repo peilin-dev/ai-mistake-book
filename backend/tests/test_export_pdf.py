@@ -198,3 +198,37 @@ def test_score_text(score, max_score, expected):
                         is_subjective=False, knowledge_point_id=None, crop_keys=[], question_text=None,
                         correct_answer=None)
     assert _score_text(q) == expected
+
+
+def _practice(include_answers=True, student_name=None):
+    from app.export.pdf import PracticeItem, PracticeSheet
+    items = [
+        PracticeItem(1, "choice", "下列哪个数最大？", ["12", "40", "7", "9"], "B"),
+        PracticeItem(2, "calc", "计算 25 × 16", None, "400"),
+        PracticeItem(3, "judge", "0.5 等于二分之一。", None, "对"),
+    ]
+    return PracticeSheet("五年级1班", "10-22作业", "2026-10-22", "王老师", student_name, items, include_answers)
+
+
+def test_practice_pdf_with_and_without_answer_page():
+    from app.export.pdf import render_practice
+    without = _pages(render_practice(_practice(include_answers=False)))
+    assert "同类题练习" in without[0]
+    assert not any("参考答案" in t for t in without)
+    with_ans = _pages(render_practice(_practice(include_answers=True)))
+    assert len(with_ans) == len(without) + 1
+    assert not any("参考答案" in t for t in with_ans[:-1])
+    last = with_ans[-1]
+    assert "参考答案" in last
+    for line in ("1. B", "2. 400", "3. 对"):
+        assert line in last
+
+
+def test_practice_pdf_choice_options_and_student_header():
+    from app.export.pdf import render_practice
+    pages = _pages(render_practice(_practice(student_name="张三")))
+    first = pages[0]
+    for line in ("A. 12", "B. 40", "C. 7", "D. 9"):
+        assert line in first
+    assert "张三 · 五年级1班" in first
+    assert "张三" not in _pages(render_practice(_practice()))[0]

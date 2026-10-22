@@ -129,6 +129,57 @@ async def test_export_other_teacher_404(client_for, make_teacher, my_assignment,
     assert r.status_code == 404
 
 
+async def _paper(db, assignment, student_id=None, status="done"):
+    from app.models import PracticeItem, PracticePaper
+    p = PracticePaper(assignment_id=assignment.id, student_id=student_id, student_key=student_id or 0,
+                      status=status)
+    db.add(p)
+    await db.flush()
+    db.add_all([
+        PracticeItem(paper_id=p.id, position=1, source_no="2", kind="choice", stem="哪个最大？",
+                     options='["12","40","7"]', answer="B"),
+        PracticeItem(paper_id=p.id, position=2, source_no="2", kind="calc", stem="计算 3 + 4", answer="7"),
+    ])
+    await db.commit()
+    return p
+
+
+async def test_export_practice_class_and_student(db, auth_client, my_assignment, two_students, roster_zhangsan):
+    from pypdf import PdfReader
+    import io
+    await _paper(db, my_assignment)
+    await _paper(db, my_assignment, roster_zhangsan.id)
+    r = await auth_client.post(url_of(my_assignment), json={"kind": "practice"})
+    assert r.status_code == 201, r.text
+    assert r.json()["filename"].endswith("-练习纸.pdf") and "张三" not in r.json()["filename"]
+    got = await auth_client.get(r.json()["url"])
+    assert got.content.startswith(b"%PDF")
+    assert "参考答案" in "".join(p.extract_text() for p in PdfReader(io.BytesIO(got.content)).pages)
+
+    r = await auth_client.post(url_of(my_assignment), json={
+        "kind": "practice_student", "submission_id": two_students["张三"], "include_answers": False})
+    assert r.status_code == 201, r.text
+    assert r.json()["filename"].endswith("-张三-练习纸.pdf")
+    got = await auth_client.get(r.json()["url"])
+    assert got.content.startswith(b"%PDF")
+    text = "".join(p.extract_text() for p in PdfReader(io.BytesIO(got.content)).pages)
+    assert "参考答案" not in text and "张三" in text
+
+
+async def test_export_practice_not_ready_409(db, auth_client, my_assignment, two_students, roster_zhangsan):
+    msg = "还没有可以导出的练习纸"
+    r = await auth_client.post(url_of(my_assignment), json={"kind": "practice"})
+    assert r.status_code == 409 and r.json()["detail"] == msg
+    await _paper(db, my_assignment, status="running")
+    r = await auth_client.post(url_of(my_assignment), json={"kind": "practice"})
+    assert r.status_code == 409 and r.json()["detail"] == msg
+    r = await auth_client.post(url_of(my_assignment), json={
+        "kind": "practice_student", "submission_id": two_students["张三"]})
+    assert r.status_code == 409 and r.json()["detail"] == msg
+    r = await auth_client.post(url_of(my_assignment), json={"kind": "practice_student"})
+    assert r.status_code == 422
+
+
 async def test_purge_old_exports_deletes_files_and_rows(db, storage, teacher):
     now = utcnow()
     old = Export(teacher_id=teacher.id, file_key=f"exports/{teacher.id}/old.pdf", kind="lecture",
