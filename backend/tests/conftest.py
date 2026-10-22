@@ -611,3 +611,19 @@ async def other_teacher_failed_page(db, make_assignment) -> Page:
     db.add(page)
     await db.commit()
     return page
+
+
+# --- M5 Task 4 fixtures ---
+from app.practice.router import get_practice_enqueuer  # noqa: E402
+
+
+@pytest.fixture
+def practice_enqueued(app) -> list[tuple[str, int]]:
+    """(function name, id) pairs received by the (overridden) practice enqueue dependency."""
+    calls: list[tuple[str, int]] = []
+
+    async def _enqueue(function: str, obj_id: int) -> None:
+        calls.append((function, obj_id))
+
+    app.dependency_overrides[get_practice_enqueuer] = lambda: _enqueue
+    return calls

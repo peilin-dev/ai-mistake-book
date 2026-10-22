@@ -1,8 +1,9 @@
 ﻿"""arq worker: `arq app.jobs.worker.WorkerSettings`."""
+import logging
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
-from arq import Retry, cron
+from arq import Retry, cron, func
 from arq.connections import RedisSettings
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -16,8 +17,15 @@ from app.jobs.cleanup import purge_old_originals
 from app.jobs.requeue import STALE_AFTER, stale_queued_pages
 from app.grading.pipeline import grade_page, set_page_status
 from app.models import PageStatus
+from app.practice.jobs import (
+    paper_job_timeout_s,
+    practice_paper_job,
+    practice_replace_job,
+    replace_job_timeout_s,
+)
 from app.storage.base import get_storage
 
+log = logging.getLogger(__name__)
 MAX_TRIES = 3
 RETRY_DELAY_S = 10
 
@@ -62,6 +70,13 @@ async def startup(ctx: dict) -> None:
     ctx["sessionmaker"] = async_sessionmaker(engine, expire_on_commit=False)
     ctx["storage"] = get_storage()
     ctx["model"] = get_model("grading")
+    try:
+        ctx["practice_generate_model"] = get_model("practice_generate")
+        ctx["practice_verify_model"] = get_model("practice_verify")
+    except ValueError:
+        # A practice misconfiguration must not stop grading; practice jobs then mark their paper failed.
+        log.exception("practice models are not configured")
+        ctx["practice_generate_model"] = ctx["practice_verify_model"] = None
 
 
 async def shutdown(ctx: dict) -> None:
@@ -69,7 +84,12 @@ async def shutdown(ctx: dict) -> None:
 
 
 class WorkerSettings:
-    functions = [grade_page_job]
+    functions = [
+        grade_page_job,
+        # No arq retries: a paper job already retries per source; a failure marks the paper failed.
+        func(practice_paper_job, timeout=paper_job_timeout_s(), max_tries=1),
+        func(practice_replace_job, timeout=replace_job_timeout_s(), max_tries=1),
+    ]
     cron_jobs = [
         cron(purge_originals_job, hour=3, minute=0, second=0),
         cron(purge_exports_job, hour=3, minute=30, second=0),

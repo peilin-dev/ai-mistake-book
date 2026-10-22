@@ -8,6 +8,7 @@ from app.assignments.router import router as assignments_router
 from app.auth.router import router as auth_router
 from app.classes.router import router as classes_router, students_router
 from app.export.router import router as export_router
+from app.practice.router import router as practice_router
 from app.review.router import router as review_router
 from app.storage.router import router as storage_router
 
@@ -32,6 +33,7 @@ def create_app() -> FastAPI:
     app.include_router(review_router, prefix="/api")
     app.include_router(analytics_router, prefix="/api")
     app.include_router(export_router, prefix="/api")
+    app.include_router(practice_router, prefix="/api")
     app.include_router(storage_router, prefix="/api")
     return app
 
