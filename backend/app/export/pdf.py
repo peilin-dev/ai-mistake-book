@@ -2,6 +2,7 @@
 
 import io
 import os
+import threading
 from dataclasses import dataclass, field
 from xml.sax.saxutils import escape
 
@@ -86,14 +87,20 @@ def font_path() -> str:
     raise RuntimeError("no CJK font")
 
 
+_font_lock = threading.Lock()
+
+
 def _register_font() -> None:
-    if FONT_NAME in pdfmetrics.getRegisteredFontNames():
-        return
-    pdfmetrics.registerFont(TTFont(FONT_NAME, font_path(), subfontIndex=0))
+    with _font_lock:
+        if FONT_NAME in pdfmetrics.getRegisteredFontNames():
+            return
+        pdfmetrics.registerFont(TTFont(FONT_NAME, font_path(), subfontIndex=0))
 
 
 def _style(name: str, size: float, leading: float | None = None, **kw) -> ParagraphStyle:
-    return ParagraphStyle(name, fontName=FONT_NAME, fontSize=size, leading=leading or size * 1.45, **kw)
+    return ParagraphStyle(
+        name, fontName=FONT_NAME, fontSize=size, leading=leading or size * 1.45, wordWrap="CJK", **kw
+    )
 
 
 def _styles() -> dict[str, ParagraphStyle]:
@@ -129,6 +136,15 @@ def _image(data: bytes | None) -> RLImage | None:
     return RLImage(buf, width=w * scale, height=h * scale)
 
 
+def fit_header(text: str, size: float = 9, max_width: float = CONTENT_W) -> str:
+    """Truncate with an ellipsis so the header never runs past the content width."""
+    if pdfmetrics.stringWidth(text, FONT_NAME, size) <= max_width:
+        return text
+    while text and pdfmetrics.stringWidth(text + "…", FONT_NAME, size) > max_width:
+        text = text[:-1]
+    return text + "…"
+
+
 def _doc(buf: io.BytesIO, header: str, header_fn=None) -> BaseDocTemplate:
     doc = BaseDocTemplate(
         buf, pagesize=A4, leftMargin=MARGIN, rightMargin=MARGIN, topMargin=MARGIN, bottomMargin=MARGIN,
@@ -142,7 +158,7 @@ def _doc(buf: io.BytesIO, header: str, header_fn=None) -> BaseDocTemplate:
     def decorate(canvas, d):
         canvas.saveState()
         canvas.setFont(FONT_NAME, 9)
-        canvas.drawString(MARGIN, A4[1] - MARGIN, header_fn(d) if header_fn else header)
+        canvas.drawString(MARGIN, A4[1] - MARGIN, fit_header(header_fn(d) if header_fn else header))
         canvas.setLineWidth(0.4)
         canvas.line(MARGIN, A4[1] - MARGIN - 2 * mm, A4[0] - MARGIN, A4[1] - MARGIN - 2 * mm)
         canvas.drawCentredString(A4[0] / 2, MARGIN - 3 * mm, f"- {d.page} -")

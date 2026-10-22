@@ -101,6 +101,38 @@ def test_chinese_text_extractable():
     assert "老师" in text  # empty signature falls back to 「老师」
 
 
+def test_long_chinese_paragraph_wraps_within_page():
+    from reportlab.pdfbase import pdfmetrics
+
+    from app.export import pdf as m
+
+    text = "这是一段没有任何空格的很长的中文题干" * 20
+    pdf = render_mistakes([
+        StudentSheet("张三", "三班", "作业", "2026-10-22", "老师", [MistakeItem("1", text, "a", "b", "0/5", None)])
+    ])
+    page = PdfReader(io.BytesIO(pdf)).pages[0]
+    assert text in page.extract_text().replace("\n", "")
+    m._register_font()
+    para = m._p(text, m._styles()["body"])
+    _, h = para.wrap(m.CONTENT_W, 10000)
+    assert h > 3 * 10 * 1.45  # several lines
+    assert pdfmetrics.stringWidth(text, m.FONT_NAME, 10) > m.CONTENT_W
+
+
+def test_header_is_truncated_to_content_width():
+    from reportlab.pdfbase import pdfmetrics
+
+    from app.export import pdf as m
+
+    m._register_font()
+    long = m._header_text("七年级三班", "很长的作业标题" * 10, "2026-10-22", "王老师")
+    fitted = m.fit_header(long)
+    assert fitted.endswith("…")
+    assert pdfmetrics.stringWidth(fitted, m.FONT_NAME, 9) <= m.CONTENT_W
+    assert m.fit_header("短") == "短"
+    assert render_lecture(_lecture(1).__class__(**{**_lecture(1).__dict__, "title": "很长的作业标题" * 10})).startswith(b"%PDF")
+
+
 def test_empty_mistakes_raises():
     with pytest.raises(ValueError):
         render_mistakes([])
