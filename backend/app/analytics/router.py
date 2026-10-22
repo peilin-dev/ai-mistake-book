@@ -78,7 +78,8 @@ async def question_detail(
         "is_subjective": subjective,
         "knowledge_point": kp_name,
         "wrong_count": sum(1 for q in qs if q.wrong),
-        "answered_count": len(answered),
+        "student_count": len(qs),  # headcount: everyone with a row for this question
+        "answered_count": len(answered),  # with a max_score; accuracy denominator only
         "groups": [] if subjective else [asdict(g) for g in group_wrong_answers(results, question_no)],
         "score_buckets": _score_buckets(qs) if subjective else [],
         "crops": crops,

@@ -139,3 +139,33 @@ async def test_assignment_stats_counts_only_done_assigned_pages(db, my_assignmen
     assert [(q.question_no, q.knowledge_point, q.top_wrong_answer) for q in s.questions] == [("2", "加法", "9")]
     assert s.weak_points == [{"name": "加法", "wrong_count": 1}]
     assert isinstance(roster_zhangsan, Student)
+
+
+def _no_max(no, wrong, answer="x"):
+    q = sq(no, 0, None, answer=answer)
+    q.wrong = wrong
+    return q
+
+
+def test_headcount_for_question_without_max_score():
+    # no max_score: nobody counts towards accuracy, but every student with a row is in the headcount
+    s = build_stats([sr("张三", [_no_max("1", True)]), sr("李四", [_no_max("1", False)])], 2, 0, 0, {})
+    (q,) = s.questions
+    assert (q.wrong_count, q.student_count, q.answered_count, q.accuracy) == (1, 2, 0, None)
+
+
+def test_headcount_for_mixed_question():
+    # one student has a max_score for q1, another doesn't: headcount 3, accuracy over the one with max
+    s = build_stats([sr("张三", [("1", 0, 2)]), sr("李四", [_no_max("1", True)]), sr("王五", [("1", 2, 2)])],
+                    3, 0, 0, {})
+    (q,) = s.questions
+    assert (q.wrong_count, q.student_count, q.answered_count) == (2, 3, 2)
+    assert q.accuracy == 0.5
+
+
+def test_average_score_skips_students_without_gradable_questions():
+    s = build_stats([sr("张三", [("1", 4, 4)]), sr("李四", [_no_max("1", False)])], 2, 0, 0, {})
+    assert s.counted_students == 2
+    assert s.average_score == 4 and s.average_ratio == 1.0
+    only_ungradable = build_stats([sr("李四", [_no_max("1", False)])], 1, 0, 0, {})
+    assert only_ungradable.average_score is None

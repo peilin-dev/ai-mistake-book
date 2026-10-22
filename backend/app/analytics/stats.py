@@ -52,7 +52,8 @@ class QuestionStat:
     question_no: str
     knowledge_point: str | None
     wrong_count: int
-    answered_count: int
+    student_count: int  # everyone with a row for this question (headcount)
+    answered_count: int  # those with a max_score (accuracy denominator)
     accuracy: float | None
     top_wrong_answer: str | None
     is_subjective: bool
@@ -196,7 +197,8 @@ def build_stats(results: list[StudentResult], roster_size: int, pending_review: 
             groups = [g for g in _group_answers(wrong) if g.key != ""]
             top = groups[0].answer if groups else None
         stats.append(QuestionStat(
-            question_no=no, knowledge_point=kp_name, wrong_count=len(wrong), answered_count=len(answered),
+            question_no=no, knowledge_point=kp_name, wrong_count=len(wrong), student_count=len(entries),
+            answered_count=len(answered),
             accuracy=correct / len(answered) if answered else None, top_wrong_answer=top,
             is_subjective=subjective,
         ))
@@ -205,7 +207,8 @@ def build_stats(results: list[StudentResult], roster_size: int, pending_review: 
     weak = sorted(kp_wrong.items(), key=lambda kv: (-kv[1], kv[0]))[:3]
     return AssignmentStats(
         counted_students=len(students), roster_size=roster_size,
-        average_score=sum(s.score for s in students) / len(students) if students else None,
+        # only students with gradable questions; the others have no score to average
+        average_score=sum(s.score for s in with_ratio) / len(with_ratio) if with_ratio else None,
         average_ratio=average_ratio, pass_rate=pass_rate,
         pending_review=pending_review, pages_not_counted=pages_not_counted,
         questions=stats,

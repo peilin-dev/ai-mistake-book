@@ -58,7 +58,7 @@ async def test_question_detail_groups_and_crops(auth_client, my_assignment, two_
     body = r.json()
     assert body["question_no"] == "2" and body["knowledge_point"] == "加法"
     assert body["is_subjective"] is False
-    assert (body["wrong_count"], body["answered_count"]) == (2, 2)
+    assert (body["wrong_count"], body["student_count"], body["answered_count"]) == (2, 2, 2)
     assert body["score_buckets"] == []
     assert len(body["groups"]) == 1 and body["groups"][0]["answer"] == "9" and body["groups"][0]["count"] == 2
     assert len(body["crops"]) == 2
@@ -141,3 +141,19 @@ async def test_other_teacher_gets_404(client_for, make_teacher, my_assignment, t
         assert (await other.get(url)).status_code == 404
     mine_missing = await other.get("/api/submissions/999999/history")
     assert mine_missing.status_code == 404
+
+
+async def test_question_detail_headcount_includes_rows_without_max_score(db, auth_client, my_assignment,
+                                                                         two_students):
+    from sqlalchemy import update
+    from app.models import QuestionResult
+    # 李四's q2 loses its max_score: still in the headcount, not in the accuracy denominator
+    await db.execute(update(QuestionResult)
+                     .where(QuestionResult.submission_id == two_students["李四"], QuestionResult.question_no == "2")
+                     .values(max_score=None))
+    await db.commit()
+    body = (await auth_client.get(f"/api/assignments/{my_assignment.id}/analytics/questions/2")).json()
+    assert (body["wrong_count"], body["student_count"], body["answered_count"]) == (2, 2, 1)
+    overview = (await auth_client.get(f"/api/assignments/{my_assignment.id}/analytics")).json()
+    q2 = next(q for q in overview["questions"] if q["question_no"] == "2")
+    assert (q2["wrong_count"], q2["student_count"], q2["answered_count"]) == (2, 2, 1)
