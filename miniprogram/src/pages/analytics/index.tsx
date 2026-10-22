@@ -99,13 +99,13 @@ export default function AnalyticsPage() {
 
   return (
     <View className='page'>
-      <Button className='big-btn ghost-btn' style={{ marginBottom: '24px' }} onClick={() => setExporting(true)}>
+      <Button className='big-btn ghost-btn' style={{ marginBottom: '48rpx' }} onClick={() => setExporting(true)}>
         导出 PDF
       </Button>
       {wrongQuestions.length > 0 ? (
         <Button
           className='big-btn ghost-btn'
-          style={{ marginBottom: '24px' }}
+          style={{ marginBottom: '48rpx' }}
           onClick={() => go(`/pages/practice/index?assignmentId=${assignmentId}`)}
         >
           生成练习纸

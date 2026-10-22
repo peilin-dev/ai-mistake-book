@@ -144,13 +144,13 @@ export default function ResultDetail() {
           </Text>
         ) : null}
       </View>
-      <Button className='big-btn ghost-btn' style={{ marginBottom: '24px' }} onClick={() => setExporting(true)}>
+      <Button className='big-btn ghost-btn' style={{ marginBottom: '48rpx' }} onClick={() => setExporting(true)}>
         导出错题单
       </Button>
       {questions.some((q) => !q.is_correct) ? (
         <Button
           className='big-btn ghost-btn'
-          style={{ marginBottom: '24px' }}
+          style={{ marginBottom: '48rpx' }}
           onClick={() => void Taro.navigateTo({ url: `/pages/practice/index?submissionId=${sub.id}` })}
         >
           给他出练习
