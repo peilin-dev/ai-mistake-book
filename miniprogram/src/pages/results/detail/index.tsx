@@ -19,7 +19,6 @@ export default function ResultDetail() {
   const [summary, setSummary] = useState<string | null>(null)
   const seq = useRef(0)
   const extraSeq = useRef(0)
-  const summaryAsked = useRef(false)
   const loaded = useRef(false)
   const triedRefresh = useRef(new Set<number>())
 
@@ -28,20 +27,22 @@ export default function ResultDetail() {
   /** History and the AI summary load after the page is shown; failures just hide them. */
   const loadExtras = async () => {
     const mine = ++extraSeq.current
-    try {
-      const h = await request<HistoryItem[]>('GET', `/api/submissions/${submissionId}/history`)
-      if (mine === extraSeq.current) setHistory(h)
-    } catch {
-      // no history card
-    }
-    if (summaryAsked.current) return
-    summaryAsked.current = true
-    try {
-      const s = await request<SummaryOut>('POST', `/api/submissions/${submissionId}/summary`)
-      setSummary(s.summary) // same submission on every show, so a late answer is still current
-    } catch {
-      summaryAsked.current = false
-    }
+    // The server fingerprints the scores, so re-asking is cheap when nothing changed.
+    const hist = request<HistoryItem[]>('GET', `/api/submissions/${submissionId}/history`)
+      .then((h) => {
+        if (mine === extraSeq.current) setHistory(h)
+      })
+      .catch(() => {
+        // no history card
+      })
+    const summ = request<SummaryOut>('POST', `/api/submissions/${submissionId}/summary`)
+      .then((s) => {
+        if (mine === extraSeq.current) setSummary(s.summary)
+      })
+      .catch(() => {
+        if (mine === extraSeq.current) setSummary(null)
+      })
+    await Promise.all([hist, summ])
   }
 
   const load = async () => {
