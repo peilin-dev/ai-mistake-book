@@ -189,7 +189,7 @@ export default function AnalyticsPage() {
               <View style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text className='strong'>{s.student_name}</Text>
                 <Text className='label' style={{ marginBottom: 0 }}>
-                  {s.score} / {s.max_score} 分　错 {s.wrong_count} 题 ›
+                  {avgText(s.score)} / {avgText(s.max_score)} 分　错 {s.wrong_count} 题 ›
                 </Text>
               </View>
             </View>

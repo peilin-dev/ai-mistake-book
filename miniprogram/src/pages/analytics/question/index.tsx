@@ -11,27 +11,48 @@ type LoadState = 'loading' | 'ok' | 'error' | 'notfound'
 export default function QuestionDetailPage() {
   const params = useRouter().params
   const assignmentId = Number(params.assignmentId)
-  const no = params.no ? decodeURIComponent(String(params.no)) : ''
+  let no = ''
+  try {
+    no = params.no ? decodeURIComponent(String(params.no)) : ''
+  } catch {
+    no = '' // malformed query: treated as not found
+  }
   const validId = Number.isInteger(assignmentId) && assignmentId > 0 && no !== ''
   const [state, setState] = useState<LoadState>(validId ? 'loading' : 'notfound')
   const [detail, setDetail] = useState<QuestionDetailOut | null>(null)
   const [causes, setCauses] = useState<Record<string, string>>({})
   const seq = useRef(0)
   const loaded = useRef(false)
-  const causesAsked = useRef(false)
+  const causesRef = useRef<Record<string, string>>({})
+  const causesBusy = useRef(false)
   const triedRefresh = useRef(false)
 
   const base = `/api/assignments/${assignmentId}/analytics/questions/${encodeURIComponent(no)}`
 
-  /** AI causes arrive after the page is already readable; failure just means no causes. */
-  const loadCauses = async () => {
-    if (causesAsked.current) return
-    causesAsked.current = true
+  /**
+   * AI causes arrive after the page is already readable; failure just means no causes.
+   * Called after every load: drops causes for groups that are gone and asks again
+   * while some group still has none (the server caches, so repeats are cheap).
+   */
+  const syncCauses = async (d: QuestionDetailOut) => {
+    const keys = d.is_subjective ? [] : d.groups.map((g) => g.key)
+    const kept: Record<string, string> = {}
+    for (const k of keys) if (causesRef.current[k]) kept[k] = causesRef.current[k]
+    causesRef.current = kept
+    setCauses(kept)
+    if (causesBusy.current || keys.every((k) => kept[k])) return
+    causesBusy.current = true
     try {
       const r = await request<CausesOut>('POST', `${base}/causes`)
-      setCauses(r.causes ?? {})
+      const got = r.causes ?? {}
+      const merged: Record<string, string> = {}
+      for (const k of keys) if (got[k] || causesRef.current[k]) merged[k] = got[k] || causesRef.current[k]
+      causesRef.current = merged
+      setCauses(merged)
     } catch {
       // nothing to show
+    } finally {
+      causesBusy.current = false
     }
   }
 
@@ -45,7 +66,7 @@ export default function QuestionDetailPage() {
       triedRefresh.current = false
       loaded.current = true
       setState('ok')
-      if (!d.is_subjective && d.groups.length > 0) void loadCauses()
+      void syncCauses(d)
     } catch (e) {
       if (mine !== seq.current) return
       if (e instanceof ApiError && e.status === 404) {
@@ -167,6 +188,11 @@ export default function QuestionDetailPage() {
                       onClick={() => openResult(s.submission_id)}
                     >
                       {s.student_name}
+                      {s.score > 0 && s.score < s.max_score ? (
+                        <Text className='muted'>
+                          {' '}得 {Math.round(s.score * 10) / 10} / {Math.round(s.max_score * 10) / 10} 分
+                        </Text>
+                      ) : null}
                     </Text>
                   ))}
                 </View>
