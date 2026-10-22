@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.analytics.rules import ATTENTION_GAP, PASS_RATIO
+from app.analytics.rules import ATTENTION_GAP, PASS_RATIO, RECENT_N
 from app.grading.consensus import normalize_answer
 from app.models import (
     Assignment,
@@ -213,15 +213,19 @@ def _counted_pages(assignment_id: int):
     return and_(Page.assignment_id == assignment_id, Page.status == PageStatus.done, Page.student_id.is_not(None))
 
 
-async def load_student_results(db: AsyncSession, assignment_id: int) -> list[StudentResult]:
-    rows = (await db.execute(
+async def load_student_results(db: AsyncSession, assignment_id: int,
+                               student_id: int | None = None) -> list[StudentResult]:
+    stmt = (
         select(QuestionResult, Submission.id, Student.id, Student.name)
         .join(Page, Page.id == QuestionResult.page_id)
         .join(Submission, Submission.id == QuestionResult.submission_id)
         .join(Student, Student.id == Submission.student_id)
         .where(_counted_pages(assignment_id))
         .order_by(QuestionResult.id)
-    )).all()
+    )
+    if student_id is not None:
+        stmt = stmt.where(Student.id == student_id)
+    rows = (await db.execute(stmt)).all()
     per_student: dict[int, StudentResult] = {}
     for qr, sub_id, stu_id, stu_name in rows:
         res = per_student.setdefault(stu_id, StudentResult(
@@ -260,3 +264,30 @@ async def assignment_stats(db: AsyncSession, assignment_id: int) -> AssignmentSt
             select(KnowledgePoint.id, KnowledgePoint.name).where(KnowledgePoint.id.in_(kp_ids))
         )).all())
     return build_stats(results, roster, pending, not_counted, kp_names)
+
+
+async def student_history(db: AsyncSession, submission_id: int) -> list[dict]:
+    """Recent assignments (same class and subject, newest first) this student has results for,
+    with scores computed by the same merging rules as the statistics."""
+    sub = await db.get(Submission, submission_id)
+    if sub is None:
+        return []
+    current = await db.get(Assignment, sub.assignment_id)
+    candidates = (await db.execute(
+        select(Assignment)
+        .join(Submission, Submission.assignment_id == Assignment.id)
+        .where(Assignment.class_id == current.class_id, Assignment.subject == current.subject,
+               Submission.student_id == sub.student_id)
+        .order_by(Assignment.created_at.desc(), Assignment.id.desc())
+    )).scalars().all()
+    history: list[dict] = []
+    for a in candidates:
+        mine = await load_student_results(db, a.id, sub.student_id)
+        if not mine:
+            continue
+        r = mine[0]
+        history.append({"assignment_id": a.id, "title": a.title, "created_at": a.created_at,
+                        "score": r.score, "max_score": r.max_score, "ratio": r.ratio})
+        if len(history) == RECENT_N:
+            break
+    return history

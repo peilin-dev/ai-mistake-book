@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.analytics.router import router as analytics_router
 from app.assignments.router import close_arq_pool
 from app.assignments.router import router as assignments_router
 from app.auth.router import router as auth_router
@@ -28,6 +29,7 @@ def create_app() -> FastAPI:
     app.include_router(students_router, prefix="/api")
     app.include_router(assignments_router, prefix="/api")
     app.include_router(review_router, prefix="/api")
+    app.include_router(analytics_router, prefix="/api")
     app.include_router(storage_router, prefix="/api")
     return app
 
