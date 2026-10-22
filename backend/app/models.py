@@ -218,3 +218,18 @@ class UsageRecord(_Base):
     input_tokens: Mapped[int] = mapped_column(Integer, default=0)
     output_tokens: Mapped[int] = mapped_column(Integer, default=0)
     cost_fen: Mapped[float] = mapped_column(Numeric(10, 4, asdecimal=False), default=0)
+
+
+class AiNote(_Base):
+    """Cached AI text for an assignment: a wrong-answer cause or a student summary."""
+    __tablename__ = "ai_notes"
+    assignment_id: Mapped[int] = _fk("assignments.id")
+    kind: Mapped[str] = mapped_column(String(16))  # "cause" | "summary"
+    ref: Mapped[str] = mapped_column(String(128))
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    text: Mapped[str] = mapped_column(Text)
+
+    __table_args__ = (
+        UniqueConstraint("assignment_id", "kind", "ref", name="uq_ai_note_ref"),
+        {"mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"},
+    )

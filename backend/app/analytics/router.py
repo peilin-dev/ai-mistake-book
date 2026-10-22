@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.base import VisionModel
+from app.analytics.notes import get_analysis_model, question_causes, student_summary
 from app.analytics.stats import assignment_stats, group_wrong_answers, load_student_results, student_history
 from app.assignments.access import own_assignment
 from app.deps import current_teacher, get_db
@@ -83,18 +85,63 @@ async def question_detail(
     }
 
 
+async def _own_submission(db: AsyncSession, teacher: Teacher, submission_id: int) -> Submission:
+    sub = (await db.execute(
+        select(Submission)
+        .join(Assignment, Assignment.id == Submission.assignment_id)
+        .join(Class_, Class_.id == Assignment.class_id)
+        .where(Submission.id == submission_id, Class_.teacher_id == teacher.id)
+    )).scalar_one_or_none()
+    if sub is None:
+        raise HTTPException(404, "submission not found")
+    return sub
+
+
 @router.get("/submissions/{submission_id}/history")
 async def submission_history(
     submission_id: int,
     teacher: Teacher = Depends(current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> list[dict]:
-    owned = (await db.execute(
-        select(Submission.id)
-        .join(Assignment, Assignment.id == Submission.assignment_id)
-        .join(Class_, Class_.id == Assignment.class_id)
-        .where(Submission.id == submission_id, Class_.teacher_id == teacher.id)
-    )).first()
-    if owned is None:
-        raise HTTPException(404, "submission not found")
+    await _own_submission(db, teacher, submission_id)
     return await student_history(db, submission_id)
+
+
+@router.post("/assignments/{assignment_id}/analytics/questions/{question_no}/causes")
+async def question_cause_notes(
+    assignment_id: int,
+    question_no: str,
+    teacher: Teacher = Depends(current_teacher),
+    db: AsyncSession = Depends(get_db),
+    model: VisionModel = Depends(get_analysis_model),
+) -> dict:
+    await own_assignment(db, teacher, assignment_id)
+    results = await load_student_results(db, assignment_id)
+    qs = [q for r in results for q in r.questions if q.question_no == question_no]
+    if not qs:
+        raise HTTPException(404, "question not found")
+    if any(q.is_subjective for q in qs):
+        return {"causes": {}}
+    causes = await question_causes(
+        db, model, teacher.id, assignment_id, question_no, group_wrong_answers(results, question_no),
+        next((q.question_text for q in qs if q.question_text), None),
+        next((q.correct_answer for q in qs if q.correct_answer), None))
+    await db.commit()
+    return {"causes": causes}
+
+
+@router.post("/submissions/{submission_id}/summary")
+async def submission_summary(
+    submission_id: int,
+    teacher: Teacher = Depends(current_teacher),
+    db: AsyncSession = Depends(get_db),
+    model: VisionModel = Depends(get_analysis_model),
+) -> dict:
+    sub = await _own_submission(db, teacher, submission_id)
+    mine = await load_student_results(db, sub.assignment_id, sub.student_id)
+    if not mine:
+        return {"summary": None}
+    history = await student_history(db, submission_id)
+    summary = await student_summary(db, model, teacher.id, submission_id, mine[0], history)
+    await db.commit()
+    return {"summary": summary}

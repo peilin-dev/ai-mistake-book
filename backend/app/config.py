@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     # qwen-vl-max is not offered in Bailian workspaces any more; qwen3-vl-plus is the vision model.
     MODEL_FOR_GRADING: str = "qwen:qwen3-vl-plus"
     MODEL_FOR_ANSWER_KEY: str = "qwen:qwen3-vl-plus"
+    MODEL_FOR_ANALYSIS: str = "qwen:qwen3-vl-plus"
     MODEL_FOR_PRACTICE_GENERATE: str = "qwen:qwen3-vl-plus"
     # Placeholder: the operator must set this to their own Ark model / endpoint id.
     # Must use a different provider than MODEL_FOR_PRACTICE_GENERATE (spec section 8).

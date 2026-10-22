@@ -4,7 +4,7 @@ from app.ai.base import VisionModel
 from app.ai.openai_compat import OpenAICompatModel
 from app.config import Settings, get_settings
 
-Purpose = Literal["grading", "answer_key", "practice_generate", "practice_verify"]
+Purpose = Literal["grading", "answer_key", "practice_generate", "practice_verify", "analysis"]
 
 # provider -> (base URL setting, API key setting)
 _PROVIDERS = {
