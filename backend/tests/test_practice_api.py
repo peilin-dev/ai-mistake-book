@@ -199,3 +199,83 @@ async def test_practice_endpoints_other_teacher_404(db, client_for, make_teacher
         r = await getattr(other, method)(url)
         assert r.status_code == 404, (method, url, r.status_code)
     assert len(practice_enqueued) == 1
+
+
+# --- fix round 1 ---
+
+async def _insert_winner(settings, assignment_id: int) -> int:
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.db import make_engine
+
+    engine = make_engine(settings.DATABASE_URL)
+    try:
+        async with async_sessionmaker(engine, expire_on_commit=False)() as s:
+            p = PracticePaper(assignment_id=assignment_id, student_id=None, student_key=0, status="queued",
+                              sources_total=3, sources_done=0)
+            s.add(p)
+            await s.commit()
+            return p.id
+    finally:
+        await engine.dispose()
+
+
+def _deadlock():
+    from sqlalchemy.exc import OperationalError
+    return OperationalError("INSERT", {}, Exception(1213, "Deadlock found when trying to get lock"))
+
+
+async def test_first_tap_deadlock_victim_returns_winner(db, settings, auth_client, my_assignment,
+                                                        practice_enqueued, monkeypatch):
+    await build_sources(db, my_assignment)
+    aid = my_assignment.id
+    real_commit = db.commit
+    state = {"n": 0, "winner": None}
+
+    async def commit():
+        state["n"] += 1
+        if state["n"] == 1:
+            await db.rollback()  # the victim's locks go away; the other tap commits its paper
+            state["winner"] = await _insert_winner(settings, aid)
+            raise _deadlock()
+        await real_commit()
+
+    monkeypatch.setattr(db, "commit", commit)
+    r = await auth_client.post(f"/api/assignments/{aid}/practice")
+    assert r.status_code == 200, r.text
+    assert r.json()["id"] == state["winner"]
+    assert practice_enqueued == []
+
+
+async def test_first_tap_deadlock_twice_is_409(db, auth_client, my_assignment, practice_enqueued, monkeypatch):
+    await build_sources(db, my_assignment)
+    aid = my_assignment.id
+    real_commit = db.commit
+    state = {"n": 0}
+
+    async def commit():
+        state["n"] += 1
+        if any(isinstance(o, PracticePaper) for o in db.new):  # every insert attempt loses; re-query finds none
+            raise _deadlock()
+        await real_commit()
+
+    monkeypatch.setattr(db, "commit", commit)
+    r = await auth_client.post(f"/api/assignments/{aid}/practice")
+    assert (r.status_code, r.json()["detail"]) == (409, "还在出题，请稍等")
+    assert practice_enqueued == []
+
+
+async def test_other_operational_errors_are_not_swallowed(db, auth_client, my_assignment, practice_enqueued,
+                                                         monkeypatch):
+    import pytest
+    from sqlalchemy.exc import OperationalError
+
+    await build_sources(db, my_assignment)
+    aid = my_assignment.id
+
+    async def commit():
+        raise OperationalError("INSERT", {}, Exception(2013, "Lost connection"))
+
+    monkeypatch.setattr(db, "commit", commit)
+    with pytest.raises(OperationalError):
+        await auth_client.post(f"/api/assignments/{aid}/practice")

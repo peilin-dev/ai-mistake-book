@@ -127,16 +127,27 @@ async def _find_paper(db: AsyncSession, assignment_id: int, student_key: int, lo
     return (await db.execute(stmt)).scalar_one_or_none()
 
 
-async def _generate(db: AsyncSession, response: Response, enqueue: EnqueuePractice, assignment_id: int,
-                    student_id: int | None, sources_loader, no_sources_text: str) -> PaperOut:
+_LOCK_CONFLICTS = {1213, 1205}  # MySQL: deadlock victim, lock wait timeout
+
+
+def _is_tap_conflict(exc: Exception) -> bool:
+    """A simultaneous tap won the race (duplicate key) or MySQL picked us as the lock victim."""
+    if isinstance(exc, IntegrityError):
+        return True
+    args = getattr(getattr(exc, "orig", None), "args", None) or (None,)
+    return args[0] in _LOCK_CONFLICTS
+
+
+async def _claim_paper(db: AsyncSession, assignment_id: int, student_id: int | None, sources_loader,
+                       no_sources_text: str) -> tuple[PracticePaper, bool]:
+    """(paper, True) after creating/resetting it to queued and committing; (paper, False) if one is in flight."""
     key = student_id or 0
     paper = await _find_paper(db, assignment_id, key, lock=True)
     if paper is not None:
         await _expire_stale(db, paper)  # commits (releasing the lock) only when it changed something
         if paper.status in WORKING:
             await db.commit()
-            response.status_code = 200
-            return await _paper_out(db, paper)
+            return paper, False
     sources = await sources_loader()
     if not sources:
         await db.commit()  # nothing changed; ends the transaction and its row lock
@@ -149,11 +160,23 @@ async def _generate(db: AsyncSession, response: Response, enqueue: EnqueuePracti
     paper.status, paper.partial, paper.error = "queued", False, None
     paper.sources_total, paper.sources_done = len(sources), 0
     paper.generated_at, paper.last_replace_failed_item = None, None
-    try:
-        await db.commit()
-    except (IntegrityError, OperationalError):  # simultaneous first taps (duplicate key / deadlock): show the winner
-        await db.rollback()
-        paper = await _find_paper(db, assignment_id, key)
+    await db.commit()
+    return paper, True
+
+
+async def _generate(db: AsyncSession, response: Response, enqueue: EnqueuePractice, assignment_id: int,
+                    student_id: int | None, sources_loader, no_sources_text: str) -> PaperOut:
+    for _ in range(2):  # the losing tap retries once and then normally finds the winner's paper
+        try:
+            paper, created = await _claim_paper(db, assignment_id, student_id, sources_loader, no_sources_text)
+            break
+        except (IntegrityError, OperationalError) as exc:
+            if not _is_tap_conflict(exc):
+                raise
+            await db.rollback()
+    else:
+        raise HTTPException(409, STILL_GENERATING)
+    if not created:
         response.status_code = 200
         return await _paper_out(db, paper)
     try:

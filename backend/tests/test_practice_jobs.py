@@ -316,3 +316,103 @@ async def test_jobs_mark_failure_when_something_crashes(db, settings, my_assignm
     it = await db.get(PracticeItem, item_id)
     assert (p.status, p.error, p.last_replace_failed_item) == ("failed", FAILED_TEXT, item_id)
     assert it.replacing is False
+
+# --- fix round 1 ---
+
+async def test_paper_job_commit_failure_stops_all_session_use(db, settings, my_assignment):
+    from sqlalchemy.exc import OperationalError
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.db import make_engine
+    from app.practice.jobs import practice_paper_job
+
+    await build_sources(db, my_assignment, n_sources=5)
+    paper_id = (await new_paper(db, my_assignment)).id
+    engine = make_engine(settings.DATABASE_URL)
+    sm = async_sessionmaker(engine, expire_on_commit=False)
+    calls: list[str] = []
+    state = {"commits": 0, "failed_at": None, "first": None}
+
+    def factory():
+        s = sm()
+        if state["first"] is None:  # instrument the job's working session only
+            state["first"] = s
+            real_commit, real_add_all, real_execute = s.commit, s.add_all, s.execute
+
+            async def commit():
+                state["commits"] += 1
+                calls.append("commit")
+                if state["commits"] == 3:  # claim, sources_total, then the first progress commit fails
+                    state["failed_at"] = len(calls)
+                    raise OperationalError("COMMIT", {}, Exception(2013, "Lost connection"))
+                await real_commit()
+
+            def add_all(rows):
+                calls.append("add_all")
+                real_add_all(rows)
+
+            async def execute(*a, **k):
+                calls.append("execute")
+                return await real_execute(*a, **k)
+
+            s.commit, s.add_all, s.execute = commit, add_all, execute
+        return s
+
+    gen = RoutedModel(generator(), delay=0.05)
+    ctx = {"sessionmaker": factory, "practice_generate_model": gen,
+           "practice_verify_model": RoutedModel(verifier, delay=0.05)}
+    try:
+        await practice_paper_job(ctx, paper_id)
+    finally:
+        await engine.dispose()
+    assert state["failed_at"] is not None
+    assert calls[state["failed_at"]:] == []  # no sibling touched the session after the failure
+    assert len(gen.prompts) <= 4  # the 5th source never started
+    await db.rollback()
+    db.expire_all()
+    p = await db.get(PracticePaper, paper_id)
+    assert (p.status, p.error) == ("failed", FAILED_TEXT)
+
+
+async def test_run_paper_only_runs_a_queued_paper(db, my_assignment):
+    await build_sources(db, my_assignment, n_sources=1)
+    paper = await new_paper(db, my_assignment)
+    for status in ("failed", "done", "running"):
+        paper.status, paper.error = status, "x"
+        await db.commit()
+        gen = RoutedModel(generator())
+        await run_paper(db, gen, RoutedModel(verifier), paper.id)
+        await db.refresh(paper)
+        assert (paper.status, paper.error, gen.prompts) == (status, "x", [])
+
+
+async def test_paper_job_cancelled_marks_failed(db, settings, my_assignment):
+    import pytest
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.db import make_engine
+    from app.practice.jobs import practice_paper_job, practice_replace_job
+
+    paper, items = await _done_paper(db, my_assignment)
+    paper_id, item_id = paper.id, items[0].id
+    items[0].replacing = True
+    await db.commit()
+    engine = make_engine(settings.DATABASE_URL)
+    ctx = {"sessionmaker": async_sessionmaker(engine, expire_on_commit=False),
+           "practice_generate_model": RoutedModel(generator(), delay=5),
+           "practice_verify_model": RoutedModel(verifier)}
+    try:
+        with pytest.raises((asyncio.TimeoutError, TimeoutError)):  # what arq's job timeout does
+            await asyncio.wait_for(practice_replace_job(ctx, item_id), 0.3)
+        paper.status = "queued"
+        await db.commit()
+        with pytest.raises((asyncio.TimeoutError, TimeoutError)):
+            await asyncio.wait_for(practice_paper_job(ctx, paper_id), 0.3)
+    finally:
+        await engine.dispose()
+    await db.rollback()
+    db.expire_all()
+    p = await db.get(PracticePaper, paper_id)
+    it = await db.get(PracticeItem, item_id)
+    assert (p.status, p.error) == ("failed", FAILED_TEXT)
+    assert (it.replacing, p.last_replace_failed_item) == (False, item_id)

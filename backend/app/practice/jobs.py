@@ -11,7 +11,7 @@ import json
 import logging
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 
 from app.config import get_settings
 from app.models import Assignment, Class_, KnowledgePoint, PracticeItem, PracticePaper, Submission
@@ -94,13 +94,19 @@ async def _variants(gen_model, verify_model, teacher_id: int, source: Source, bu
 
 
 async def run_paper(db, gen_model, verify_model, paper_id: int) -> None:
-    paper = await db.get(PracticePaper, paper_id)
-    if paper is None:
+    # Claim atomically: only a queued paper runs, so a late or duplicate job (stale retry, a job
+    # enqueued before a regenerate) can neither revive a failed/done paper nor run it twice.
+    claimed = await db.execute(
+        update(PracticePaper).where(PracticePaper.id == paper_id, PracticePaper.status == "queued")
+        .values(status="running", sources_done=0, error=None)
+    )
+    await db.commit()
+    if claimed.rowcount != 1:
+        log.info("practice paper %s is not queued; job skipped", paper_id)
         return
+    paper = await db.get(PracticePaper, paper_id, populate_existing=True)
     assignment_id, student_id = paper.assignment_id, paper.student_id
     teacher_id = await _teacher_id(db, assignment_id)
-    paper.status, paper.sources_done, paper.error = "running", 0, None
-    await db.commit()
 
     sources = await _paper_sources(db, assignment_id, student_id)
     paper.sources_total = len(sources)
@@ -109,24 +115,37 @@ async def run_paper(db, gen_model, verify_model, paper_id: int) -> None:
     sem = asyncio.Semaphore(CONCURRENCY)
     lock = asyncio.Lock()
     done = 0
+    broken: list[BaseException] = []  # set once the session failed: nobody may touch it again
 
     async def one(source: Source) -> list[Draft]:
         nonlocal done
         buf = _UsageBuffer()
         async with sem:
+            if broken:
+                return []
             try:
                 kept = await _variants(gen_model, verify_model, teacher_id, source, buf)
             except Exception:  # one bad source must not sink the paper
                 log.exception("practice paper %s: source %s failed", paper_id, source.question_no)
                 kept = []
         async with lock:
-            db.add_all(buf.rows)
-            done += 1
-            paper.sources_done = done
-            await db.commit()
+            if broken:
+                return []
+            try:
+                db.add_all(buf.rows)
+                done += 1
+                paper.sources_done = done
+                await db.commit()
+            except Exception as exc:
+                broken.append(exc)
+                return []
         return kept
 
+    # Children never raise (errors land in `broken`); a cancellation of this task cancels them all
+    # and gather only returns once every child has finished.
     results = await asyncio.gather(*(one(s) for s in sources))
+    if broken:
+        raise broken[0]
 
     await db.execute(delete(PracticeItem).where(PracticeItem.paper_id == paper_id))
     stems: list[str] = []
@@ -211,27 +230,47 @@ async def run_replace(db, gen_model, verify_model, item_id: int) -> bool:
 
 # ---------- arq entry points (registered in app.jobs.worker) ----------
 
+def _models(ctx: dict):
+    gen, ver = ctx.get("practice_generate_model"), ctx.get("practice_verify_model")
+    if gen is None or ver is None:
+        raise RuntimeError("practice models are not configured")
+    return gen, ver
+
+
+async def _cleanup(ctx: dict, what: str, fn, obj_id: int) -> None:
+    """Best effort, in a fresh session: the job's own session may be broken or mid-cancellation."""
+    try:
+        async with ctx["sessionmaker"]() as db:
+            await fn(db, obj_id)
+    except Exception:
+        log.exception("could not record the failure of practice %s %s", what, obj_id)
+
+
 async def practice_paper_job(ctx: dict, paper_id: int) -> None:
-    async with ctx["sessionmaker"]() as db:
-        try:
-            gen, ver = ctx.get("practice_generate_model"), ctx.get("practice_verify_model")
-            if gen is None or ver is None:
-                raise RuntimeError("practice models are not configured")
-            await run_paper(db, gen, ver, paper_id)
-        except Exception:
-            log.exception("practice paper %s failed", paper_id)
-            await db.rollback()
-            await mark_paper_failed(db, paper_id)
+    try:
+        async with ctx["sessionmaker"]() as db:
+            await run_paper(db, *_models(ctx), paper_id)
+    except asyncio.CancelledError:  # arq job timeout: still tell the page, then let arq see it
+        log.warning("practice paper %s cancelled", paper_id)
+        await _cleanup(ctx, "paper", mark_paper_failed, paper_id)
+        raise
+    except Exception:
+        log.exception("practice paper %s failed", paper_id)
+        await _cleanup(ctx, "paper", mark_paper_failed, paper_id)
+
+
+async def _replace_failed(db, item_id: int) -> None:
+    await finish_replace(db, item_id, False)
 
 
 async def practice_replace_job(ctx: dict, item_id: int) -> None:
-    async with ctx["sessionmaker"]() as db:
-        try:
-            gen, ver = ctx.get("practice_generate_model"), ctx.get("practice_verify_model")
-            if gen is None or ver is None:
-                raise RuntimeError("practice models are not configured")
-            await run_replace(db, gen, ver, item_id)
-        except Exception:
-            log.exception("practice replace %s failed", item_id)
-            await db.rollback()
-            await finish_replace(db, item_id, False)
+    try:
+        async with ctx["sessionmaker"]() as db:
+            await run_replace(db, *_models(ctx), item_id)
+    except asyncio.CancelledError:
+        log.warning("practice replace %s cancelled", item_id)
+        await _cleanup(ctx, "item", _replace_failed, item_id)
+        raise
+    except Exception:
+        log.exception("practice replace %s failed", item_id)
+        await _cleanup(ctx, "item", _replace_failed, item_id)
