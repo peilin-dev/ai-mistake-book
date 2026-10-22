@@ -3,8 +3,9 @@ import { View, Text, Button, Image } from '@tarojs/components'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { ApiError, request } from '../../../lib/api'
 import { errorText } from '../../../lib/messages'
+import { AI_LABEL, historyLine } from '../../../lib/analytics'
 import { NO_ANSWER_KEY_BANNER, scoreText, verdictText } from '../../../lib/results'
-import type { AssignmentOut, SubmissionOut } from '../../../lib/types'
+import type { AssignmentOut, HistoryItem, SubmissionOut, SummaryOut } from '../../../lib/types'
 
 type LoadState = 'loading' | 'ok' | 'error' | 'notfound'
 
@@ -14,11 +15,34 @@ export default function ResultDetail() {
   const [state, setState] = useState<LoadState>(validId ? 'loading' : 'notfound')
   const [sub, setSub] = useState<SubmissionOut | null>(null)
   const [hasKey, setHasKey] = useState(true)
+  const [history, setHistory] = useState<HistoryItem[]>([])
+  const [summary, setSummary] = useState<string | null>(null)
   const seq = useRef(0)
+  const extraSeq = useRef(0)
+  const summaryAsked = useRef(false)
   const loaded = useRef(false)
   const triedRefresh = useRef(new Set<number>())
 
   const fetchSub = () => request<SubmissionOut>('GET', `/api/submissions/${submissionId}`)
+
+  /** History and the AI summary load after the page is shown; failures just hide them. */
+  const loadExtras = async () => {
+    const mine = ++extraSeq.current
+    try {
+      const h = await request<HistoryItem[]>('GET', `/api/submissions/${submissionId}/history`)
+      if (mine === extraSeq.current) setHistory(h)
+    } catch {
+      // no history card
+    }
+    if (summaryAsked.current) return
+    summaryAsked.current = true
+    try {
+      const s = await request<SummaryOut>('POST', `/api/submissions/${submissionId}/summary`)
+      setSummary(s.summary) // same submission on every show, so a late answer is still current
+    } catch {
+      summaryAsked.current = false
+    }
+  }
 
   const load = async () => {
     if (!validId) return
@@ -32,6 +56,7 @@ export default function ResultDetail() {
       triedRefresh.current.clear()
       loaded.current = true
       setState('ok')
+      void loadExtras()
     } catch (e) {
       if (mine !== seq.current) return
       if (e instanceof ApiError && e.status === 404) {
@@ -116,6 +141,30 @@ export default function ResultDetail() {
           </Text>
         ) : null}
       </View>
+      {history.length > 0 ? (
+        <View className='card'>
+          <Text className='strong' style={{ display: 'block' }}>最近几次</Text>
+          {history.map((h) => (
+            <Text
+              key={h.assignment_id}
+              style={{
+                display: 'block',
+                marginTop: '12px',
+                fontWeight: h.assignment_id === sub.assignment_id ? 'bold' : 'normal',
+              }}
+            >
+              {historyLine(h)}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+      {summary ? (
+        <View className='card'>
+          <Text className='strong'>AI 总结</Text>
+          <Text className='muted' style={{ fontSize: '20px', marginLeft: '12px' }}>{AI_LABEL}</Text>
+          <Text style={{ display: 'block', marginTop: '12px' }}>{summary}</Text>
+        </View>
+      ) : null}
       {questions.map((q) => (
         <View className={`card card-band ${q.is_correct ? 'band-ok' : 'band-danger'}`} key={q.id}>
           <View style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
