@@ -198,6 +198,7 @@ class QuestionResult(_Base):
     needs_review: Mapped[bool] = mapped_column(Boolean, default=False)
     # No answer key: this row's AI answer disagrees with the class majority (or ties).
     answer_mismatch: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    is_subjective: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     reviewed: Mapped[bool] = mapped_column(Boolean, default=False)
     model_is_correct: Mapped[bool | None] = mapped_column(Boolean)
     model_score: Mapped[float | None] = mapped_column(Float)

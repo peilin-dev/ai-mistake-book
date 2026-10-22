@@ -285,6 +285,7 @@ def _result_row(gq: GradedQuestion, item: AnswerItem | None, allowed_kps: set[in
         score=score,
         max_score=max_score,
         confidence=gq.confidence,
+        is_subjective=item.is_subjective if item is not None else gq.is_subjective,
         reviewed=False,
         model_is_correct=None,
         model_score=None,

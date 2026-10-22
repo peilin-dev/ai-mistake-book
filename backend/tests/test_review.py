@@ -367,3 +367,8 @@ async def test_submission_questions_include_answer_verified(auth_client, db, gra
     await db.commit()
     sub = (await auth_client.get(f"/api/submissions/{graded_submission.id}")).json()
     assert [q["answer_verified"] for q in sub["questions"]] == [True, False]
+
+
+async def test_submission_detail_has_is_subjective(auth_client, graded_submission):
+    body = (await auth_client.get(f"/api/submissions/{graded_submission.id}")).json()
+    assert all(q["is_subjective"] is False for q in body["questions"])

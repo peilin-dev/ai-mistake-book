@@ -49,6 +49,7 @@ def _result_out(r: QuestionResult, storage: Storage) -> dict:
         **_question_fields(r),
         "page_id": r.page_id,
         "needs_review": r.needs_review,
+        "is_subjective": r.is_subjective,
         "reviewed": r.reviewed,
         "model_is_correct": r.model_is_correct,
         "model_score": r.model_score,

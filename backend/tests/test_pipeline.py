@@ -485,3 +485,17 @@ async def test_done_page_is_not_regraded(db, storage, uploaded_page, roster_zhan
     r = (await db.execute(select(QuestionResult))).scalar_one()
     assert (r.question_no, r.score, r.reviewed) == ("1", 1, True)
     assert (await db.execute(select(func.count(UsageRecord.id)))).scalar() == 1
+
+
+async def test_is_subjective_from_model_without_key(db, storage, uploaded_page, roster_zhangsan):
+    model = FakeModel([graded(student_name="张三", questions=[q(no="1", is_subjective=True)])])
+    await grade_page(db, storage, model, uploaded_page.id)
+    assert (await db.execute(select(QuestionResult))).scalar_one().is_subjective is True
+
+
+async def test_is_subjective_from_answer_key(db, storage, uploaded_page, confirmed_key_q1_q2, roster_zhangsan):
+    confirmed_key_q1_q2[0].is_subjective = True
+    await db.commit()
+    model = FakeModel([graded(student_name="张三", questions=[q(no="1", is_subjective=False)])])
+    await grade_page(db, storage, model, uploaded_page.id)
+    assert (await db.execute(select(QuestionResult))).scalar_one().is_subjective is True
