@@ -275,13 +275,16 @@ def _result_row(gq: GradedQuestion, item: AnswerItem | None, allowed_kps: set[in
         correct, verified, score = item.answer, True, min(gq.score, max_score)
     else:
         max_score, correct, verified, score = gq.max_score, gq.correct_answer, False, gq.score
+    # 没拿满分就算错 (same rule as review overrides): the stored flag follows the final score, not the
+    # model's own is_correct, which can disagree with the score it gave.
+    is_correct = score >= max_score if max_score is not None else gq.is_correct
     return QuestionResult(
         question_no=gq.no,
         question_text=gq.question_text,
         student_answer=gq.student_answer,
         correct_answer=correct,
         answer_verified=verified,
-        is_correct=gq.is_correct,
+        is_correct=is_correct,
         score=score,
         max_score=max_score,
         confidence=gq.confidence,

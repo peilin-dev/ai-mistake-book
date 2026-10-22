@@ -172,6 +172,26 @@ async def test_is_correct_comes_from_model_even_with_key(db, storage, uploaded_p
     assert r.is_correct is False and r.correct_answer == "12" and r.crop_key is not None
 
 
+async def test_is_correct_follows_final_score(db, storage, uploaded_page, roster_zhangsan):
+    # 没拿满分就算错: the stored flag follows score vs max_score, whatever the model's is_correct says
+    model = FakeModel([graded(student_name="张三", questions=[
+        q(no="1", is_correct=True, score=1, max_score=2),
+        q(no="2", is_correct=False, score=4, max_score=4)])])
+    await grade_page(db, storage, model, uploaded_page.id)
+    r1, r2 = await _results(db)
+    assert (r1.is_correct, r1.score, r1.max_score) == (False, 1, 2) and r1.crop_key is not None
+    assert (r2.is_correct, r2.score, r2.max_score) == (True, 4, 4) and r2.crop_key is None
+
+
+async def test_is_correct_follows_clipped_score_with_key(db, storage, uploaded_page, confirmed_key_q1_q2,
+                                                         roster_zhangsan):
+    # the key's max_score (2) clips the model's 4/4 to 2/2: still full marks
+    model = FakeModel([graded(student_name="张三", questions=[q(no="1", is_correct=False, score=4, max_score=4)])])
+    await grade_page(db, storage, model, uploaded_page.id)
+    r = (await db.execute(select(QuestionResult))).scalar_one()
+    assert (r.score, r.max_score, r.is_correct) == (2, 2, True)
+
+
 async def test_low_confidence_needs_review(db, storage, uploaded_page, confirmed_key_q1_q2, roster_zhangsan):
     model = FakeModel([graded(student_name="张三", questions=[q(no="1", confidence=0.5)])])
     await grade_page(db, storage, model, uploaded_page.id)
