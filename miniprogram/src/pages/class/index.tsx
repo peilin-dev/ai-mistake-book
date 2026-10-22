@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { View, Text, Button } from '@tarojs/components'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
-import { request } from '../../lib/api'
+import { ApiError, request } from '../../lib/api'
 import { errorText } from '../../lib/messages'
 import { classCardStatus, gradedPercent } from '../../lib/classCard'
 import type { AssignmentOut, ClassOut, ProgressOut } from '../../lib/types'
@@ -60,6 +60,11 @@ export default function ClassDetail() {
       })
     } catch (e) {
       if (seq !== loadSeq.current) return
+      // The assignments call 404s for a class that doesn't exist (or isn't this teacher's).
+      if (e instanceof ApiError && e.status === 404) {
+        setState('notfound')
+        return
+      }
       Taro.showToast({ title: errorText(e), icon: 'none' })
       setState((old) => (old === 'ok' ? 'ok' : 'error'))
     }

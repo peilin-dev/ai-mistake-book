@@ -29,15 +29,23 @@ async function loadCard(cls: ClassOut): Promise<Card> {
 
 export default function Index() {
   const [cards, setCards] = useState<Card[] | null>(null)
+  // First load failed: don't show the "no classes yet" guide, the classes may well exist.
+  const [failed, setFailed] = useState(false)
 
   const load = async () => {
     try {
       const classes = await request<ClassOut[]>('GET', '/api/classes')
       setCards(await Promise.all(classes.map(loadCard)))
+      setFailed(false)
     } catch (e) {
       Taro.showToast({ title: errorText(e), icon: 'none' })
-      setCards((old) => old ?? [])
+      setFailed(true)
     }
+  }
+
+  const retry = () => {
+    setFailed(false)
+    void load()
   }
 
   useDidShow(() => {
@@ -54,7 +62,13 @@ export default function Index() {
   if (cards === null) {
     return (
       <View className='page'>
-        <Text className='label'>加载中…</Text>
+        {failed ? (
+          <Text className='label' onClick={retry}>
+            加载失败，点这里重试
+          </Text>
+        ) : (
+          <Text className='label'>加载中…</Text>
+        )}
       </View>
     )
   }
