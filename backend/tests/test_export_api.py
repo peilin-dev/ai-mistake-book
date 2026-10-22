@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+import pytest
 import pytest_asyncio
 from sqlalchemy import select, update
 
@@ -143,3 +144,53 @@ async def test_purge_old_exports_deletes_files_and_rows(db, storage, teacher):
     assert await storage_exists(storage, fresh.file_key)
     keys = (await db.execute(select(Export.file_key))).scalars().all()
     assert keys == [fresh.file_key]
+
+
+async def test_store_export_failed_commit_removes_file(db, storage, teacher, monkeypatch):
+    from app.export.service import store_export
+    seen = {}
+    real_put = storage.put
+
+    async def spy_put(key, data, ct):
+        seen["key"] = key
+        await real_put(key, data, ct)
+
+    async def boom():
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(storage, "put", spy_put)
+    monkeypatch.setattr(db, "commit", boom)
+    with pytest.raises(RuntimeError):
+        await store_export(db, storage, teacher.id, "lecture", b"%PDF")
+    assert "key" in seen and not await storage_exists(storage, seen["key"])
+
+
+async def test_export_survives_missing_crop(db, auth_client, storage, my_assignment, two_students):
+    keys = (await db.execute(select(QuestionResult.crop_key).where(QuestionResult.crop_key.is_not(None)))
+            ).scalars().all()
+    assert len(keys) == 1
+    await storage.delete(keys[0])
+    for body in ({"kind": "lecture"}, {"kind": "student", "submission_id": two_students["张三"]}):
+        r = await auth_client.post(url_of(my_assignment), json=body)
+        assert r.status_code == 201
+        assert (await auth_client.get(r.json()["url"])).content.startswith(b"%PDF")
+
+
+async def test_purge_keeps_row_when_delete_fails(db, storage, teacher, monkeypatch):
+    now = utcnow()
+    e = Export(teacher_id=teacher.id, file_key=f"exports/{teacher.id}/x.pdf", kind="lecture",
+               created_at=now - timedelta(days=9))
+    db.add(e)
+    await db.commit()
+    await storage.put(e.file_key, b"%PDF", "application/pdf")
+    real = storage.delete
+
+    async def fail(key):
+        raise OSError("disk")
+
+    monkeypatch.setattr(storage, "delete", fail)
+    assert await purge_old_exports(db, storage, now) == 0
+    assert len((await db.execute(select(Export))).scalars().all()) == 1
+    monkeypatch.setattr(storage, "delete", real)
+    assert await purge_old_exports(db, storage, now) == 1
+    assert not await storage_exists(storage, e.file_key)

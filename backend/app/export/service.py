@@ -138,8 +138,20 @@ async def build_export(db: AsyncSession, storage: Storage, teacher: Teacher, ass
 async def store_export(db: AsyncSession, storage: Storage, teacher_id: int, kind: str, pdf: bytes) -> str:
     key = f"exports/{teacher_id}/{uuid.uuid4().hex}.pdf"
     await storage.put(key, pdf, "application/pdf")
-    db.add(Export(teacher_id=teacher_id, file_key=key, kind=kind))
-    await db.commit()
+    try:
+        db.add(Export(teacher_id=teacher_id, file_key=key, kind=kind))
+        await db.commit()
+    except BaseException:
+        # No row means the purge would never find the file, so take it back out.
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+        try:
+            await storage.delete(key)
+        except Exception:
+            logger.warning("failed to remove orphan export %s", key, exc_info=True)
+        raise
     return key
 
 
@@ -159,8 +171,8 @@ async def purge_old_exports(db: AsyncSession, storage: Storage, now: datetime, d
             last_id = row.id
             try:
                 await storage.delete(row.file_key)
-            except Exception:
-                logger.warning("failed to delete export %s; will retry", row.id, exc_info=False)
+            except Exception as e:
+                logger.warning("failed to delete export %s; will retry: %s", row.id, e)
                 continue
             await db.delete(row)
             purged += 1
