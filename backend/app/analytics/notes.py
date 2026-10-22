@@ -5,6 +5,7 @@ import json
 import logging
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.base import ModelError, VisionModel
@@ -37,13 +38,22 @@ async def _get_note(db: AsyncSession, assignment_id: int, kind: str, ref: str) -
 
 async def _save_note(db: AsyncSession, assignment_id: int, kind: str, ref: str, fingerprint: str,
                      text: str, existing: AiNote | None) -> None:
-    if existing is None:
-        db.add(AiNote(assignment_id=assignment_id, kind=kind, ref=ref, fingerprint=fingerprint, text=text))
-    else:
+    if existing is not None:
         existing.fingerprint = fingerprint
         existing.text = text
-    await db.flush()
+        await db.flush()
+        return
+    try:
+        # savepoint: a concurrent request may have stored the same ref first; that must not fail ours
+        async with db.begin_nested():
+            db.add(AiNote(assignment_id=assignment_id, kind=kind, ref=ref, fingerprint=fingerprint, text=text))
+    except IntegrityError:
+        log.info("note %s/%s was stored concurrently", kind, ref)
 
+
+def _cause_ref(question_no: str, key: str) -> str:
+    """Bounded and collision-safe: the key is free-text student input of any length."""
+    return f"{question_no}:{hashlib.sha256(key.encode('utf-8')).hexdigest()}"
 
 def _clip(value, limit: int) -> str:
     return value.strip()[:limit] if isinstance(value, str) else ""
@@ -73,7 +83,7 @@ async def question_causes(db: AsyncSession, model: VisionModel, teacher_id: int,
     missing: list[AnswerGroup] = []
     pending: dict[str, tuple[str, AiNote | None]] = {}
     for g in eligible:
-        ref = f"{question_no}:{g.key}"
+        ref = _cause_ref(question_no, g.key)
         fp = _fingerprint([question_text, correct_answer, g.answer, g.count])
         note = await _get_note(db, assignment_id, "cause", ref)
         if note is not None and note.fingerprint == fp:
@@ -98,7 +108,7 @@ async def question_causes(db: AsyncSession, model: VisionModel, teacher_id: int,
             continue
         key = item["key"]
         fp, note = pending.pop(key)
-        await _save_note(db, assignment_id, "cause", f"{question_no}:{key}", fp, text, note)
+        await _save_note(db, assignment_id, "cause", _cause_ref(question_no, key), fp, text, note)
         result[key] = text
     return result
 

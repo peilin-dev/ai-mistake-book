@@ -2,7 +2,7 @@ import pytest_asyncio
 from sqlalchemy import func, select
 
 from app.ai.base import ModelCallError
-from app.analytics.notes import get_analysis_model
+from app.analytics.notes import _cause_ref, get_analysis_model
 from app.models import AiNote, Student, Submission, UsageRecord
 from tests.conftest import make_result
 
@@ -73,7 +73,7 @@ async def test_causes_regenerated_when_group_changes(auth_client, my_assignment,
     assert (await auth_client.post(_url(my_assignment))).json()["causes"] == {"9": "乙"}
     assert len(fake.prompts) == 2
     rows = (await db.execute(select(AiNote))).scalars().all()
-    assert len(rows) == 1 and rows[0].text == "乙" and rows[0].ref == "2:9" and rows[0].kind == "cause"
+    assert len(rows) == 1 and rows[0].text == "乙" and rows[0].ref == _cause_ref("2", "9") and rows[0].kind == "cause"
 
 
 async def test_single_student_and_blank_groups_skipped(auth_client, my_assignment, add_student, install_analysis_model):
@@ -123,3 +123,79 @@ async def test_notes_other_teacher_404(client_for, make_teacher, my_assignment, 
     other = client_for(await make_teacher())
     assert (await other.post(_url(my_assignment))).status_code == 404
     assert (await other.post(f"/api/submissions/{sub_id}/summary")).status_code == 404
+
+async def test_long_answer_ref_is_bounded(auth_client, my_assignment, add_student, install_analysis_model, db):
+    long = "9" * 600
+    await add_student("张三", long)
+    await add_student("李四", long)
+    install_analysis_model([{"causes": [{"key": long, "cause": "x"}]}])
+    r = await auth_client.post(_url(my_assignment))
+    assert r.status_code == 200 and r.json()["causes"] == {long: "x"}
+    ref = (await db.execute(select(AiNote.ref))).scalar_one()
+    assert len(ref) <= 128
+
+
+async def test_concurrent_duplicate_note_still_200(auth_client, my_assignment, add_student, install_analysis_model,
+                                                   db, monkeypatch):
+    from app.analytics import notes
+    await add_student("张三", "9")
+    await add_student("李四", "9")
+    db.add(AiNote(assignment_id=my_assignment.id, kind="cause", ref=_cause_ref("2", "9"),
+                  fingerprint="other", text="先到的"))
+    await db.commit()
+
+    async def _blind(*a, **k):
+        return None  # the race: this request read before the other one wrote
+    monkeypatch.setattr(notes, "_get_note", _blind)
+    install_analysis_model([{"causes": [{"key": "9", "cause": "后到的"}]}])
+    r = await auth_client.post(_url(my_assignment))
+    assert r.status_code == 200 and r.json()["causes"] == {"9": "后到的"}
+
+
+async def test_concurrent_duplicate_summary_still_200(auth_client, my_assignment, add_student,
+                                                      install_analysis_model, db, monkeypatch):
+    from app.analytics import notes
+    sub_id = await add_student("张三", "9")
+    db.add(AiNote(assignment_id=my_assignment.id, kind="summary", ref=f"submission:{sub_id}",
+                  fingerprint="other", text="先到的"))
+    await db.commit()
+
+    async def _blind(*a, **k):
+        return None
+    monkeypatch.setattr(notes, "_get_note", _blind)
+    install_analysis_model([{"summary": "后到的"}])
+    r = await auth_client.post(f"/api/submissions/{sub_id}/summary")
+    assert r.status_code == 200 and r.json() == {"summary": "后到的"}
+
+
+async def test_summary_regenerated_when_scores_change(auth_client, my_assignment, add_student,
+                                                      install_analysis_model, db):
+    from app.models import QuestionResult
+    sub_id = await add_student("张三", "9")
+    fake = install_analysis_model([{"summary": "甲"}, {"summary": "乙"}])
+    url = f"/api/submissions/{sub_id}/summary"
+    assert (await auth_client.post(url)).json() == {"summary": "甲"}
+    assert (await auth_client.post(url)).json() == {"summary": "甲"} and len(fake.prompts) == 1
+    qr = (await db.execute(select(QuestionResult).where(
+        QuestionResult.submission_id == sub_id, QuestionResult.question_no == "2"))).scalar_one()
+    qr.score, qr.is_correct = 4, True
+    await db.commit()
+    assert (await auth_client.post(url)).json() == {"summary": "乙"} and len(fake.prompts) == 2
+
+
+async def test_malformed_cause_output_keeps_valid_and_retries_missing(
+        auth_client, my_assignment, add_student, install_analysis_model):
+    for name in ("a", "b"):
+        await add_student(name, "9")
+    for name in ("c", "d"):
+        await add_student(name, "8")
+    fake = install_analysis_model([
+        {"causes": [{"key": "invented", "cause": "x"}, "oops", {"key": "9", "cause": "甲"}, {"key": "8"}]},
+        {"causes": "not a list"},
+        {"causes": [{"key": "8", "cause": "乙"}]},
+    ])
+    assert (await auth_client.post(_url(my_assignment))).json() == {"causes": {"9": "甲"}}
+    assert (await auth_client.post(_url(my_assignment))).json() == {"causes": {"9": "甲"}}
+    assert (await auth_client.post(_url(my_assignment))).json() == {"causes": {"9": "甲", "8": "乙"}}
+    assert len(fake.prompts) == 3
+    assert "9" not in fake.prompts[1].split("常见错误答案")[1].split("要求")[0].replace("8", "")
