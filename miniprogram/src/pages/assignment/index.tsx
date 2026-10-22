@@ -182,7 +182,7 @@ export default function AssignmentHome() {
   const id = assignment.id
 
   return (
-    <View className='page' style={{ paddingBottom: '420px' }}>
+    <View className='page' style={{ paddingBottom: '520px' }}>
       <View className='card'>
         <Text className='title-xl' style={{ display: 'block' }}>{assignment.title}</Text>
         <Text className='label' style={{ marginTop: '8px' }}>
@@ -298,6 +298,15 @@ export default function AssignmentHome() {
             onClick={() => go(`/pages/results/index?assignmentId=${id}`)}
           >
             看成绩
+          </Button>
+        ) : null}
+        {bottom.results ? (
+          <Button
+            className='big-btn ghost-btn'
+            style={{ marginTop: '16px' }}
+            onClick={() => go(`/pages/analytics/index?assignmentId=${id}`)}
+          >
+            看学情
           </Button>
         ) : null}
       </View>
