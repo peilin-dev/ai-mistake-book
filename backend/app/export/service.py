@@ -54,10 +54,8 @@ def _score_text(q: StudentQuestion) -> str:
         return f"{v:g}"
 
     if q.max_score is None:
-        return f"{num(q.score)} 分"
-    if q.score > 0:
-        return f"得 {num(q.score)} / {num(q.max_score)} 分"
-    return f"0 / {num(q.max_score)} 分"
+        return f"得 {num(q.score)} 分"
+    return f"得 {num(q.score)} / {num(q.max_score)} 分"
 
 
 async def _mistake_sheet(storage: Storage, result: StudentResult, cls: Class_, assignment: Assignment,
@@ -107,7 +105,8 @@ async def _lecture_sheet(db: AsyncSession, storage: Storage, assignment: Assignm
     return LectureSheet(
         class_name=cls.name, title=assignment.title, date=_date(assignment.created_at), signature=signature,
         overview={"average_score": stats.average_score, "pass_rate": stats.pass_rate,
-                  "counted_students": stats.counted_students, "roster_size": stats.roster_size},
+                  "counted_students": stats.counted_students, "roster_size": stats.roster_size,
+                  "pending_review": stats.pending_review, "pages_not_counted": stats.pages_not_counted},
         questions=questions)
 
 

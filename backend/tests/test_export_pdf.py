@@ -73,12 +73,43 @@ def test_mistakes_one_student_per_page():
 
 
 def test_mistake_header_follows_each_students_sheet():
-    def sheet(name, cls):
-        return StudentSheet(name, cls, "作业", "2026-10-22", "王老师", [MistakeItem("1", "题", "a", "b", "0/5", None)])
+    def sheet(name):
+        return StudentSheet(name, "一班", "作业", "2026-10-22", "王老师", [MistakeItem("1", "题", "a", "b", "0/5", None)])
 
-    pages = _pages(render_mistakes([sheet("张三", "一班"), sheet("李四", "二班")]))
-    assert "一班" in pages[0] and "二班" not in pages[0]
-    assert "二班" in pages[1] and "一班" not in pages[1]
+    pages = _pages(render_mistakes([sheet("张三"), sheet("李四")]))
+    assert "张三" in pages[0] and "李四" not in pages[0]
+    assert "李四" in pages[1] and "张三" not in pages[1]
+
+
+def test_mistake_header_names_the_student_on_continuation_pages():
+    from app.export import pdf as m
+
+    m._register_font()
+    assert m._header_text("一班", "作业", "2026-10-22", "王老师", "张三").startswith("张三 · 一班")
+    items = [MistakeItem(str(i), "题干", "a", "b", "得 0 / 5 分", _jpeg()) for i in range(1, 5)]
+    pages = _pages(render_mistakes([StudentSheet("张三", "一班", "作业", "2026-10-22", "王老师", items)]))
+    assert len(pages) > 1
+    # the title paragraph is only on page 1, so the name on later pages comes from the header
+    assert all("张三" in p for p in pages)
+    assert "张三 的错题单" not in pages[1]
+
+
+def test_mistake_item_heading_has_no_extra_prefix():
+    items = [MistakeItem("1", "题", "a", "b", "得 1 / 2 分", None)]
+    text = "".join(_pages(render_mistakes([StudentSheet("张三", "一班", "作业", "2026-10-22", "王老师", items)])))
+    assert "得 1 / 2 分" in text and "得分" not in text
+
+
+def test_lecture_notice_when_stats_incomplete():
+    lec = _lecture(1)
+    assert "统计可能不准" not in "".join(_pages(render_lecture(lec)))
+    lec.overview = {**lec.overview, "pending_review": 2, "pages_not_counted": 1}
+    text = "".join(_pages(render_lecture(lec))).replace("\n", "")
+    assert "还有 2 题待复核，统计可能不准" in text
+    assert "还有 1 张卷子没批完或没认出学生，统计暂未包含" in text
+    lec.overview = {**lec.overview, "pending_review": 0}
+    text = "".join(_pages(render_lecture(lec))).replace("\n", "")
+    assert "待复核" not in text and "没认出学生" in text
 
 
 def test_missing_crop_renders_without_image():
@@ -152,3 +183,18 @@ def test_font_path_setting_and_missing(monkeypatch):
     monkeypatch.setattr("os.path.exists", lambda p: False)
     with pytest.raises(RuntimeError, match="no CJK font"):
         font_path()
+
+
+@pytest.mark.parametrize(
+    "score, max_score, expected",
+    [(1, 2, "得 1 / 2 分"), (0, 2, "得 0 / 2 分"), (1.5, 4, "得 1.5 / 4 分"), (3, None, "得 3 分"),
+     (0, None, "得 0 分")],
+)
+def test_score_text(score, max_score, expected):
+    from app.analytics.stats import StudentQuestion
+    from app.export.service import _score_text
+
+    q = StudentQuestion(question_no="1", score=score, max_score=max_score, wrong=True, answer=None,
+                        is_subjective=False, knowledge_point_id=None, crop_keys=[], question_text=None,
+                        correct_answer=None)
+    assert _score_text(q) == expected

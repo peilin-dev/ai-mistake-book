@@ -168,8 +168,19 @@ def _doc(buf: io.BytesIO, header: str, header_fn=None) -> BaseDocTemplate:
     return doc
 
 
-def _header_text(class_name: str, title: str, date: str, signature: str) -> str:
-    return " · ".join([class_name, title, date, signature or "老师"])
+def _header_text(class_name: str, title: str, date: str, signature: str, student_name: str | None = None) -> str:
+    parts = [class_name, title, date, signature or "老师"]
+    return " · ".join([student_name, *parts] if student_name else parts)
+
+
+def _notice(ov: dict) -> str | None:
+    """The same caveats the analytics page shows, so a printed sheet isn't read as complete."""
+    parts = []
+    if ov.get("pending_review", 0) > 0:
+        parts.append(f"还有 {ov['pending_review']} 题待复核，统计可能不准")
+    if ov.get("pages_not_counted", 0) > 0:
+        parts.append(f"还有 {ov['pages_not_counted']} 张卷子没批完或没认出学生，统计暂未包含")
+    return "；".join(parts) if parts else None
 
 
 def _pct(v) -> str:
@@ -191,6 +202,9 @@ def render_lecture(sheet: LectureSheet) -> bytes:
             st["body"],
         ),
     ]
+    notice = _notice(ov)
+    if notice:
+        story.append(_p(f"注意：{notice}", st["small"]))
     for q in sheet.questions:
         block = [
             _p(f"第 {q.question_no} 题　正确率 {_pct(q.accuracy)}　错 {q.wrong_count} 人", st["h"]),
@@ -220,7 +234,7 @@ def render_mistakes(sheets: list[StudentSheet]) -> bytes:
 
     def header(d):
         s = by_page.get(d.page, sheets[0])
-        return _header_text(s.class_name, s.title, s.date, s.signature)
+        return _header_text(s.class_name, s.title, s.date, s.signature, s.student_name)
 
     doc = _doc(buf, "", header)
     story = []
@@ -231,7 +245,7 @@ def render_mistakes(sheets: list[StudentSheet]) -> bytes:
         if not sheet.items:
             story.append(_p("本次没有错题。", st["body"]))
         for it in sheet.items:
-            block = [_p(f"第 {it.question_no} 题　得分 {it.score_text}", st["h"])]
+            block = [_p(f"第 {it.question_no} 题　{it.score_text}", st["h"])]
             if it.question_text:
                 block.append(_p(it.question_text, st["body"]))
             img = _image(it.crop)
