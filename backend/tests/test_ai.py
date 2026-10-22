@@ -83,9 +83,76 @@ async def test_http_error_raises_call_error(mock_transport):
 
 async def test_transport_error_raises_call_error(mock_transport):
     mock_transport.fail(httpx.ConnectError("down"))
-    m = OpenAICompatModel("qwen", "https://x/v1", "k", "m", transport=mock_transport)
+    with pytest.raises(ModelCallError):
+        await _model(mock_transport).complete_json("p", [])
+
+
+def _model(transport, **kw) -> OpenAICompatModel:
+    return OpenAICompatModel("qwen", "https://x/v1", "k", "m", transport=transport, retry_backoff=0, **kw)
+
+
+async def test_connect_failures_are_retried_then_succeed(mock_transport):
+    mock_transport.fail(httpx.ConnectTimeout("handshake timed out"))
+    mock_transport.fail(httpx.ConnectError("reset"))
+    mock_transport.reply(_ok('{"a": 1}'))
+    r = await _model(mock_transport).complete_json("p", [])
+    assert r.data == {"a": 1}
+    assert len(mock_transport.requests) == 3
+
+
+async def test_connect_failures_give_up_after_attempts(mock_transport):
+    mock_transport.fail(httpx.ConnectTimeout("handshake timed out"))
+    with pytest.raises(ModelCallError):
+        await _model(mock_transport, attempts=3).complete_json("p", [])
+    assert len(mock_transport.requests) == 3
+
+
+async def test_read_timeout_is_not_retried(mock_transport):
+    # The request reached the provider and may already be billed: never send it twice.
+    mock_transport.fail(httpx.ReadTimeout("slow"))
+    mock_transport.reply(_ok('{"a": 1}'))
+    with pytest.raises(ModelCallError):
+        await _model(mock_transport).complete_json("p", [])
+    assert len(mock_transport.requests) == 1
+
+
+@pytest.mark.parametrize("status", [429, 502, 503, 504])
+async def test_transient_statuses_are_retried(mock_transport, status):
+    mock_transport.reply("busy", status=status)
+    mock_transport.reply(_ok('{"a": 1}'))
+    assert (await _model(mock_transport).complete_json("p", [])).data == {"a": 1}
+    assert len(mock_transport.requests) == 2
+
+
+@pytest.mark.parametrize("status", [400, 401, 404, 500])
+async def test_other_statuses_are_not_retried(mock_transport, status):
+    mock_transport.reply("nope", status=status)
+    mock_transport.reply(_ok('{"a": 1}'))
+    with pytest.raises(ModelCallError):
+        await _model(mock_transport).complete_json("p", [])
+    assert len(mock_transport.requests) == 1
+
+
+async def test_retry_waits_with_growing_backoff(mock_transport, monkeypatch):
+    waits: list[float] = []
+
+    async def fake_sleep(s: float) -> None:
+        waits.append(s)
+
+    monkeypatch.setattr("app.ai.openai_compat.asyncio.sleep", fake_sleep)
+    mock_transport.fail(httpx.ConnectError("reset"))
+    m = OpenAICompatModel("qwen", "https://x/v1", "k", "m", transport=mock_transport, retry_backoff=1.0)
     with pytest.raises(ModelCallError):
         await m.complete_json("p", [])
+    assert waits == [1.0, 2.0]
+
+
+def test_timeouts_and_attempts_come_from_settings(settings):
+    settings.MODEL_CONNECT_TIMEOUT_S = 7
+    settings.MODEL_TIMEOUT_S = 90
+    settings.MODEL_CALL_ATTEMPTS = 4
+    m = OpenAICompatModel("qwen", "https://x/v1", "k", "m")
+    assert (m.timeout.connect, m.timeout.read, m.attempts) == (7, 90, 4)
 
 
 async def test_fake_model_sequence_and_exhaustion():

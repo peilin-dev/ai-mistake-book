@@ -102,6 +102,27 @@ async def test_model_call_error_gives_503(auth_client, my_assignment, jpeg_bytes
     assert r.json()["detail"] == "批改服务暂不可用，请稍后重试"
 
 
+async def test_answer_key_survives_a_flaky_connection(app, auth_client, my_assignment, jpeg_bytes, mock_transport):
+    # The real adapter (not FakeModel): a dropped connection is retried inside the call,
+    # so the teacher gets the extracted key instead of "批改服务暂不可用".
+    import json
+
+    import httpx
+
+    from app.ai.openai_compat import OpenAICompatModel
+    from app.grading.answer_key import get_answer_key_model
+
+    content = json.dumps({"questions": [{"question_no": "1", "answer": "7", "max_score": 2}]})
+    mock_transport.fail(httpx.ConnectTimeout("handshake timed out"))
+    mock_transport.reply({"choices": [{"message": {"content": content}}]})
+    model = OpenAICompatModel("qwen", "https://x/v1", "k", "m", transport=mock_transport, retry_backoff=0)
+    app.dependency_overrides[get_answer_key_model] = lambda: model
+    r = await auth_client.post(key_url(my_assignment), files=photo(jpeg_bytes))
+    assert r.status_code == 200
+    assert [i["question_no"] for i in r.json()["items"]] == ["1"]
+    assert len(mock_transport.requests) == 2
+
+
 async def test_zero_questions_gives_422_and_keeps_old_key(
     auth_client, db, my_assignment, jpeg_bytes, install_answer_key_model, confirmed_key_q1_q2
 ):

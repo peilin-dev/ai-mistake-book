@@ -28,7 +28,10 @@ class Settings(BaseSettings):
     # Placeholder: the operator must set this to their own Ark model / endpoint id.
     # Must use a different provider than MODEL_FOR_PRACTICE_GENERATE (spec section 8).
     MODEL_FOR_PRACTICE_VERIFY: str = "doubao:doubao-vision"
-    MODEL_TIMEOUT_S: float = 120
+    MODEL_TIMEOUT_S: float = 120  # waiting for the model's answer
+    # Connecting is quick on a good network; fail fast and retry on a flaky one.
+    MODEL_CONNECT_TIMEOUT_S: float = 10
+    MODEL_CALL_ATTEMPTS: int = 3
 
     REVIEW_CONFIDENCE_THRESHOLD: float = 0.8
     NAME_MATCH_THRESHOLD: float = 0.8
