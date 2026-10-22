@@ -1,14 +1,16 @@
 """Import a knowledge-point tree from YAML (idempotent upsert by `code`).
 
-CLI: python -m app.knowledge.loader <yaml>...
+CLI: python -m app.knowledge.loader [--prune] <yaml>...
+Arguments containing `*` are globbed here, so `data/knowledge/*.yaml` also works on Windows.
 """
 import argparse
 import asyncio
+import glob
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import get_settings
@@ -68,8 +70,12 @@ def _parse(path: Path) -> tuple[Subject, list[_Node]]:
     return subject, nodes
 
 
-async def import_yaml(db: AsyncSession, path: Path) -> int:
-    """Upsert every node in the file by code; returns the node count. Commits."""
+async def import_yaml(db: AsyncSession, path: Path, prune: bool = False) -> int:
+    """Upsert every node in the file by code; returns the node count. Commits.
+
+    With prune=True, knowledge points of the file's subject whose code is not in the file are
+    deleted in the same transaction; question_results pointing at them are set to NULL by the FK.
+    """
     subject, nodes = _parse(path)  # validate everything before touching the DB
     existing = {
         kp.code: kp
@@ -92,18 +98,38 @@ async def import_yaml(db: AsyncSession, path: Path) -> int:
             if parent.id is None:
                 await db.flush()
             kp.parent_id = parent.id
+    if prune:
+        await db.flush()  # re-parenting must land before the stale parents are deleted
+        await db.execute(
+            delete(KnowledgePoint)
+            .where(KnowledgePoint.subject == subject, KnowledgePoint.code.not_in([n.code for n in nodes]))
+            .execution_options(synchronize_session=False)
+        )
     await db.commit()
     return len(nodes)
 
 
-async def _import_files(paths: list[Path]) -> list[tuple[Path, int]]:
+def _expand(args: list[str]) -> list[Path]:
+    paths: list[Path] = []
+    for arg in args:
+        if "*" in arg:
+            matches = sorted(glob.glob(arg))
+            if not matches:
+                raise SystemExit(f"no files match {arg}")
+            paths.extend(Path(m) for m in matches)
+        else:
+            paths.append(Path(arg))
+    return paths
+
+
+async def _import_files(paths: list[Path], prune: bool = False) -> list[tuple[Path, int]]:
     engine = create_async_engine(get_settings().DATABASE_URL)
     try:
         factory = async_sessionmaker(engine, expire_on_commit=False)
         results = []
         for p in paths:
             async with factory() as db:
-                results.append((p, await import_yaml(db, p)))
+                results.append((p, await import_yaml(db, p, prune=prune)))
         return results
     finally:
         await engine.dispose()
@@ -111,9 +137,14 @@ async def _import_files(paths: list[Path]) -> list[tuple[Path, int]]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Import knowledge-point YAML files")
-    parser.add_argument("files", nargs="+", type=Path)
+    parser.add_argument("--prune", action="store_true",
+                        help="delete knowledge points of each file's subject that the file no longer lists")
+    parser.add_argument("files", nargs="+")
     args = parser.parse_args(argv)
-    for path, count in asyncio.run(_import_files(args.files)):
+    paths = _expand(args.files)
+    for p in paths:
+        _parse(p)  # validate every file before importing any
+    for path, count in asyncio.run(_import_files(paths, prune=args.prune)):
         print(f"imported {count} nodes from {path}")
     return 0
 

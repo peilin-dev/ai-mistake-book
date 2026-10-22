@@ -1,0 +1,173 @@
+# 科学（1～6 年级）知识点库
+# 依据义务教育课程标准（2022 年版）生成，未经教师审核，待试用反馈修订
+# 版本：2026-10-22
+# 结构：领域 → 主题 → 知识点；叶子的 grade_band 为常见教材讲授该内容的年级。
+# 改名或删点后重新导入：python -m app.knowledge.loader --prune data/knowledge/*.yaml
+subject: science
+grade_band: [1, 6]
+nodes:
+  - code: SC-PS
+    name: 物质科学
+    children:
+      - code: SC-PS-01
+        name: 物体与材料
+        grade_band: [1, 6]
+        children:
+          - {code: SC-PS-01-01, name: 物体的特征, grade_band: [1, 1]}
+          - {code: SC-PS-01-02, name: 物体的轻重比较, grade_band: [1, 1]}
+          - {code: SC-PS-01-03, name: 常见材料的特性, grade_band: [1, 2]}
+          - {code: SC-PS-01-04, name: 材料的用途与选择, grade_band: [2, 2]}
+          - {code: SC-PS-01-05, name: 水的三态变化, grade_band: [3, 3]}
+          - {code: SC-PS-01-06, name: 溶解, grade_band: [3, 3]}
+          - {code: SC-PS-01-07, name: 空气的性质, grade_band: [3, 3]}
+          - {code: SC-PS-01-08, name: 热胀冷缩, grade_band: [3, 5]}
+          - {code: SC-PS-01-09, name: 物体的浮与沉, grade_band: [5, 5]}
+          - {code: SC-PS-01-10, name: 浮力, grade_band: [5, 5]}
+          - {code: SC-PS-01-11, name: 物理变化和化学变化, grade_band: [6, 6]}
+      - code: SC-PS-02
+        name: 测量
+        grade_band: [1, 4]
+        children:
+          - {code: SC-PS-02-01, name: 比较物体的长短, grade_band: [1, 1]}
+          - {code: SC-PS-02-02, name: 用非标准单位测量, grade_band: [1, 1]}
+          - {code: SC-PS-02-03, name: 用尺子测量长度, grade_band: [1, 2]}
+          - {code: SC-PS-02-04, name: 力的测量, grade_band: [4, 4]}
+      - code: SC-PS-03
+        name: 运动和力
+        grade_band: [2, 5]
+        children:
+          - {code: SC-PS-03-01, name: 推力与拉力, grade_band: [2, 2]}
+          - {code: SC-PS-03-02, name: 位置与运动的描述, grade_band: [3, 3]}
+          - {code: SC-PS-03-03, name: 直线运动与曲线运动, grade_band: [3, 3]}
+          - {code: SC-PS-03-04, name: 运动的快慢, grade_band: [3, 3]}
+          - {code: SC-PS-03-05, name: 弹力, grade_band: [4, 4]}
+          - {code: SC-PS-03-06, name: 摩擦力, grade_band: [4, 4]}
+          - {code: SC-PS-03-07, name: 重力, grade_band: [4, 4]}
+          - {code: SC-PS-03-08, name: 摆的规律, grade_band: [5, 5]}
+      - code: SC-PS-04
+        name: 声、光、热、电、磁
+        grade_band: [2, 6]
+        children:
+          - {code: SC-PS-04-01, name: 磁铁能吸引的物体, grade_band: [2, 2]}
+          - {code: SC-PS-04-02, name: 磁铁的两极, grade_band: [2, 2]}
+          - {code: SC-PS-04-03, name: 指南针, grade_band: [2, 2]}
+          - {code: SC-PS-04-04, name: 声音的产生, grade_band: [4, 4]}
+          - {code: SC-PS-04-05, name: 音高与音量, grade_band: [4, 4]}
+          - {code: SC-PS-04-06, name: 声音的传播, grade_band: [4, 4]}
+          - {code: SC-PS-04-07, name: 简单电路, grade_band: [4, 4]}
+          - {code: SC-PS-04-08, name: 串联与并联电路, grade_band: [4, 4]}
+          - {code: SC-PS-04-09, name: 电路中的开关, grade_band: [4, 4]}
+          - {code: SC-PS-04-10, name: 导体与绝缘体, grade_band: [4, 4]}
+          - {code: SC-PS-04-11, name: 光的传播, grade_band: [5, 5]}
+          - {code: SC-PS-04-12, name: 光的反射, grade_band: [5, 5]}
+          - {code: SC-PS-04-13, name: 光的色散, grade_band: [5, 5]}
+          - {code: SC-PS-04-14, name: 热传递, grade_band: [5, 5]}
+          - {code: SC-PS-04-15, name: 导热性能, grade_band: [5, 5]}
+          - {code: SC-PS-04-16, name: 电磁铁, grade_band: [6, 6]}
+          - {code: SC-PS-04-17, name: 能量的转换, grade_band: [6, 6]}
+          - {code: SC-PS-04-18, name: 能源与可持续发展, grade_band: [6, 6]}
+  - code: SC-LS
+    name: 生命科学
+    children:
+      - code: SC-LS-01
+        name: 植物
+        grade_band: [1, 5]
+        children:
+          - {code: SC-LS-01-01, name: 认识常见植物, grade_band: [1, 1]}
+          - {code: SC-LS-01-02, name: 叶的观察, grade_band: [1, 1]}
+          - {code: SC-LS-01-03, name: 植物是活的, grade_band: [1, 1]}
+          - {code: SC-LS-01-04, name: 植物的生长需要, grade_band: [1, 1]}
+          - {code: SC-LS-01-05, name: 植物的生命周期, grade_band: [3, 3]}
+          - {code: SC-LS-01-06, name: 种子的结构与萌发, grade_band: [4, 4]}
+          - {code: SC-LS-01-07, name: 根、茎、叶的作用, grade_band: [4, 4]}
+          - {code: SC-LS-01-08, name: 花、果实和种子, grade_band: [4, 4]}
+          - {code: SC-LS-01-09, name: 种子发芽的条件, grade_band: [5, 5]}
+      - code: SC-LS-02
+        name: 动物
+        grade_band: [1, 6]
+        children:
+          - {code: SC-LS-02-01, name: 校园里的动物, grade_band: [1, 1]}
+          - {code: SC-LS-02-02, name: 常见的水生动物, grade_band: [1, 1]}
+          - {code: SC-LS-02-03, name: 动物的共同特征, grade_band: [1, 2]}
+          - {code: SC-LS-02-04, name: 动物的生存需要, grade_band: [1, 1]}
+          - {code: SC-LS-02-05, name: 蚕的一生, grade_band: [3, 3]}
+          - {code: SC-LS-02-06, name: 动物的生命周期, grade_band: [3, 3]}
+          - {code: SC-LS-02-07, name: 动物的分类, grade_band: [6, 6]}
+      - code: SC-LS-03
+        name: 人体与健康
+        grade_band: [2, 5]
+        children:
+          - {code: SC-LS-03-01, name: 人体的感觉器官, grade_band: [2, 2]}
+          - {code: SC-LS-03-02, name: 身体的结构与运动, grade_band: [2, 2]}
+          - {code: SC-LS-03-03, name: 呼吸器官与呼吸, grade_band: [4, 4]}
+          - {code: SC-LS-03-04, name: 消化器官与消化, grade_band: [4, 4]}
+          - {code: SC-LS-03-05, name: 食物与营养, grade_band: [4, 4]}
+          - {code: SC-LS-03-06, name: 心脏与血液循环, grade_band: [5, 5]}
+          - {code: SC-LS-03-07, name: 健康的生活习惯, grade_band: [5, 5]}
+      - code: SC-LS-04
+        name: 生物与环境
+        grade_band: [5, 6]
+        children:
+          - {code: SC-LS-04-01, name: 食物链和食物网, grade_band: [5, 5]}
+          - {code: SC-LS-04-02, name: 生物与环境的关系, grade_band: [5, 5]}
+          - {code: SC-LS-04-03, name: 细胞, grade_band: [6, 6]}
+          - {code: SC-LS-04-04, name: 微生物, grade_band: [6, 6]}
+          - {code: SC-LS-04-05, name: 生物的多样性, grade_band: [6, 6]}
+  - code: SC-ES
+    name: 地球与宇宙科学
+    children:
+      - code: SC-ES-01
+        name: 天气
+        grade_band: [1, 3]
+        children:
+          - {code: SC-ES-01-01, name: 天气现象, grade_band: [1, 2]}
+          - {code: SC-ES-01-02, name: 四季的变化, grade_band: [2, 2]}
+          - {code: SC-ES-01-03, name: 天气日历, grade_band: [3, 3]}
+          - {code: SC-ES-01-04, name: 气温的测量, grade_band: [3, 3]}
+          - {code: SC-ES-01-05, name: 风向和风速, grade_band: [3, 3]}
+          - {code: SC-ES-01-06, name: 降水量的测量, grade_band: [3, 3]}
+          - {code: SC-ES-01-07, name: 云的观察, grade_band: [3, 3]}
+      - code: SC-ES-02
+        name: 地球表面与资源
+        grade_band: [2, 5]
+        children:
+          - {code: SC-ES-02-01, name: 土壤与生命, grade_band: [2, 2]}
+          - {code: SC-ES-02-02, name: 岩石与矿物, grade_band: [4, 4]}
+          - {code: SC-ES-02-03, name: 土壤的成分, grade_band: [4, 4]}
+          - {code: SC-ES-02-04, name: 地形地貌, grade_band: [5, 5]}
+          - {code: SC-ES-02-05, name: 火山与地震, grade_band: [5, 5]}
+          - {code: SC-ES-02-06, name: 风化与侵蚀, grade_band: [5, 5]}
+          - {code: SC-ES-02-07, name: 环境保护与资源利用, grade_band: [5, 5]}
+      - code: SC-ES-03
+        name: 地球与宇宙
+        grade_band: [2, 6]
+        children:
+          - {code: SC-ES-03-01, name: 太阳的位置变化, grade_band: [2, 2]}
+          - {code: SC-ES-03-02, name: 月亮的观察, grade_band: [2, 2]}
+          - {code: SC-ES-03-03, name: 影子的变化, grade_band: [3, 3]}
+          - {code: SC-ES-03-04, name: 月相变化, grade_band: [3, 3]}
+          - {code: SC-ES-03-05, name: 太阳、地球和月球的特点, grade_band: [3, 3]}
+          - {code: SC-ES-03-06, name: 古代计时工具, grade_band: [5, 5]}
+          - {code: SC-ES-03-07, name: 昼夜交替, grade_band: [6, 6]}
+          - {code: SC-ES-03-08, name: 地球的自转, grade_band: [6, 6]}
+          - {code: SC-ES-03-09, name: 地球的公转与四季, grade_band: [6, 6]}
+          - {code: SC-ES-03-10, name: 太阳系, grade_band: [6, 6]}
+          - {code: SC-ES-03-11, name: 星座, grade_band: [6, 6]}
+          - {code: SC-ES-03-12, name: 探索宇宙, grade_band: [6, 6]}
+  - code: SC-TE
+    name: 技术与工程
+    children:
+      - code: SC-TE-01
+        name: 工具与设计制作
+        grade_band: [1, 6]
+        children:
+          - {code: SC-TE-01-01, name: 观察与记录, grade_band: [1, 2]}
+          - {code: SC-TE-01-02, name: 简单的设计与制作, grade_band: [1, 2]}
+          - {code: SC-TE-01-03, name: 设计制作小车, grade_band: [4, 4]}
+          - {code: SC-TE-01-04, name: 设计和制作小船, grade_band: [5, 5]}
+          - {code: SC-TE-01-05, name: 放大镜与显微镜, grade_band: [6, 6]}
+          - {code: SC-TE-01-06, name: 杠杆, grade_band: [6, 6]}
+          - {code: SC-TE-01-07, name: 轮轴, grade_band: [6, 6]}
+          - {code: SC-TE-01-08, name: 滑轮, grade_band: [6, 6]}
+          - {code: SC-TE-01-09, name: 斜面, grade_band: [6, 6]}
+          - {code: SC-TE-01-10, name: 工程设计的一般过程, grade_band: [6, 6]}

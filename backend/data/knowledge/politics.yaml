@@ -1,0 +1,224 @@
+# 道德与法治（1～9 年级）知识点库
+# 依据义务教育课程标准（2022 年版）生成，未经教师审核，待试用反馈修订
+# 版本：2026-10-22
+# 结构：领域 → 主题 → 知识点；叶子的 grade_band 为常见教材讲授该内容的年级。
+# 改名或删点后重新导入：python -m app.knowledge.loader --prune data/knowledge/*.yaml
+subject: politics
+grade_band: [1, 9]
+nodes:
+  - code: PO-LS
+    name: 生命安全与健康教育
+    children:
+      - code: PO-LS-01
+        name: 安全与自护
+        grade_band: [1, 7]
+        children:
+          - {code: PO-LS-01-01, name: 上学路上的安全, grade_band: [1, 1]}
+          - {code: PO-LS-01-02, name: 家中的安全, grade_band: [1, 1]}
+          - {code: PO-LS-01-03, name: 交通安全常识, grade_band: [2, 3]}
+          - {code: PO-LS-01-04, name: 防火防溺水等自护常识, grade_band: [3, 3]}
+          - {code: PO-LS-01-05, name: 安全标志与求救方法, grade_band: [3, 3]}
+          - {code: PO-LS-01-06, name: 应对自然灾害, grade_band: [6, 6]}
+          - {code: PO-LS-01-07, name: 防范网络沉迷, grade_band: [4, 4]}
+          - {code: PO-LS-01-08, name: 远离毒品与不良诱惑, grade_band: [5, 6]}
+          - {code: PO-LS-01-09, name: 防范校园欺凌, grade_band: [6, 6]}
+          - {code: PO-LS-01-10, name: 守护生命安全, grade_band: [7, 7]}
+      - code: PO-LS-02
+        name: 健康生活与成长
+        grade_band: [1, 7]
+        children:
+          - {code: PO-LS-02-01, name: 个人卫生, grade_band: [1, 1]}
+          - {code: PO-LS-02-02, name: 健康饮食习惯, grade_band: [1, 1]}
+          - {code: PO-LS-02-03, name: 养成好习惯, grade_band: [1, 2]}
+          - {code: PO-LS-02-04, name: 自己的事情自己做, grade_band: [1, 2]}
+          - {code: PO-LS-02-05, name: 勇于尝试, grade_band: [2, 2]}
+          - {code: PO-LS-02-06, name: 坚持与努力, grade_band: [2, 2]}
+          - {code: PO-LS-02-07, name: 学习的乐趣与方法, grade_band: [3, 3]}
+          - {code: PO-LS-02-08, name: 正确认识自己, grade_band: [5, 5]}
+          - {code: PO-LS-02-09, name: 自主选择课余生活, grade_band: [5, 5]}
+          - {code: PO-LS-02-10, name: 学会沟通交流, grade_band: [5, 5]}
+          - {code: PO-LS-02-11, name: 珍惜时间与合理安排, grade_band: [4, 4]}
+          - {code: PO-LS-02-12, name: 学会宽容与反思, grade_band: [6, 6]}
+          - {code: PO-LS-02-13, name: 中学时代与梦想, grade_band: [7, 7]}
+          - {code: PO-LS-02-14, name: 学习新天地, grade_band: [7, 7]}
+          - {code: PO-LS-02-15, name: 认识自己, grade_band: [7, 7]}
+          - {code: PO-LS-02-16, name: 青春期的生理与心理变化, grade_band: [7, 7]}
+          - {code: PO-LS-02-17, name: 男生女生, grade_band: [7, 7]}
+          - {code: PO-LS-02-18, name: 情绪的管理, grade_band: [7, 7]}
+          - {code: PO-LS-02-19, name: 情感的作用, grade_band: [7, 7]}
+      - code: PO-LS-03
+        name: 生命教育
+        grade_band: [3, 7]
+        children:
+          - {code: PO-LS-03-01, name: 生命最宝贵, grade_band: [3, 3]}
+          - {code: PO-LS-03-02, name: 生命的特点, grade_band: [7, 7]}
+          - {code: PO-LS-03-03, name: 敬畏生命, grade_band: [7, 7]}
+          - {code: PO-LS-03-04, name: 增强生命的韧性, grade_band: [7, 7]}
+          - {code: PO-LS-03-05, name: 活出生命的精彩, grade_band: [7, 7]}
+  - code: PO-LA
+    name: 法治教育
+    children:
+      - code: PO-LA-01
+        name: 规则与法律
+        grade_band: [2, 9]
+        children:
+          - {code: PO-LA-01-01, name: 遵守游戏规则, grade_band: [2, 2]}
+          - {code: PO-LA-01-02, name: 公共场所的规则, grade_band: [2, 2]}
+          - {code: PO-LA-01-03, name: 遵守校规, grade_band: [3, 3]}
+          - {code: PO-LA-01-04, name: 班级共建与班规, grade_band: [4, 4]}
+          - {code: PO-LA-01-05, name: 法律与生活, grade_band: [6, 6]}
+          - {code: PO-LA-01-06, name: 未成年人的特殊保护, grade_band: [6, 6]}
+          - {code: PO-LA-01-07, name: 法律的特征与作用, grade_band: [7, 7]}
+          - {code: PO-LA-01-08, name: 法律伴我们成长, grade_band: [7, 7]}
+          - {code: PO-LA-01-09, name: 社会规则与秩序, grade_band: [8, 8]}
+          - {code: PO-LA-01-10, name: 违法行为的分类, grade_band: [8, 8]}
+          - {code: PO-LA-01-11, name: 预防犯罪, grade_band: [8, 8]}
+          - {code: PO-LA-01-12, name: 善用法律, grade_band: [8, 8]}
+          - {code: PO-LA-01-13, name: 建设法治中国, grade_band: [9, 9]}
+      - code: PO-LA-02
+        name: 宪法与公民
+        grade_band: [6, 8]
+        children:
+          - {code: PO-LA-02-01, name: 宪法是根本法, grade_band: [6, 6]}
+          - {code: PO-LA-02-02, name: 公民的基本权利和义务, grade_band: [6, 6]}
+          - {code: PO-LA-02-03, name: 国家机构, grade_band: [6, 6]}
+          - {code: PO-LA-02-04, name: 人民代表大会与人大代表, grade_band: [6, 6]}
+          - {code: PO-LA-02-05, name: 知法守法依法维权, grade_band: [6, 6]}
+          - {code: PO-LA-02-06, name: 宪法是国家的根本法, grade_band: [8, 8]}
+          - {code: PO-LA-02-07, name: 加强宪法监督, grade_band: [8, 8]}
+          - {code: PO-LA-02-08, name: 公民基本权利, grade_band: [8, 8]}
+          - {code: PO-LA-02-09, name: 公民基本义务, grade_band: [8, 8]}
+          - {code: PO-LA-02-10, name: 依法行使权利与履行义务, grade_band: [8, 8]}
+          - {code: PO-LA-02-11, name: 人民代表大会制度, grade_band: [8, 8]}
+          - {code: PO-LA-02-12, name: 基本政治制度, grade_band: [8, 8]}
+          - {code: PO-LA-02-13, name: 国家机关, grade_band: [8, 8]}
+          - {code: PO-LA-02-14, name: 自由平等的真谛, grade_band: [8, 8]}
+          - {code: PO-LA-02-15, name: 公平正义的守护, grade_band: [8, 8]}
+  - code: PO-CT
+    name: 中华优秀传统文化与革命传统教育
+    children:
+      - code: PO-CT-01
+        name: 传统文化
+        grade_band: [1, 9]
+        children:
+          - {code: PO-CT-01-01, name: 新年与春节习俗, grade_band: [1, 1]}
+          - {code: PO-CT-01-02, name: 中国传统节日, grade_band: [3, 4]}
+          - {code: PO-CT-01-03, name: 家乡的文化与风俗, grade_band: [4, 4]}
+          - {code: PO-CT-01-04, name: 古代科技与文化成就, grade_band: [5, 5]}
+          - {code: PO-CT-01-05, name: 家风与家规, grade_band: [5, 5]}
+          - {code: PO-CT-01-06, name: 中华优秀传统文化, grade_band: [9, 9]}
+          - {code: PO-CT-01-07, name: 社会主义核心价值观, grade_band: [9, 9]}
+      - code: PO-CT-02
+        name: 革命传统
+        grade_band: [5, 5]
+        children:
+          - {code: PO-CT-02-01, name: 近代屈辱与抗争, grade_band: [5, 5]}
+          - {code: PO-CT-02-02, name: 推翻帝制与民族觉醒, grade_band: [5, 5]}
+          - {code: PO-CT-02-03, name: 中国共产党的诞生与革命历程, grade_band: [5, 5]}
+          - {code: PO-CT-02-04, name: 新中国的成立与发展, grade_band: [5, 5]}
+  - code: PO-NA
+    name: 国情教育
+    children:
+      - code: PO-NA-01
+        name: 家乡与祖国
+        grade_band: [1, 9]
+        children:
+          - {code: PO-NA-01-01, name: 国旗、国歌与国徽, grade_band: [1, 2]}
+          - {code: PO-NA-01-02, name: 节假日生活, grade_band: [2, 2]}
+          - {code: PO-NA-01-03, name: 家乡的特产与风景, grade_band: [2, 2]}
+          - {code: PO-NA-01-04, name: 家乡的发展, grade_band: [3, 4]}
+          - {code: PO-NA-01-05, name: 通信与交通的发展, grade_band: [3, 4]}
+          - {code: PO-NA-01-06, name: 农业与工业生产, grade_band: [4, 4]}
+          - {code: PO-NA-01-07, name: 我国的国土与行政区划, grade_band: [5, 5]}
+          - {code: PO-NA-01-08, name: 中华民族一家亲, grade_band: [5, 5]}
+          - {code: PO-NA-01-09, name: 汉字与书法艺术, grade_band: [5, 5]}
+          - {code: PO-NA-01-10, name: 改革开放与新时代, grade_band: [5, 6]}
+          - {code: PO-NA-01-11, name: 坚持改革开放, grade_band: [9, 9]}
+          - {code: PO-NA-01-12, name: 创新驱动发展, grade_band: [9, 9]}
+          - {code: PO-NA-01-13, name: 全过程人民民主, grade_band: [9, 9]}
+          - {code: PO-NA-01-14, name: 人口、资源与环境国情, grade_band: [9, 9]}
+          - {code: PO-NA-01-15, name: 生态文明与绿色发展, grade_band: [9, 9]}
+          - {code: PO-NA-01-16, name: 促进民族团结, grade_band: [9, 9]}
+          - {code: PO-NA-01-17, name: 维护祖国统一, grade_band: [9, 9]}
+          - {code: PO-NA-01-18, name: 中国梦, grade_band: [9, 9]}
+      - code: PO-NA-02
+        name: 国家利益与安全
+        grade_band: [8, 8]
+        children:
+          - {code: PO-NA-02-01, name: 国家利益至上, grade_band: [8, 8]}
+          - {code: PO-NA-02-02, name: 维护国家安全, grade_band: [8, 8]}
+          - {code: PO-NA-02-03, name: 建设美好祖国, grade_band: [8, 8]}
+      - code: PO-NA-03
+        name: 世界与中国
+        grade_band: [6, 9]
+        children:
+          - {code: PO-NA-03-01, name: 多样的世界文明, grade_band: [6, 6]}
+          - {code: PO-NA-03-02, name: 人类面临的全球性问题, grade_band: [6, 6]}
+          - {code: PO-NA-03-03, name: 中国的国际地位与作用, grade_band: [6, 6]}
+          - {code: PO-NA-03-04, name: 我们爱和平, grade_band: [6, 6]}
+          - {code: PO-NA-03-05, name: 联合国与国际组织, grade_band: [6, 6]}
+          - {code: PO-NA-03-06, name: 科技发展造福人类, grade_band: [6, 6]}
+          - {code: PO-NA-03-07, name: 经济全球化, grade_band: [9, 9]}
+          - {code: PO-NA-03-08, name: 开放互动的世界, grade_band: [9, 9]}
+          - {code: PO-NA-03-09, name: 推动构建人类命运共同体, grade_band: [9, 9]}
+          - {code: PO-NA-03-10, name: 中国担当, grade_band: [9, 9]}
+          - {code: PO-NA-03-11, name: 与世界紧相连, grade_band: [9, 9]}
+          - {code: PO-NA-03-12, name: 少年的担当与未来, grade_band: [9, 9]}
+  - code: PO-MO
+    name: 道德教育
+    children:
+      - code: PO-MO-01
+        name: 家庭与亲情
+        grade_band: [1, 7]
+        children:
+          - {code: PO-MO-01-01, name: 家人的爱, grade_band: [1, 1]}
+          - {code: PO-MO-01-02, name: 孝敬父母, grade_band: [3, 3]}
+          - {code: PO-MO-01-03, name: 理解与关爱家人, grade_band: [5, 5]}
+          - {code: PO-MO-01-04, name: 承担家务, grade_band: [4, 4]}
+          - {code: PO-MO-01-05, name: 与父母沟通, grade_band: [4, 4]}
+          - {code: PO-MO-01-06, name: 亲情与孝亲敬长, grade_band: [7, 7]}
+      - code: PO-MO-02
+        name: 学校与同伴
+        grade_band: [1, 7]
+        children:
+          - {code: PO-MO-02-01, name: 适应小学生活, grade_band: [1, 1]}
+          - {code: PO-MO-02-02, name: 校园生活与规则, grade_band: [1, 1]}
+          - {code: PO-MO-02-03, name: 与同伴友好相处, grade_band: [1, 2]}
+          - {code: PO-MO-02-04, name: 关心和帮助他人, grade_band: [1, 2]}
+          - {code: PO-MO-02-05, name: 班级生活与集体, grade_band: [2, 2]}
+          - {code: PO-MO-02-06, name: 诚实, grade_band: [2, 2]}
+          - {code: PO-MO-02-07, name: 了解学校, grade_band: [3, 3]}
+          - {code: PO-MO-02-08, name: 同伴交往, grade_band: [3, 3]}
+          - {code: PO-MO-02-09, name: 同伴间的冲突与化解, grade_band: [4, 4]}
+          - {code: PO-MO-02-10, name: 协商与民主选举, grade_band: [5, 5]}
+          - {code: PO-MO-02-11, name: 友谊的特质, grade_band: [7, 7]}
+          - {code: PO-MO-02-12, name: 网上交友, grade_band: [7, 7]}
+          - {code: PO-MO-02-13, name: 师生交往, grade_band: [7, 7]}
+          - {code: PO-MO-02-14, name: 集体生活, grade_band: [7, 7]}
+      - code: PO-MO-03
+        name: 社会生活与公德
+        grade_band: [1, 8]
+        children:
+          - {code: PO-MO-03-01, name: 亲近大自然, grade_band: [1, 1]}
+          - {code: PO-MO-03-02, name: 爱护动植物, grade_band: [1, 2]}
+          - {code: PO-MO-03-03, name: 垃圾分类与环保, grade_band: [2, 2]}
+          - {code: PO-MO-03-04, name: 公共设施与公共生活, grade_band: [3, 3]}
+          - {code: PO-MO-03-05, name: 爱护公物, grade_band: [3, 3]}
+          - {code: PO-MO-03-06, name: 感恩劳动者, grade_band: [3, 3]}
+          - {code: PO-MO-03-07, name: 诚实守信, grade_band: [3, 3]}
+          - {code: PO-MO-03-08, name: 环境污染与保护, grade_band: [4, 4]}
+          - {code: PO-MO-03-09, name: 节约资源, grade_band: [4, 4]}
+          - {code: PO-MO-03-10, name: 理性消费, grade_band: [4, 4]}
+          - {code: PO-MO-03-11, name: 消费者权益保护, grade_band: [4, 4]}
+          - {code: PO-MO-03-12, name: 网络与媒介素养, grade_band: [4, 5]}
+          - {code: PO-MO-03-13, name: 公共生活靠大家, grade_band: [5, 5]}
+          - {code: PO-MO-03-14, name: 参与志愿服务, grade_band: [5, 5]}
+          - {code: PO-MO-03-15, name: 珍惜粮食与反对浪费, grade_band: [6, 6]}
+          - {code: PO-MO-03-16, name: 学会尊重, grade_band: [6, 6]}
+          - {code: PO-MO-03-17, name: 社会生活与亲社会行为, grade_band: [8, 8]}
+          - {code: PO-MO-03-18, name: 合理利用网络, grade_band: [8, 8]}
+          - {code: PO-MO-03-19, name: 尊重他人, grade_band: [8, 8]}
+          - {code: PO-MO-03-20, name: 以礼待人, grade_band: [8, 8]}
+          - {code: PO-MO-03-21, name: 诚信, grade_band: [8, 8]}
+          - {code: PO-MO-03-22, name: 责任与角色, grade_band: [8, 8]}
+          - {code: PO-MO-03-23, name: 服务社会, grade_band: [8, 8]}

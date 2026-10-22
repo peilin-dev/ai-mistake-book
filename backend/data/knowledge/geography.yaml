@@ -1,0 +1,138 @@
+# 地理（7～8 年级）知识点库
+# 依据义务教育课程标准（2022 年版）生成，未经教师审核，待试用反馈修订
+# 版本：2026-10-22
+# 结构：领域 → 主题 → 知识点；叶子的 grade_band 为常见教材讲授该内容的年级。
+# 改名或删点后重新导入：python -m app.knowledge.loader --prune data/knowledge/*.yaml
+subject: geography
+grade_band: [7, 8]
+nodes:
+  - code: GE-EU
+    name: 地球的宇宙环境
+    children:
+      - code: GE-EU-01
+        name: 地球与地球仪
+        grade_band: [7, 7]
+        children:
+          - {code: GE-EU-01-01, name: 地球的形状与大小, grade_band: [7, 7]}
+          - {code: GE-EU-01-02, name: 经线和纬线, grade_band: [7, 7]}
+          - {code: GE-EU-01-03, name: 经纬网定位, grade_band: [7, 7]}
+          - {code: GE-EU-01-04, name: 地球的自转, grade_band: [7, 7]}
+          - {code: GE-EU-01-05, name: 地球的公转, grade_band: [7, 7]}
+  - code: GE-TO
+    name: 地理工具与地理实践
+    children:
+      - code: GE-TO-01
+        name: 地图
+        grade_band: [7, 7]
+        children:
+          - {code: GE-TO-01-01, name: 比例尺、方向和图例, grade_band: [7, 7]}
+          - {code: GE-TO-01-02, name: 等高线地形图, grade_band: [7, 7]}
+          - {code: GE-TO-01-03, name: 地图的选择和应用, grade_band: [7, 7]}
+  - code: GE-SU
+    name: 地球的表层
+    children:
+      - code: GE-SU-01
+        name: 陆地和海洋
+        grade_band: [7, 7]
+        children:
+          - {code: GE-SU-01-01, name: 大洲和大洋, grade_band: [7, 7]}
+          - {code: GE-SU-01-02, name: 海陆的变迁, grade_band: [7, 7]}
+          - {code: GE-SU-01-03, name: 板块构造学说, grade_band: [7, 7]}
+      - code: GE-SU-02
+        name: 天气与气候
+        grade_band: [7, 7]
+        children:
+          - {code: GE-SU-02-01, name: 天气与天气预报, grade_band: [7, 7]}
+          - {code: GE-SU-02-02, name: 气温的变化与分布, grade_band: [7, 7]}
+          - {code: GE-SU-02-03, name: 降水的变化与分布, grade_band: [7, 7]}
+          - {code: GE-SU-02-04, name: 世界的气候类型, grade_band: [7, 7]}
+          - {code: GE-SU-02-05, name: 影响气候的主要因素, grade_band: [7, 7]}
+      - code: GE-SU-03
+        name: 居民与聚落
+        grade_band: [7, 7]
+        children:
+          - {code: GE-SU-03-01, name: 世界的人口, grade_band: [7, 7]}
+          - {code: GE-SU-03-02, name: 人种、语言和宗教, grade_band: [7, 7]}
+          - {code: GE-SU-03-03, name: 聚落, grade_band: [7, 7]}
+          - {code: GE-SU-03-04, name: 发展与合作, grade_band: [7, 7]}
+  - code: GE-WO
+    name: 认识世界
+    children:
+      - code: GE-WO-01
+        name: 认识大洲
+        grade_band: [7, 7]
+        children:
+          - {code: GE-WO-01-01, name: 亚洲的位置和范围, grade_band: [7, 7]}
+          - {code: GE-WO-01-02, name: 亚洲的自然环境, grade_band: [7, 7]}
+          - {code: GE-WO-01-03, name: 极地地区, grade_band: [7, 7]}
+      - code: GE-WO-02
+        name: 认识地区
+        grade_band: [7, 7]
+        children:
+          - {code: GE-WO-02-01, name: 东南亚, grade_band: [7, 7]}
+          - {code: GE-WO-02-02, name: 中东, grade_band: [7, 7]}
+          - {code: GE-WO-02-03, name: 欧洲西部, grade_band: [7, 7]}
+          - {code: GE-WO-02-04, name: 撒哈拉以南非洲, grade_band: [7, 7]}
+      - code: GE-WO-03
+        name: 认识国家
+        grade_band: [7, 7]
+        children:
+          - {code: GE-WO-03-01, name: 日本, grade_band: [7, 7]}
+          - {code: GE-WO-03-02, name: 印度, grade_band: [7, 7]}
+          - {code: GE-WO-03-03, name: 俄罗斯, grade_band: [7, 7]}
+          - {code: GE-WO-03-04, name: 澳大利亚, grade_band: [7, 7]}
+          - {code: GE-WO-03-05, name: 美国, grade_band: [7, 7]}
+          - {code: GE-WO-03-06, name: 巴西, grade_band: [7, 7]}
+  - code: GE-CN
+    name: 认识中国
+    children:
+      - code: GE-CN-01
+        name: 疆域与人口
+        grade_band: [8, 8]
+        children:
+          - {code: GE-CN-01-01, name: 中国的疆域, grade_band: [8, 8]}
+          - {code: GE-CN-01-02, name: 中国的行政区划, grade_band: [8, 8]}
+          - {code: GE-CN-01-03, name: 中国的人口, grade_band: [8, 8]}
+          - {code: GE-CN-01-04, name: 中国的民族, grade_band: [8, 8]}
+      - code: GE-CN-02
+        name: 自然环境
+        grade_band: [8, 8]
+        children:
+          - {code: GE-CN-02-01, name: 中国的地形和地势, grade_band: [8, 8]}
+          - {code: GE-CN-02-02, name: 中国的气温与温度带, grade_band: [8, 8]}
+          - {code: GE-CN-02-03, name: 中国的降水与干湿地区, grade_band: [8, 8]}
+          - {code: GE-CN-02-04, name: 季风气候显著, grade_band: [8, 8]}
+          - {code: GE-CN-02-05, name: 外流河与内流河, grade_band: [8, 8]}
+          - {code: GE-CN-02-06, name: 长江, grade_band: [8, 8]}
+          - {code: GE-CN-02-07, name: 黄河, grade_band: [8, 8]}
+          - {code: GE-CN-02-08, name: 中国的自然灾害, grade_band: [8, 8]}
+      - code: GE-CN-03
+        name: 自然资源
+        grade_band: [8, 8]
+        children:
+          - {code: GE-CN-03-01, name: 自然资源的基本特征, grade_band: [8, 8]}
+          - {code: GE-CN-03-02, name: 土地资源, grade_band: [8, 8]}
+          - {code: GE-CN-03-03, name: 水资源, grade_band: [8, 8]}
+      - code: GE-CN-04
+        name: 经济发展
+        grade_band: [8, 8]
+        children:
+          - {code: GE-CN-04-01, name: 交通运输, grade_band: [8, 8]}
+          - {code: GE-CN-04-02, name: 农业, grade_band: [8, 8]}
+          - {code: GE-CN-04-03, name: 工业, grade_band: [8, 8]}
+      - code: GE-CN-05
+        name: 地理区域
+        grade_band: [8, 8]
+        children:
+          - {code: GE-CN-05-01, name: 四大地理区域的划分, grade_band: [8, 8]}
+          - {code: GE-CN-05-02, name: 东北三省, grade_band: [8, 8]}
+          - {code: GE-CN-05-03, name: 黄土高原, grade_band: [8, 8]}
+          - {code: GE-CN-05-04, name: 北京, grade_band: [8, 8]}
+          - {code: GE-CN-05-05, name: 长江三角洲地区, grade_band: [8, 8]}
+          - {code: GE-CN-05-06, name: 香港和澳门, grade_band: [8, 8]}
+          - {code: GE-CN-05-07, name: 台湾省, grade_band: [8, 8]}
+          - {code: GE-CN-05-08, name: 西北地区的自然特征与农业, grade_band: [8, 8]}
+          - {code: GE-CN-05-09, name: 塔里木盆地, grade_band: [8, 8]}
+          - {code: GE-CN-05-10, name: 青藏地区, grade_band: [8, 8]}
+          - {code: GE-CN-05-11, name: 三江源地区, grade_band: [8, 8]}
+          - {code: GE-CN-05-12, name: 中国在世界中, grade_band: [8, 8]}

@@ -1,0 +1,115 @@
+# 化学（9 年级）知识点库
+# 依据义务教育课程标准（2022 年版）生成，未经教师审核，待试用反馈修订
+# 版本：2026-10-22
+# 结构：领域 → 主题 → 知识点；叶子的 grade_band 为常见教材讲授该内容的年级。
+# 改名或删点后重新导入：python -m app.knowledge.loader --prune data/knowledge/*.yaml
+subject: chemistry
+grade_band: [9, 9]
+nodes:
+  - code: CH-EX
+    name: 科学探究与化学实验
+    children:
+      - code: CH-EX-01
+        name: 实验基本技能
+        grade_band: [9, 9]
+        children:
+          - {code: CH-EX-01-01, name: 常用仪器与实验基本操作, grade_band: [9, 9]}
+          - {code: CH-EX-01-02, name: 氧气的实验室制取, grade_band: [9, 9]}
+          - {code: CH-EX-01-03, name: 二氧化碳的实验室制取, grade_band: [9, 9]}
+          - {code: CH-EX-01-04, name: 气体的检验与除杂, grade_band: [9, 9]}
+          - {code: CH-EX-01-05, name: 物质的鉴别, grade_band: [9, 9]}
+          - {code: CH-EX-01-06, name: 粗盐中难溶性杂质的去除, grade_band: [9, 9]}
+          - {code: CH-EX-01-07, name: 一定溶质质量分数溶液的配制, grade_band: [9, 9]}
+          - {code: CH-EX-01-08, name: 实验方案的设计与评价, grade_band: [9, 9]}
+  - code: CH-PR
+    name: 物质的性质与应用
+    children:
+      - code: CH-PR-01
+        name: 空气和水
+        grade_band: [9, 9]
+        children:
+          - {code: CH-PR-01-01, name: 空气的成分, grade_band: [9, 9]}
+          - {code: CH-PR-01-02, name: 空气污染与防治, grade_band: [9, 9]}
+          - {code: CH-PR-01-03, name: 氧气的性质, grade_band: [9, 9]}
+          - {code: CH-PR-01-04, name: 水的组成, grade_band: [9, 9]}
+          - {code: CH-PR-01-05, name: 水的净化, grade_band: [9, 9]}
+          - {code: CH-PR-01-06, name: 硬水和软水, grade_band: [9, 9]}
+      - code: CH-PR-02
+        name: 碳和碳的氧化物
+        grade_band: [9, 9]
+        children:
+          - {code: CH-PR-02-01, name: 碳单质, grade_band: [9, 9]}
+          - {code: CH-PR-02-02, name: 二氧化碳的性质与用途, grade_band: [9, 9]}
+          - {code: CH-PR-02-03, name: 一氧化碳, grade_band: [9, 9]}
+      - code: CH-PR-03
+        name: 溶液
+        grade_band: [9, 9]
+        children:
+          - {code: CH-PR-03-01, name: 溶液的形成, grade_band: [9, 9]}
+          - {code: CH-PR-03-02, name: 饱和溶液与不饱和溶液, grade_band: [9, 9]}
+          - {code: CH-PR-03-03, name: 溶解度与溶解度曲线, grade_band: [9, 9]}
+          - {code: CH-PR-03-04, name: 溶质的质量分数, grade_band: [9, 9]}
+      - code: CH-PR-04
+        name: 金属和金属材料
+        grade_band: [9, 9]
+        children:
+          - {code: CH-PR-04-01, name: 金属材料与合金, grade_band: [9, 9]}
+          - {code: CH-PR-04-02, name: 金属的化学性质, grade_band: [9, 9]}
+          - {code: CH-PR-04-03, name: 金属活动性顺序, grade_band: [9, 9]}
+          - {code: CH-PR-04-04, name: 金属的冶炼, grade_band: [9, 9]}
+          - {code: CH-PR-04-05, name: 金属的锈蚀与防护, grade_band: [9, 9]}
+      - code: CH-PR-05
+        name: 酸、碱、盐
+        grade_band: [9, 9]
+        children:
+          - {code: CH-PR-05-01, name: 酸碱指示剂, grade_band: [9, 9]}
+          - {code: CH-PR-05-02, name: 常见的酸, grade_band: [9, 9]}
+          - {code: CH-PR-05-03, name: 常见的碱, grade_band: [9, 9]}
+          - {code: CH-PR-05-04, name: 中和反应, grade_band: [9, 9]}
+          - {code: CH-PR-05-05, name: 溶液的酸碱度, grade_band: [9, 9]}
+          - {code: CH-PR-05-06, name: 常见的盐, grade_band: [9, 9]}
+          - {code: CH-PR-05-07, name: 复分解反应, grade_band: [9, 9]}
+          - {code: CH-PR-05-08, name: 化学肥料, grade_band: [9, 9]}
+  - code: CH-ST
+    name: 物质的组成与结构
+    children:
+      - code: CH-ST-01
+        name: 微观构成与化学用语
+        grade_band: [9, 9]
+        children:
+          - {code: CH-ST-01-01, name: 分子和原子, grade_band: [9, 9]}
+          - {code: CH-ST-01-02, name: 原子的结构, grade_band: [9, 9]}
+          - {code: CH-ST-01-03, name: 离子, grade_band: [9, 9]}
+          - {code: CH-ST-01-04, name: 元素与元素周期表, grade_band: [9, 9]}
+          - {code: CH-ST-01-05, name: 化学式, grade_band: [9, 9]}
+          - {code: CH-ST-01-06, name: 化合价, grade_band: [9, 9]}
+          - {code: CH-ST-01-07, name: 根据化学式的计算, grade_band: [9, 9]}
+          - {code: CH-ST-01-08, name: 物质的分类, grade_band: [9, 9]}
+  - code: CH-CR
+    name: 物质的化学变化
+    children:
+      - code: CH-CR-01
+        name: 化学变化与化学反应
+        grade_band: [9, 9]
+        children:
+          - {code: CH-CR-01-01, name: 物理变化和化学变化, grade_band: [9, 9]}
+          - {code: CH-CR-01-02, name: 物理性质和化学性质, grade_band: [9, 9]}
+          - {code: CH-CR-01-03, name: 催化剂, grade_band: [9, 9]}
+          - {code: CH-CR-01-04, name: 基本反应类型, grade_band: [9, 9]}
+          - {code: CH-CR-01-05, name: 质量守恒定律, grade_band: [9, 9]}
+          - {code: CH-CR-01-06, name: 化学方程式的书写, grade_band: [9, 9]}
+          - {code: CH-CR-01-07, name: 根据化学方程式的计算, grade_band: [9, 9]}
+          - {code: CH-CR-01-08, name: 燃烧的条件与灭火, grade_band: [9, 9]}
+  - code: CH-SO
+    name: 化学与社会·跨学科实践
+    children:
+      - code: CH-SO-01
+        name: 化学与生活
+        grade_band: [9, 9]
+        children:
+          - {code: CH-SO-01-01, name: 化石燃料与能源利用, grade_band: [9, 9]}
+          - {code: CH-SO-01-02, name: 使用燃料对环境的影响, grade_band: [9, 9]}
+          - {code: CH-SO-01-03, name: 人类重要的营养物质, grade_band: [9, 9]}
+          - {code: CH-SO-01-04, name: 化学元素与人体健康, grade_band: [9, 9]}
+          - {code: CH-SO-01-05, name: 有机合成材料, grade_band: [9, 9]}
+          - {code: CH-SO-01-06, name: 爱护水资源, grade_band: [9, 9]}

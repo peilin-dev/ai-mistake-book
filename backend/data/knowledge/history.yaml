@@ -1,0 +1,220 @@
+# 历史（7～9 年级）知识点库
+# 依据义务教育课程标准（2022 年版）生成，未经教师审核，待试用反馈修订
+# 版本：2026-10-22
+# 结构：领域 → 主题 → 知识点；叶子的 grade_band 为常见教材讲授该内容的年级。
+# 改名或删点后重新导入：python -m app.knowledge.loader --prune data/knowledge/*.yaml
+subject: history
+grade_band: [7, 9]
+nodes:
+  - code: HI-CA
+    name: 中国古代史
+    children:
+      - code: HI-CA-01
+        name: 史前时期
+        grade_band: [7, 7]
+        children:
+          - {code: HI-CA-01-01, name: 中国境内早期人类, grade_band: [7, 7]}
+          - {code: HI-CA-01-02, name: 原始农耕生活, grade_band: [7, 7]}
+          - {code: HI-CA-01-03, name: 远古的传说, grade_band: [7, 7]}
+      - code: HI-CA-02
+        name: 夏商周
+        grade_band: [7, 7]
+        children:
+          - {code: HI-CA-02-01, name: 夏商周的更替, grade_band: [7, 7]}
+          - {code: HI-CA-02-02, name: 青铜器与甲骨文, grade_band: [7, 7]}
+          - {code: HI-CA-02-03, name: 西周分封制, grade_band: [7, 7]}
+          - {code: HI-CA-02-04, name: 动荡的春秋时期, grade_band: [7, 7]}
+          - {code: HI-CA-02-05, name: 战国时期的社会变革, grade_band: [7, 7]}
+          - {code: HI-CA-02-06, name: 都江堰, grade_band: [7, 7]}
+          - {code: HI-CA-02-07, name: 百家争鸣, grade_band: [7, 7]}
+      - code: HI-CA-03
+        name: 秦汉时期
+        grade_band: [7, 7]
+        children:
+          - {code: HI-CA-03-01, name: 秦统一中国, grade_band: [7, 7]}
+          - {code: HI-CA-03-02, name: 秦朝的中央集权制度, grade_band: [7, 7]}
+          - {code: HI-CA-03-03, name: 秦末农民大起义, grade_band: [7, 7]}
+          - {code: HI-CA-03-04, name: 西汉建立与文景之治, grade_band: [7, 7]}
+          - {code: HI-CA-03-05, name: 汉武帝巩固大一统, grade_band: [7, 7]}
+          - {code: HI-CA-03-06, name: 东汉的兴衰, grade_band: [7, 7]}
+          - {code: HI-CA-03-07, name: 张骞通西域与丝绸之路, grade_band: [7, 7]}
+          - {code: HI-CA-03-08, name: 秦汉时期的科技与文化, grade_band: [7, 7]}
+      - code: HI-CA-04
+        name: 三国两晋南北朝时期
+        grade_band: [7, 7]
+        children:
+          - {code: HI-CA-04-01, name: 三国鼎立, grade_band: [7, 7]}
+          - {code: HI-CA-04-02, name: 西晋的短暂统一与北方民族内迁, grade_band: [7, 7]}
+          - {code: HI-CA-04-03, name: 东晋南朝时期江南地区的开发, grade_band: [7, 7]}
+          - {code: HI-CA-04-04, name: 北魏孝文帝改革, grade_band: [7, 7]}
+          - {code: HI-CA-04-05, name: 魏晋南北朝时期的科技与文化, grade_band: [7, 7]}
+      - code: HI-CA-05
+        name: 隋唐时期
+        grade_band: [7, 7]
+        children:
+          - {code: HI-CA-05-01, name: 隋朝的统一与大运河, grade_band: [7, 7]}
+          - {code: HI-CA-05-02, name: 科举制的创立, grade_band: [7, 7]}
+          - {code: HI-CA-05-03, name: 唐朝的建立与贞观之治, grade_band: [7, 7]}
+          - {code: HI-CA-05-04, name: 开元盛世, grade_band: [7, 7]}
+          - {code: HI-CA-05-05, name: 唐朝的中外文化交流, grade_band: [7, 7]}
+          - {code: HI-CA-05-06, name: 安史之乱与唐朝衰亡, grade_band: [7, 7]}
+          - {code: HI-CA-05-07, name: 隋唐时期的科技与文化, grade_band: [7, 7]}
+      - code: HI-CA-06
+        name: 宋元时期
+        grade_band: [7, 7]
+        children:
+          - {code: HI-CA-06-01, name: 北宋的政治, grade_band: [7, 7]}
+          - {code: HI-CA-06-02, name: 辽、西夏与北宋的并立, grade_band: [7, 7]}
+          - {code: HI-CA-06-03, name: 金与南宋的对峙, grade_band: [7, 7]}
+          - {code: HI-CA-06-04, name: 宋代经济的发展, grade_band: [7, 7]}
+          - {code: HI-CA-06-05, name: 宋代都市生活, grade_band: [7, 7]}
+          - {code: HI-CA-06-06, name: 蒙古族的兴起与元朝的建立, grade_band: [7, 7]}
+          - {code: HI-CA-06-07, name: 元朝的统治, grade_band: [7, 7]}
+          - {code: HI-CA-06-08, name: 宋元时期的科技与文化, grade_band: [7, 7]}
+      - code: HI-CA-07
+        name: 明清时期（至鸦片战争前）
+        grade_band: [7, 7]
+        children:
+          - {code: HI-CA-07-01, name: 明朝君主专制的加强, grade_band: [7, 7]}
+          - {code: HI-CA-07-02, name: 郑和下西洋与戚继光抗倭, grade_band: [7, 7]}
+          - {code: HI-CA-07-03, name: 明朝的灭亡与清朝的建立, grade_band: [7, 7]}
+          - {code: HI-CA-07-04, name: 清朝前期统一多民族国家的巩固, grade_band: [7, 7]}
+          - {code: HI-CA-07-05, name: 清朝君主专制的强化, grade_band: [7, 7]}
+          - {code: HI-CA-07-06, name: 清朝前期社会危机, grade_band: [7, 7]}
+          - {code: HI-CA-07-07, name: 明清时期的科技与文化, grade_band: [7, 7]}
+  - code: HI-CM
+    name: 中国近代史
+    children:
+      - code: HI-CM-01
+        name: 列强侵华与救亡图存
+        grade_band: [8, 8]
+        children:
+          - {code: HI-CM-01-01, name: 鸦片战争, grade_band: [8, 8]}
+          - {code: HI-CM-01-02, name: 第二次鸦片战争, grade_band: [8, 8]}
+          - {code: HI-CM-01-03, name: 太平天国运动, grade_band: [8, 8]}
+          - {code: HI-CM-01-04, name: 洋务运动, grade_band: [8, 8]}
+          - {code: HI-CM-01-05, name: 边疆危机, grade_band: [8, 8]}
+          - {code: HI-CM-01-06, name: 甲午中日战争与瓜分中国狂潮, grade_band: [8, 8]}
+          - {code: HI-CM-01-07, name: 戊戌变法, grade_band: [8, 8]}
+          - {code: HI-CM-01-08, name: 八国联军侵华与辛丑条约, grade_band: [8, 8]}
+          - {code: HI-CM-01-09, name: 辛亥革命, grade_band: [8, 8]}
+          - {code: HI-CM-01-10, name: 中华民国的建立, grade_band: [8, 8]}
+          - {code: HI-CM-01-11, name: 袁世凯复辟与北洋军阀统治, grade_band: [8, 8]}
+      - code: HI-CM-02
+        name: 新民主主义革命
+        grade_band: [8, 8]
+        children:
+          - {code: HI-CM-02-01, name: 新文化运动, grade_band: [8, 8]}
+          - {code: HI-CM-02-02, name: 五四运动, grade_band: [8, 8]}
+          - {code: HI-CM-02-03, name: 中国共产党的诞生, grade_band: [8, 8]}
+          - {code: HI-CM-02-04, name: 国共合作与北伐战争, grade_band: [8, 8]}
+          - {code: HI-CM-02-05, name: 中国共产党开辟革命新道路, grade_band: [8, 8]}
+          - {code: HI-CM-02-06, name: 红军长征, grade_band: [8, 8]}
+          - {code: HI-CM-02-07, name: 九一八事变与西安事变, grade_band: [8, 8]}
+          - {code: HI-CM-02-08, name: 七七事变与全民族抗战, grade_band: [8, 8]}
+          - {code: HI-CM-02-09, name: 抗日战争的胜利, grade_band: [8, 8]}
+          - {code: HI-CM-02-10, name: 人民解放战争的胜利, grade_band: [8, 8]}
+          - {code: HI-CM-02-11, name: 近代经济、社会生活与教育文化, grade_band: [8, 8]}
+  - code: HI-CC
+    name: 中国现代史
+    children:
+      - code: HI-CC-01
+        name: 中华人民共和国的成立与巩固
+        grade_band: [8, 8]
+        children:
+          - {code: HI-CC-01-01, name: 中华人民共和国成立, grade_band: [8, 8]}
+          - {code: HI-CC-01-02, name: 抗美援朝, grade_band: [8, 8]}
+          - {code: HI-CC-01-03, name: 土地改革, grade_band: [8, 8]}
+          - {code: HI-CC-01-04, name: 第一个五年计划, grade_band: [8, 8]}
+          - {code: HI-CC-01-05, name: 社会主义制度的建立, grade_band: [8, 8]}
+          - {code: HI-CC-01-06, name: 社会主义建设的艰辛探索, grade_band: [8, 8]}
+      - code: HI-CC-02
+        name: 改革开放与新时代
+        grade_band: [8, 8]
+        children:
+          - {code: HI-CC-02-01, name: 十一届三中全会与改革开放, grade_band: [8, 8]}
+          - {code: HI-CC-02-02, name: 经济体制改革, grade_band: [8, 8]}
+          - {code: HI-CC-02-03, name: 对外开放, grade_band: [8, 8]}
+          - {code: HI-CC-02-04, name: 建设中国特色社会主义, grade_band: [8, 8]}
+          - {code: HI-CC-02-05, name: 中国特色社会主义进入新时代, grade_band: [8, 8]}
+      - code: HI-CC-03
+        name: 民族团结、国防外交与社会生活
+        grade_band: [8, 8]
+        children:
+          - {code: HI-CC-03-01, name: 民族区域自治制度, grade_band: [8, 8]}
+          - {code: HI-CC-03-02, name: 香港和澳门回归, grade_band: [8, 8]}
+          - {code: HI-CC-03-03, name: 海峡两岸的交往, grade_band: [8, 8]}
+          - {code: HI-CC-03-04, name: 国防和军队建设, grade_band: [8, 8]}
+          - {code: HI-CC-03-05, name: 独立自主的和平外交, grade_band: [8, 8]}
+          - {code: HI-CC-03-06, name: 科技文化成就与社会生活, grade_band: [8, 8]}
+  - code: HI-WA
+    name: 世界古代史
+    children:
+      - code: HI-WA-01
+        name: 古代亚非文明与欧洲文明
+        grade_band: [9, 9]
+        children:
+          - {code: HI-WA-01-01, name: 古代埃及, grade_band: [9, 9]}
+          - {code: HI-WA-01-02, name: 古代两河流域, grade_band: [9, 9]}
+          - {code: HI-WA-01-03, name: 古代印度, grade_band: [9, 9]}
+          - {code: HI-WA-01-04, name: 希腊城邦和亚历山大帝国, grade_band: [9, 9]}
+          - {code: HI-WA-01-05, name: 罗马城邦和罗马帝国, grade_band: [9, 9]}
+      - code: HI-WA-02
+        name: 封建时代的欧洲与亚洲
+        grade_band: [9, 9]
+        children:
+          - {code: HI-WA-02-01, name: 西欧封建国家与基督教, grade_band: [9, 9]}
+          - {code: HI-WA-02-02, name: 中世纪城市和大学, grade_band: [9, 9]}
+          - {code: HI-WA-02-03, name: 拜占庭帝国和查士丁尼法典, grade_band: [9, 9]}
+          - {code: HI-WA-02-04, name: 日本大化改新, grade_band: [9, 9]}
+          - {code: HI-WA-02-05, name: 阿拉伯帝国, grade_band: [9, 9]}
+  - code: HI-WM
+    name: 世界近代史
+    children:
+      - code: HI-WM-01
+        name: 资本主义制度的初步确立
+        grade_band: [9, 9]
+        children:
+          - {code: HI-WM-01-01, name: 文艺复兴, grade_band: [9, 9]}
+          - {code: HI-WM-01-02, name: 新航路的开辟, grade_band: [9, 9]}
+          - {code: HI-WM-01-03, name: 早期殖民掠夺, grade_band: [9, 9]}
+          - {code: HI-WM-01-04, name: 英国资产阶级革命, grade_band: [9, 9]}
+          - {code: HI-WM-01-05, name: 美国的独立, grade_band: [9, 9]}
+          - {code: HI-WM-01-06, name: 法国大革命和拿破仑帝国, grade_band: [9, 9]}
+          - {code: HI-WM-01-07, name: 第一次工业革命, grade_band: [9, 9]}
+          - {code: HI-WM-01-08, name: 马克思主义的诞生, grade_band: [9, 9]}
+      - code: HI-WM-02
+        name: 资本主义的发展与殖民地人民的反抗
+        grade_band: [9, 9]
+        children:
+          - {code: HI-WM-02-01, name: 殖民地人民的反抗斗争, grade_band: [9, 9]}
+          - {code: HI-WM-02-02, name: 俄国农奴制改革, grade_band: [9, 9]}
+          - {code: HI-WM-02-03, name: 美国南北战争, grade_band: [9, 9]}
+          - {code: HI-WM-02-04, name: 日本明治维新, grade_band: [9, 9]}
+          - {code: HI-WM-02-05, name: 第二次工业革命, grade_band: [9, 9]}
+  - code: HI-WC
+    name: 世界现代史
+    children:
+      - code: HI-WC-01
+        name: 第一次世界大战到第二次世界大战
+        grade_band: [9, 9]
+        children:
+          - {code: HI-WC-01-01, name: 第一次世界大战, grade_band: [9, 9]}
+          - {code: HI-WC-01-02, name: 凡尔赛—华盛顿体系, grade_band: [9, 9]}
+          - {code: HI-WC-01-03, name: 俄国十月革命, grade_band: [9, 9]}
+          - {code: HI-WC-01-04, name: 苏联的社会主义建设, grade_band: [9, 9]}
+          - {code: HI-WC-01-05, name: 亚非拉民族民主运动的高涨, grade_band: [9, 9]}
+          - {code: HI-WC-01-06, name: 经济大危机与罗斯福新政, grade_band: [9, 9]}
+          - {code: HI-WC-01-07, name: 法西斯国家的侵略扩张, grade_band: [9, 9]}
+          - {code: HI-WC-01-08, name: 第二次世界大战, grade_band: [9, 9]}
+      - code: HI-WC-02
+        name: 第二次世界大战后的世界
+        grade_band: [9, 9]
+        children:
+          - {code: HI-WC-02-01, name: 冷战, grade_band: [9, 9]}
+          - {code: HI-WC-02-02, name: 资本主义国家的新变化, grade_band: [9, 9]}
+          - {code: HI-WC-02-03, name: 苏联的改革与解体, grade_band: [9, 9]}
+          - {code: HI-WC-02-04, name: 亚非拉国家的独立和振兴, grade_band: [9, 9]}
+          - {code: HI-WC-02-05, name: 世界格局的多极化趋势, grade_band: [9, 9]}
+          - {code: HI-WC-02-06, name: 经济全球化, grade_band: [9, 9]}
+          - {code: HI-WC-02-07, name: 第三次科技革命, grade_band: [9, 9]}

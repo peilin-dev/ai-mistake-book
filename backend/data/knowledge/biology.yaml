@@ -1,0 +1,171 @@
+# 生物学（7～8 年级）知识点库
+# 依据义务教育课程标准（2022 年版）生成，未经教师审核，待试用反馈修订
+# 版本：2026-10-22
+# 结构：领域 → 主题 → 知识点；叶子的 grade_band 为常见教材讲授该内容的年级。
+# 改名或删点后重新导入：python -m app.knowledge.loader --prune data/knowledge/*.yaml
+subject: biology
+grade_band: [7, 8]
+nodes:
+  - code: BI-ST
+    name: 生物体的结构层次
+    children:
+      - code: BI-ST-01
+        name: 细胞
+        grade_band: [7, 7]
+        children:
+          - {code: BI-ST-01-01, name: 生物的特征, grade_band: [7, 7]}
+          - {code: BI-ST-01-02, name: 显微镜的使用, grade_band: [7, 7]}
+          - {code: BI-ST-01-03, name: 植物细胞, grade_band: [7, 7]}
+          - {code: BI-ST-01-04, name: 动物细胞, grade_band: [7, 7]}
+          - {code: BI-ST-01-05, name: 细胞的生活, grade_band: [7, 7]}
+          - {code: BI-ST-01-06, name: 细胞的分裂和分化, grade_band: [7, 7]}
+      - code: BI-ST-02
+        name: 生物体的组成
+        grade_band: [7, 7]
+        children:
+          - {code: BI-ST-02-01, name: 动物体的结构层次, grade_band: [7, 7]}
+          - {code: BI-ST-02-02, name: 植物体的结构层次, grade_band: [7, 7]}
+          - {code: BI-ST-02-03, name: 单细胞生物, grade_band: [7, 7]}
+  - code: BI-DV
+    name: 生物的多样性
+    children:
+      - code: BI-DV-01
+        name: 植物的类群
+        grade_band: [7, 7]
+        children:
+          - {code: BI-DV-01-01, name: 藻类、苔藓和蕨类植物, grade_band: [7, 7]}
+          - {code: BI-DV-01-02, name: 种子植物, grade_band: [7, 7]}
+      - code: BI-DV-02
+        name: 动物的类群
+        grade_band: [8, 8]
+        children:
+          - {code: BI-DV-02-01, name: 腔肠动物和扁形动物, grade_band: [8, 8]}
+          - {code: BI-DV-02-02, name: 线形动物和环节动物, grade_band: [8, 8]}
+          - {code: BI-DV-02-03, name: 软体动物和节肢动物, grade_band: [8, 8]}
+          - {code: BI-DV-02-04, name: 鱼, grade_band: [8, 8]}
+          - {code: BI-DV-02-05, name: 两栖动物和爬行动物, grade_band: [8, 8]}
+          - {code: BI-DV-02-06, name: 鸟, grade_band: [8, 8]}
+          - {code: BI-DV-02-07, name: 哺乳动物, grade_band: [8, 8]}
+      - code: BI-DV-03
+        name: 微生物
+        grade_band: [8, 8]
+        children:
+          - {code: BI-DV-03-01, name: 细菌, grade_band: [8, 8]}
+          - {code: BI-DV-03-02, name: 真菌, grade_band: [8, 8]}
+          - {code: BI-DV-03-03, name: 细菌和真菌与人类生活, grade_band: [8, 8]}
+          - {code: BI-DV-03-04, name: 病毒, grade_band: [8, 8]}
+      - code: BI-DV-04
+        name: 分类与保护
+        grade_band: [8, 8]
+        children:
+          - {code: BI-DV-04-01, name: 生物的分类, grade_band: [8, 8]}
+          - {code: BI-DV-04-02, name: 生物多样性及其保护, grade_band: [8, 8]}
+  - code: BI-EN
+    name: 生物与环境
+    children:
+      - code: BI-EN-01
+        name: 生态系统
+        grade_band: [7, 7]
+        children:
+          - {code: BI-EN-01-01, name: 生物与环境的关系, grade_band: [7, 7]}
+          - {code: BI-EN-01-02, name: 生态系统的组成, grade_band: [7, 7]}
+          - {code: BI-EN-01-03, name: 食物链和食物网, grade_band: [7, 7]}
+          - {code: BI-EN-01-04, name: 生物圈是最大的生态系统, grade_band: [7, 7]}
+          - {code: BI-EN-01-05, name: 人类活动对生物圈的影响, grade_band: [7, 7]}
+      - code: BI-EN-02
+        name: 动物的运动和行为
+        grade_band: [8, 8]
+        children:
+          - {code: BI-EN-02-01, name: 动物的运动, grade_band: [8, 8]}
+          - {code: BI-EN-02-02, name: 先天性行为和学习行为, grade_band: [8, 8]}
+          - {code: BI-EN-02-03, name: 社会行为, grade_band: [8, 8]}
+          - {code: BI-EN-02-04, name: 动物在生物圈中的作用, grade_band: [8, 8]}
+  - code: BI-PL
+    name: 植物的生活
+    children:
+      - code: BI-PL-01
+        name: 绿色植物的一生
+        grade_band: [7, 7]
+        children:
+          - {code: BI-PL-01-01, name: 种子的萌发, grade_band: [7, 7]}
+          - {code: BI-PL-01-02, name: 植株的生长, grade_band: [7, 7]}
+          - {code: BI-PL-01-03, name: 开花和结果, grade_band: [7, 7]}
+      - code: BI-PL-02
+        name: 绿色植物的生理作用
+        grade_band: [7, 7]
+        children:
+          - {code: BI-PL-02-01, name: 蒸腾作用, grade_band: [7, 7]}
+          - {code: BI-PL-02-02, name: 光合作用, grade_band: [7, 7]}
+          - {code: BI-PL-02-03, name: 呼吸作用, grade_band: [7, 7]}
+          - {code: BI-PL-02-04, name: 碳氧平衡, grade_band: [7, 7]}
+  - code: BI-HB
+    name: 人体生理与健康
+    children:
+      - code: BI-HB-01
+        name: 人的由来与发育
+        grade_band: [7, 7]
+        children:
+          - {code: BI-HB-01-01, name: 人的生殖, grade_band: [7, 7]}
+          - {code: BI-HB-01-02, name: 青春期, grade_band: [7, 7]}
+      - code: BI-HB-02
+        name: 营养与呼吸
+        grade_band: [7, 7]
+        children:
+          - {code: BI-HB-02-01, name: 食物中的营养物质, grade_band: [7, 7]}
+          - {code: BI-HB-02-02, name: 消化和吸收, grade_band: [7, 7]}
+          - {code: BI-HB-02-03, name: 合理营养与食品安全, grade_band: [7, 7]}
+          - {code: BI-HB-02-04, name: 呼吸道对空气的处理, grade_band: [7, 7]}
+          - {code: BI-HB-02-05, name: 肺与外界的气体交换, grade_band: [7, 7]}
+      - code: BI-HB-03
+        name: 循环与排泄
+        grade_band: [7, 7]
+        children:
+          - {code: BI-HB-03-01, name: 血液, grade_band: [7, 7]}
+          - {code: BI-HB-03-02, name: 血管, grade_band: [7, 7]}
+          - {code: BI-HB-03-03, name: 心脏与血液循环, grade_band: [7, 7]}
+          - {code: BI-HB-03-04, name: 输血与血型, grade_band: [7, 7]}
+          - {code: BI-HB-03-05, name: 尿的形成和排出, grade_band: [7, 7]}
+      - code: BI-HB-04
+        name: 生命活动的调节
+        grade_band: [7, 7]
+        children:
+          - {code: BI-HB-04-01, name: 神经系统的组成, grade_band: [7, 7]}
+          - {code: BI-HB-04-02, name: 神经调节的基本方式, grade_band: [7, 7]}
+          - {code: BI-HB-04-03, name: 眼和视觉, grade_band: [7, 7]}
+          - {code: BI-HB-04-04, name: 耳和听觉, grade_band: [7, 7]}
+          - {code: BI-HB-04-05, name: 激素调节, grade_band: [7, 7]}
+      - code: BI-HB-05
+        name: 健康地生活
+        grade_band: [8, 8]
+        children:
+          - {code: BI-HB-05-01, name: 传染病及其预防, grade_band: [8, 8]}
+          - {code: BI-HB-05-02, name: 免疫与计划免疫, grade_band: [8, 8]}
+          - {code: BI-HB-05-03, name: 用药和急救, grade_band: [8, 8]}
+          - {code: BI-HB-05-04, name: 健康的生活方式, grade_band: [8, 8]}
+  - code: BI-GE
+    name: 遗传与进化
+    children:
+      - code: BI-GE-01
+        name: 生物的生殖和发育
+        grade_band: [8, 8]
+        children:
+          - {code: BI-GE-01-01, name: 植物的生殖, grade_band: [8, 8]}
+          - {code: BI-GE-01-02, name: 昆虫的生殖和发育, grade_band: [8, 8]}
+          - {code: BI-GE-01-03, name: 两栖动物的生殖和发育, grade_band: [8, 8]}
+          - {code: BI-GE-01-04, name: 鸟的生殖和发育, grade_band: [8, 8]}
+      - code: BI-GE-02
+        name: 遗传与变异
+        grade_band: [8, 8]
+        children:
+          - {code: BI-GE-02-01, name: 基因控制生物的性状, grade_band: [8, 8]}
+          - {code: BI-GE-02-02, name: 基因在亲子代间的传递, grade_band: [8, 8]}
+          - {code: BI-GE-02-03, name: 基因的显性和隐性, grade_band: [8, 8]}
+          - {code: BI-GE-02-04, name: 人的性别遗传, grade_band: [8, 8]}
+          - {code: BI-GE-02-05, name: 生物的变异, grade_band: [8, 8]}
+      - code: BI-GE-03
+        name: 生命起源与生物进化
+        grade_band: [8, 8]
+        children:
+          - {code: BI-GE-03-01, name: 生命的起源, grade_band: [8, 8]}
+          - {code: BI-GE-03-02, name: 生物进化的历程, grade_band: [8, 8]}
+          - {code: BI-GE-03-03, name: 生物进化的原因, grade_band: [8, 8]}

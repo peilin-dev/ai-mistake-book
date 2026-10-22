@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 
 from app.knowledge.loader import import_yaml, main
 from app.knowledge.service import candidates
-from app.models import KnowledgePoint
+from app.models import KnowledgePoint, QuestionResult
 
 
 async def test_import_is_idempotent(db, sample_yaml, count_nodes):
@@ -84,6 +84,77 @@ nodes:
     assert rows["A-1"].name == "renamed"
     assert rows["A-1"].parent_id == rows["B"].id  # moved
     assert (rows["A-1"].grade_min, rows["A-1"].grade_max) == (3, 4)
+
+
+async def test_prune_removes_missing_nodes_and_nulls_results(db, tmp_path, make_done_page):
+    v1 = """
+subject: math
+grade_band: [5, 6]
+nodes:
+  - code: A
+    name: kept
+    children:
+      - {code: A-1, name: one}
+      - {code: A-2, name: dropped leaf}
+  - code: B
+    name: dropped branch
+    children:
+      - {code: B-1, name: two}
+"""
+    v2 = """
+subject: math
+grade_band: [5, 6]
+nodes:
+  - code: A
+    name: kept
+    children:
+      - {code: A-1, name: one}
+"""
+    other = "subject: physics\ngrade_band: [8, 9]\nnodes:\n  - {code: P, name: p}\n"
+    await import_yaml(db, _write(tmp_path, other))
+    await import_yaml(db, _write(tmp_path, v1))
+    ids = {k.code: k.id for k in (await db.execute(select(KnowledgePoint))).scalars()}
+    page = await make_done_page(1)
+    db.add_all([
+        QuestionResult(page_id=page.id, question_no=no, knowledge_point_id=ids[code])
+        for no, code in [("1", "A-1"), ("2", "A-2"), ("3", "B-1")]
+    ])
+    await db.commit()
+
+    assert await import_yaml(db, _write(tmp_path, v2), prune=True) == 2
+
+    codes = {k.code for k in (await db.execute(select(KnowledgePoint))).scalars()}
+    assert codes == {"A", "A-1", "P"}  # other subjects untouched
+    rows = (
+        await db.execute(
+            select(QuestionResult.question_no, QuestionResult.knowledge_point_id)
+            .order_by(QuestionResult.question_no)
+            .execution_options(populate_existing=True)
+        )
+    ).all()
+    assert [tuple(r) for r in rows] == [("1", ids["A-1"]), ("2", None), ("3", None)]
+
+
+async def test_without_prune_absent_nodes_stay(db, tmp_path):
+    await import_yaml(db, _write(tmp_path, "subject: math\ngrade_band: [5, 6]\nnodes:\n  - {code: X, name: x}\n"))
+    await import_yaml(db, _write(tmp_path, "subject: math\ngrade_band: [5, 6]\nnodes:\n  - {code: Y, name: y}\n"))
+    assert {k.code for k in (await db.execute(select(KnowledgePoint))).scalars()} == {"X", "Y"}
+
+
+async def test_cli_prune_expands_globs(db, settings, tmp_path, capsys):
+    files = tmp_path / "set"
+    files.mkdir()
+    (files / "a.yaml").write_text("subject: math\ngrade_band: [5, 6]\nnodes:\n  - {code: X, name: x}\n",
+                                  encoding="utf-8")
+    (files / "b.yaml").write_text("subject: physics\ngrade_band: [8, 9]\nnodes:\n  - {code: P, name: p}\n",
+                                  encoding="utf-8")
+    await import_yaml(db, _write(tmp_path, "subject: math\ngrade_band: [5, 6]\nnodes:\n  - {code: OLD, name: o}\n"))
+    assert await asyncio.to_thread(main, ["--prune", str(files / "*.yaml")]) == 0
+    codes = {k.code for k in (await db.execute(select(KnowledgePoint).execution_options(populate_existing=True)))
+             .scalars()}
+    assert codes == {"X", "P"}
+    out = capsys.readouterr().out
+    assert "a.yaml" in out and "b.yaml" in out
 
 
 @pytest.mark.parametrize(

@@ -1,0 +1,158 @@
+# 物理（8～9 年级）知识点库
+# 依据义务教育课程标准（2022 年版）生成，未经教师审核，待试用反馈修订
+# 版本：2026-10-22
+# 结构：领域 → 主题 → 知识点；叶子的 grade_band 为常见教材讲授该内容的年级。
+# 改名或删点后重新导入：python -m app.knowledge.loader --prune data/knowledge/*.yaml
+subject: physics
+grade_band: [8, 9]
+nodes:
+  - code: PH-PM
+    name: 物质
+    children:
+      - code: PH-PM-01
+        name: 物态变化
+        grade_band: [8, 8]
+        children:
+          - {code: PH-PM-01-01, name: 温度与温度计, grade_band: [8, 8]}
+          - {code: PH-PM-01-02, name: 熔化和凝固, grade_band: [8, 8]}
+          - {code: PH-PM-01-03, name: 汽化和液化, grade_band: [8, 8]}
+          - {code: PH-PM-01-04, name: 升华和凝华, grade_band: [8, 8]}
+      - code: PH-PM-02
+        name: 质量与密度
+        grade_band: [8, 8]
+        children:
+          - {code: PH-PM-02-01, name: 质量及其测量, grade_band: [8, 8]}
+          - {code: PH-PM-02-02, name: 密度, grade_band: [8, 8]}
+          - {code: PH-PM-02-03, name: 测量物质的密度, grade_band: [8, 8]}
+          - {code: PH-PM-02-04, name: 密度与社会生活, grade_band: [8, 8]}
+      - code: PH-PM-03
+        name: 物质的结构
+        grade_band: [9, 9]
+        children:
+          - {code: PH-PM-03-01, name: 分子热运动, grade_band: [9, 9]}
+          - {code: PH-PM-03-02, name: 两种电荷, grade_band: [9, 9]}
+  - code: PH-MI
+    name: 运动和相互作用
+    children:
+      - code: PH-MI-01
+        name: 机械运动
+        grade_band: [8, 8]
+        children:
+          - {code: PH-MI-01-01, name: 长度和时间的测量, grade_band: [8, 8]}
+          - {code: PH-MI-01-02, name: 运动的描述与参照物, grade_band: [8, 8]}
+          - {code: PH-MI-01-03, name: 速度, grade_band: [8, 8]}
+          - {code: PH-MI-01-04, name: 平均速度的测量, grade_band: [8, 8]}
+      - code: PH-MI-02
+        name: 声现象
+        grade_band: [8, 8]
+        children:
+          - {code: PH-MI-02-01, name: 声音的产生与传播, grade_band: [8, 8]}
+          - {code: PH-MI-02-02, name: 音调、响度和音色, grade_band: [8, 8]}
+          - {code: PH-MI-02-03, name: 声的利用, grade_band: [8, 8]}
+          - {code: PH-MI-02-04, name: 噪声的危害和控制, grade_band: [8, 8]}
+      - code: PH-MI-03
+        name: 光现象与透镜
+        grade_band: [8, 8]
+        children:
+          - {code: PH-MI-03-01, name: 光的直线传播, grade_band: [8, 8]}
+          - {code: PH-MI-03-02, name: 光的反射, grade_band: [8, 8]}
+          - {code: PH-MI-03-03, name: 平面镜成像, grade_band: [8, 8]}
+          - {code: PH-MI-03-04, name: 光的折射, grade_band: [8, 8]}
+          - {code: PH-MI-03-05, name: 光的色散与看不见的光, grade_band: [8, 8]}
+          - {code: PH-MI-03-06, name: 透镜, grade_band: [8, 8]}
+          - {code: PH-MI-03-07, name: 凸透镜成像规律, grade_band: [8, 8]}
+          - {code: PH-MI-03-08, name: 生活中的透镜, grade_band: [8, 8]}
+          - {code: PH-MI-03-09, name: 眼睛和眼镜, grade_band: [8, 8]}
+          - {code: PH-MI-03-10, name: 显微镜和望远镜, grade_band: [8, 8]}
+      - code: PH-MI-04
+        name: 力与运动
+        grade_band: [8, 8]
+        children:
+          - {code: PH-MI-04-01, name: 力的概念与作用效果, grade_band: [8, 8]}
+          - {code: PH-MI-04-02, name: 弹力与弹簧测力计, grade_band: [8, 8]}
+          - {code: PH-MI-04-03, name: 重力, grade_band: [8, 8]}
+          - {code: PH-MI-04-04, name: 摩擦力, grade_band: [8, 8]}
+          - {code: PH-MI-04-05, name: 牛顿第一定律与惯性, grade_band: [8, 8]}
+          - {code: PH-MI-04-06, name: 二力平衡, grade_band: [8, 8]}
+      - code: PH-MI-05
+        name: 压强与浮力
+        grade_band: [8, 8]
+        children:
+          - {code: PH-MI-05-01, name: 压强, grade_band: [8, 8]}
+          - {code: PH-MI-05-02, name: 液体的压强, grade_band: [8, 8]}
+          - {code: PH-MI-05-03, name: 大气压强, grade_band: [8, 8]}
+          - {code: PH-MI-05-04, name: 流体压强与流速的关系, grade_band: [8, 8]}
+          - {code: PH-MI-05-05, name: 浮力, grade_band: [8, 8]}
+          - {code: PH-MI-05-06, name: 阿基米德原理, grade_band: [8, 8]}
+          - {code: PH-MI-05-07, name: 物体的浮沉条件及应用, grade_band: [8, 8]}
+      - code: PH-MI-06
+        name: 电和磁
+        grade_band: [9, 9]
+        children:
+          - {code: PH-MI-06-01, name: 磁现象与磁场, grade_band: [9, 9]}
+          - {code: PH-MI-06-02, name: 电生磁, grade_band: [9, 9]}
+          - {code: PH-MI-06-03, name: 电磁铁与电磁继电器, grade_band: [9, 9]}
+          - {code: PH-MI-06-04, name: 电动机, grade_band: [9, 9]}
+          - {code: PH-MI-06-05, name: 磁生电与发电机, grade_band: [9, 9]}
+          - {code: PH-MI-06-06, name: 电磁波与信息的传递, grade_band: [9, 9]}
+  - code: PH-EN
+    name: 能量
+    children:
+      - code: PH-EN-01
+        name: 机械能与简单机械
+        grade_band: [8, 8]
+        children:
+          - {code: PH-EN-01-01, name: 功, grade_band: [8, 8]}
+          - {code: PH-EN-01-02, name: 功率, grade_band: [8, 8]}
+          - {code: PH-EN-01-03, name: 动能和势能, grade_band: [8, 8]}
+          - {code: PH-EN-01-04, name: 机械能及其转化, grade_band: [8, 8]}
+          - {code: PH-EN-01-05, name: 杠杆, grade_band: [8, 8]}
+          - {code: PH-EN-01-06, name: 滑轮, grade_band: [8, 8]}
+          - {code: PH-EN-01-07, name: 机械效率, grade_band: [8, 8]}
+      - code: PH-EN-02
+        name: 内能及其利用
+        grade_band: [9, 9]
+        children:
+          - {code: PH-EN-02-01, name: 内能, grade_band: [9, 9]}
+          - {code: PH-EN-02-02, name: 比热容, grade_band: [9, 9]}
+          - {code: PH-EN-02-03, name: 热机, grade_band: [9, 9]}
+          - {code: PH-EN-02-04, name: 热机的效率, grade_band: [9, 9]}
+          - {code: PH-EN-02-05, name: 能量的转化和守恒, grade_band: [9, 9]}
+      - code: PH-EN-03
+        name: 电流和电路
+        grade_band: [9, 9]
+        children:
+          - {code: PH-EN-03-01, name: 电流和电路, grade_band: [9, 9]}
+          - {code: PH-EN-03-02, name: 串联和并联, grade_band: [9, 9]}
+          - {code: PH-EN-03-03, name: 电流的测量, grade_band: [9, 9]}
+          - {code: PH-EN-03-04, name: 串、并联电路中电流的规律, grade_band: [9, 9]}
+          - {code: PH-EN-03-05, name: 电压, grade_band: [9, 9]}
+          - {code: PH-EN-03-06, name: 串、并联电路中电压的规律, grade_band: [9, 9]}
+          - {code: PH-EN-03-07, name: 电阻, grade_band: [9, 9]}
+          - {code: PH-EN-03-08, name: 变阻器, grade_band: [9, 9]}
+      - code: PH-EN-04
+        name: 欧姆定律
+        grade_band: [9, 9]
+        children:
+          - {code: PH-EN-04-01, name: 电流与电压和电阻的关系, grade_band: [9, 9]}
+          - {code: PH-EN-04-02, name: 欧姆定律, grade_band: [9, 9]}
+          - {code: PH-EN-04-03, name: 伏安法测电阻, grade_band: [9, 9]}
+          - {code: PH-EN-04-04, name: 欧姆定律在串、并联电路中的应用, grade_band: [9, 9]}
+      - code: PH-EN-05
+        name: 电功率与生活用电
+        grade_band: [9, 9]
+        children:
+          - {code: PH-EN-05-01, name: 电能与电功, grade_band: [9, 9]}
+          - {code: PH-EN-05-02, name: 电功率, grade_band: [9, 9]}
+          - {code: PH-EN-05-03, name: 测量小灯泡的电功率, grade_band: [9, 9]}
+          - {code: PH-EN-05-04, name: 焦耳定律, grade_band: [9, 9]}
+          - {code: PH-EN-05-05, name: 家庭电路, grade_band: [9, 9]}
+          - {code: PH-EN-05-06, name: 家庭电路中电流过大的原因, grade_band: [9, 9]}
+          - {code: PH-EN-05-07, name: 安全用电, grade_band: [9, 9]}
+      - code: PH-EN-06
+        name: 能源与可持续发展
+        grade_band: [9, 9]
+        children:
+          - {code: PH-EN-06-01, name: 能源的分类, grade_band: [9, 9]}
+          - {code: PH-EN-06-02, name: 核能与太阳能, grade_band: [9, 9]}
+          - {code: PH-EN-06-03, name: 能源利用与环境保护, grade_band: [9, 9]}

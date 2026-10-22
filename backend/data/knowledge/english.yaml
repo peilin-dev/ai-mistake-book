@@ -1,0 +1,151 @@
+# 英语（3～9 年级）知识点库
+# 依据义务教育课程标准（2022 年版）生成，未经教师审核，待试用反馈修订
+# 版本：2026-10-22
+# 结构：领域 → 主题 → 知识点；叶子的 grade_band 为常见教材讲授该内容的年级。
+# 改名或删点后重新导入：python -m app.knowledge.loader --prune data/knowledge/*.yaml
+subject: english
+grade_band: [3, 9]
+nodes:
+  - code: EN-PH
+    name: 语言知识：语音
+    children:
+      - code: EN-PH-01
+        name: 字母与发音
+        grade_band: [3, 9]
+        children:
+          - {code: EN-PH-01-01, name: 26个字母的认读, grade_band: [3, 3]}
+          - {code: EN-PH-01-02, name: 字母与单词书写, grade_band: [3, 4]}
+          - {code: EN-PH-01-03, name: 元音字母在闭音节中的发音, grade_band: [3, 3]}
+          - {code: EN-PH-01-04, name: 元音字母在开音节中的发音, grade_band: [4, 4]}
+          - {code: EN-PH-01-05, name: 字母组合的发音, grade_band: [4, 6]}
+          - {code: EN-PH-01-06, name: 国际音标, grade_band: [7, 7]}
+          - {code: EN-PH-01-07, name: 句子重音与语调, grade_band: [7, 9]}
+          - {code: EN-PH-01-08, name: 连读与失去爆破, grade_band: [8, 9]}
+  - code: EN-VO
+    name: 语言知识：词汇
+    children:
+      - code: EN-VO-01
+        name: 主题词汇
+        grade_band: [3, 6]
+        children:
+          - {code: EN-VO-01-01, name: 颜色词汇, grade_band: [3, 3]}
+          - {code: EN-VO-01-02, name: 身体部位词汇, grade_band: [3, 3]}
+          - {code: EN-VO-01-03, name: 动物词汇, grade_band: [3, 3]}
+          - {code: EN-VO-01-04, name: 食物与饮料词汇, grade_band: [3, 4]}
+          - {code: EN-VO-01-05, name: 家庭成员词汇, grade_band: [3, 3]}
+          - {code: EN-VO-01-06, name: 文具词汇, grade_band: [3, 3]}
+          - {code: EN-VO-01-07, name: 数字词汇, grade_band: [3, 4]}
+          - {code: EN-VO-01-08, name: 学校与教室词汇, grade_band: [4, 4]}
+          - {code: EN-VO-01-09, name: 天气词汇, grade_band: [4, 4]}
+          - {code: EN-VO-01-10, name: 服装词汇, grade_band: [4, 4]}
+          - {code: EN-VO-01-11, name: 家居与房间词汇, grade_band: [4, 5]}
+          - {code: EN-VO-01-12, name: 职业词汇, grade_band: [4, 6]}
+          - {code: EN-VO-01-13, name: 星期与课程词汇, grade_band: [5, 5]}
+          - {code: EN-VO-01-14, name: 月份词汇, grade_band: [5, 5]}
+          - {code: EN-VO-01-15, name: 爱好与活动词汇, grade_band: [5, 6]}
+          - {code: EN-VO-01-16, name: 交通方式词汇, grade_band: [6, 6]}
+          - {code: EN-VO-01-17, name: 地点与场所词汇, grade_band: [6, 6]}
+          - {code: EN-VO-01-18, name: 情感词汇, grade_band: [6, 6]}
+      - code: EN-VO-02
+        name: 构词与搭配
+        grade_band: [7, 9]
+        children:
+          - {code: EN-VO-02-01, name: 词形变化, grade_band: [7, 9]}
+          - {code: EN-VO-02-02, name: 固定搭配与短语动词, grade_band: [7, 9]}
+          - {code: EN-VO-02-03, name: 构词法, grade_band: [8, 9]}
+  - code: EN-GR
+    name: 语言知识：语法
+    children:
+      - code: EN-GR-01
+        name: 词法
+        grade_band: [3, 9]
+        children:
+          - {code: EN-GR-01-01, name: 名词单复数, grade_band: [3, 5]}
+          - {code: EN-GR-01-02, name: 可数名词与不可数名词, grade_band: [7, 7]}
+          - {code: EN-GR-01-03, name: 名词所有格, grade_band: [7, 7]}
+          - {code: EN-GR-01-04, name: 冠词的用法, grade_band: [7, 7]}
+          - {code: EN-GR-01-05, name: 人称代词, grade_band: [3, 5]}
+          - {code: EN-GR-01-06, name: 物主代词, grade_band: [4, 6]}
+          - {code: EN-GR-01-07, name: 人称代词与物主代词, grade_band: [7, 7]}
+          - {code: EN-GR-01-08, name: 反身代词, grade_band: [8, 8]}
+          - {code: EN-GR-01-09, name: 不定代词, grade_band: [8, 8]}
+          - {code: EN-GR-01-10, name: 基数词与序数词, grade_band: [5, 7]}
+          - {code: EN-GR-01-11, name: 形容词比较级, grade_band: [6, 6]}
+          - {code: EN-GR-01-12, name: 形容词和副词的比较级与最高级, grade_band: [8, 8]}
+          - {code: EN-GR-01-13, name: 频度副词, grade_band: [7, 8]}
+          - {code: EN-GR-01-14, name: 方位介词, grade_band: [3, 5]}
+          - {code: EN-GR-01-15, name: 时间介词, grade_band: [5, 7]}
+          - {code: EN-GR-01-16, name: 连词, grade_band: [8, 9]}
+          - {code: EN-GR-01-17, name: 情态动词can, grade_band: [4, 5]}
+          - {code: EN-GR-01-18, name: 情态动词, grade_band: [7, 9]}
+      - code: EN-GR-02
+        name: 动词的时态与语态
+        grade_band: [3, 9]
+        children:
+          - {code: EN-GR-02-01, name: be动词的用法, grade_band: [3, 5]}
+          - {code: EN-GR-02-02, name: 一般现在时, grade_band: [5, 7]}
+          - {code: EN-GR-02-03, name: 现在进行时, grade_band: [5, 7]}
+          - {code: EN-GR-02-04, name: 一般过去时, grade_band: [6, 8]}
+          - {code: EN-GR-02-05, name: 一般将来时, grade_band: [6, 8]}
+          - {code: EN-GR-02-06, name: 过去进行时, grade_band: [8, 8]}
+          - {code: EN-GR-02-07, name: 现在完成时, grade_band: [8, 9]}
+          - {code: EN-GR-02-08, name: 过去完成时, grade_band: [9, 9]}
+          - {code: EN-GR-02-09, name: 过去将来时, grade_band: [9, 9]}
+          - {code: EN-GR-02-10, name: 被动语态, grade_band: [9, 9]}
+          - {code: EN-GR-02-11, name: 动词不定式, grade_band: [8, 8]}
+          - {code: EN-GR-02-12, name: 动名词, grade_band: [8, 9]}
+      - code: EN-GR-03
+        name: 句法
+        grade_band: [3, 9]
+        children:
+          - {code: EN-GR-03-01, name: 一般疑问句, grade_band: [3, 6]}
+          - {code: EN-GR-03-02, name: 特殊疑问句, grade_band: [3, 6]}
+          - {code: EN-GR-03-03, name: 祈使句, grade_band: [3, 7]}
+          - {code: EN-GR-03-04, name: There be句型, grade_band: [5, 7]}
+          - {code: EN-GR-03-05, name: 感叹句, grade_band: [7, 8]}
+          - {code: EN-GR-03-06, name: 反意疑问句, grade_band: [8, 9]}
+          - {code: EN-GR-03-07, name: 宾语从句, grade_band: [8, 9]}
+          - {code: EN-GR-03-08, name: 时间状语从句, grade_band: [8, 9]}
+          - {code: EN-GR-03-09, name: 条件状语从句, grade_band: [8, 9]}
+          - {code: EN-GR-03-10, name: 定语从句, grade_band: [9, 9]}
+          - {code: EN-GR-03-11, name: 主谓一致, grade_band: [9, 9]}
+  - code: EN-SK
+    name: 语言技能
+    children:
+      - code: EN-SK-01
+        name: 交际功能
+        grade_band: [3, 9]
+        children:
+          - {code: EN-SK-01-01, name: 问候与介绍, grade_band: [3, 3]}
+          - {code: EN-SK-01-02, name: 询问与表达喜好, grade_band: [3, 4]}
+          - {code: EN-SK-01-03, name: 询问时间, grade_band: [4, 4]}
+          - {code: EN-SK-01-04, name: 询问价格与购物, grade_band: [4, 4]}
+          - {code: EN-SK-01-05, name: 询问与描述天气, grade_band: [4, 4]}
+          - {code: EN-SK-01-06, name: 询问与描述能力, grade_band: [5, 5]}
+          - {code: EN-SK-01-07, name: 问路与指路, grade_band: [6, 6]}
+          - {code: EN-SK-01-08, name: 情景交际, grade_band: [7, 9]}
+      - code: EN-SK-02
+        name: 听说读写
+        grade_band: [3, 9]
+        children:
+          - {code: EN-SK-02-01, name: 听力理解, grade_band: [3, 9]}
+          - {code: EN-SK-02-02, name: 阅读理解, grade_band: [3, 6]}
+          - {code: EN-SK-02-03, name: 阅读：细节理解, grade_band: [7, 9]}
+          - {code: EN-SK-02-04, name: 阅读：主旨大意, grade_band: [7, 9]}
+          - {code: EN-SK-02-05, name: 阅读：推理判断, grade_band: [7, 9]}
+          - {code: EN-SK-02-06, name: 阅读：词义猜测, grade_band: [7, 9]}
+          - {code: EN-SK-02-07, name: 完形填空, grade_band: [7, 9]}
+          - {code: EN-SK-02-08, name: 任务型阅读, grade_band: [8, 9]}
+          - {code: EN-SK-02-09, name: 补全对话, grade_band: [7, 9]}
+          - {code: EN-SK-02-10, name: 短文语法填空, grade_band: [7, 9]}
+          - {code: EN-SK-02-11, name: 看图写单词, grade_band: [3, 4]}
+          - {code: EN-SK-02-12, name: 书面表达, grade_band: [5, 9]}
+  - code: EN-CU
+    name: 文化知识
+    children:
+      - code: EN-CU-01
+        name: 中外文化
+        grade_band: [5, 9]
+        children:
+          - {code: EN-CU-01-01, name: 中外节日与习俗, grade_band: [5, 9]}
+          - {code: EN-CU-01-02, name: 中外文化差异与礼仪, grade_band: [7, 9]}

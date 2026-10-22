@@ -1,0 +1,431 @@
+# 数学（1～9 年级）知识点库
+# 依据义务教育课程标准（2022 年版）生成，未经教师审核，待试用反馈修订
+# 版本：2026-10-22
+# 结构：领域 → 主题 → 知识点；叶子的 grade_band 为常见教材讲授该内容的年级。
+# 改名或删点后重新导入：python -m app.knowledge.loader --prune data/knowledge/*.yaml
+subject: math
+grade_band: [1, 9]
+nodes:
+  - code: MA-NA
+    name: 数与代数
+    children:
+      - code: MA-NA-01
+        name: 整数的认识
+        grade_band: [1, 4]
+        children:
+          - {code: MA-NA-01-01, name: 1～5的认识, grade_band: [1, 1]}
+          - {code: MA-NA-01-02, name: 0的认识, grade_band: [1, 1]}
+          - {code: MA-NA-01-03, name: 6～10的认识, grade_band: [1, 1]}
+          - {code: MA-NA-01-04, name: 10以内数的分与合, grade_band: [1, 1]}
+          - {code: MA-NA-01-05, name: 第几与几个, grade_band: [1, 1]}
+          - {code: MA-NA-01-06, name: 11～20各数的认识, grade_band: [1, 1]}
+          - {code: MA-NA-01-07, name: 100以内数的认识, grade_band: [1, 1]}
+          - {code: MA-NA-01-08, name: 1000以内数的认识, grade_band: [2, 2]}
+          - {code: MA-NA-01-09, name: 万以内数的认识, grade_band: [2, 2]}
+          - {code: MA-NA-01-10, name: 近似数, grade_band: [2, 2]}
+          - {code: MA-NA-01-11, name: 亿以内数的认识, grade_band: [4, 4]}
+          - {code: MA-NA-01-12, name: 亿以上数的认识, grade_band: [4, 4]}
+          - {code: MA-NA-01-13, name: 用万和亿作单位改写与求近似数, grade_band: [4, 4]}
+          - {code: MA-NA-01-14, name: 数的产生与十进制计数法, grade_band: [4, 4]}
+      - code: MA-NA-02
+        name: 整数的运算
+        grade_band: [1, 4]
+        children:
+          - {code: MA-NA-02-01, name: 10以内的加法和减法, grade_band: [1, 1]}
+          - {code: MA-NA-02-02, name: 连加连减与加减混合, grade_band: [1, 1]}
+          - {code: MA-NA-02-03, name: 20以内的进位加法, grade_band: [1, 1]}
+          - {code: MA-NA-02-04, name: 20以内的退位减法, grade_band: [1, 1]}
+          - {code: MA-NA-02-05, name: 整十数加减整十数, grade_band: [1, 1]}
+          - {code: MA-NA-02-06, name: 两位数加减一位数, grade_band: [1, 1]}
+          - {code: MA-NA-02-07, name: 两位数加两位数的笔算, grade_band: [2, 2]}
+          - {code: MA-NA-02-08, name: 两位数减两位数的笔算, grade_band: [2, 2]}
+          - {code: MA-NA-02-09, name: 两位数连加连减和加减混合, grade_band: [2, 2]}
+          - {code: MA-NA-02-10, name: 乘法的初步认识, grade_band: [2, 2]}
+          - {code: MA-NA-02-11, name: 2～6的乘法口诀, grade_band: [2, 2]}
+          - {code: MA-NA-02-12, name: 7～9的乘法口诀, grade_band: [2, 2]}
+          - {code: MA-NA-02-13, name: 平均分与除法的初步认识, grade_band: [2, 2]}
+          - {code: MA-NA-02-14, name: 用乘法口诀求商, grade_band: [2, 2]}
+          - {code: MA-NA-02-15, name: 有余数的除法, grade_band: [2, 2]}
+          - {code: MA-NA-02-16, name: 整百整千数的加减法, grade_band: [2, 2]}
+          - {code: MA-NA-02-17, name: 含小括号的混合运算, grade_band: [2, 2]}
+          - {code: MA-NA-02-18, name: 三位数加法, grade_band: [3, 3]}
+          - {code: MA-NA-02-19, name: 三位数减法, grade_band: [3, 3]}
+          - {code: MA-NA-02-20, name: 加减法的估算, grade_band: [3, 3]}
+          - {code: MA-NA-02-21, name: 多位数乘一位数, grade_band: [3, 3]}
+          - {code: MA-NA-02-22, name: 倍的认识, grade_band: [3, 3]}
+          - {code: MA-NA-02-23, name: 一位数除多位数的笔算, grade_band: [3, 3]}
+          - {code: MA-NA-02-24, name: 商中间或末尾有0的除法, grade_band: [3, 3]}
+          - {code: MA-NA-02-25, name: 两位数乘两位数, grade_band: [3, 3]}
+          - {code: MA-NA-02-26, name: 三位数乘两位数, grade_band: [4, 4]}
+          - {code: MA-NA-02-27, name: 除数是两位数的除法, grade_band: [4, 4]}
+          - {code: MA-NA-02-28, name: 商的变化规律, grade_band: [4, 4]}
+          - {code: MA-NA-02-29, name: 四则混合运算的顺序, grade_band: [4, 4]}
+          - {code: MA-NA-02-30, name: 加法运算定律, grade_band: [4, 4]}
+          - {code: MA-NA-02-31, name: 乘法交换律和结合律, grade_band: [4, 4]}
+          - {code: MA-NA-02-32, name: 乘法分配律, grade_band: [4, 4]}
+          - {code: MA-NA-02-33, name: 减法和除法的简便运算, grade_band: [4, 4]}
+      - code: MA-NA-03
+        name: 小数
+        grade_band: [3, 5]
+        children:
+          - {code: MA-NA-03-01, name: 小数的初步认识, grade_band: [3, 3]}
+          - {code: MA-NA-03-02, name: 小数的意义, grade_band: [4, 4]}
+          - {code: MA-NA-03-03, name: 小数的性质与大小比较, grade_band: [4, 4]}
+          - {code: MA-NA-03-04, name: 小数点移动引起数的大小变化, grade_band: [4, 4]}
+          - {code: MA-NA-03-05, name: 小数的近似数, grade_band: [4, 4]}
+          - {code: MA-NA-03-06, name: 小数加减法, grade_band: [4, 5]}
+          - {code: MA-NA-03-07, name: 小数乘整数, grade_band: [5, 5]}
+          - {code: MA-NA-03-08, name: 小数乘小数, grade_band: [5, 5]}
+          - {code: MA-NA-03-09, name: 积的近似数, grade_band: [5, 5]}
+          - {code: MA-NA-03-10, name: 整数乘法运算定律推广到小数, grade_band: [5, 5]}
+          - {code: MA-NA-03-11, name: 除数是整数的小数除法, grade_band: [5, 5]}
+          - {code: MA-NA-03-12, name: 一个数除以小数, grade_band: [5, 5]}
+          - {code: MA-NA-03-13, name: 商的近似数, grade_band: [5, 5]}
+          - {code: MA-NA-03-14, name: 循环小数, grade_band: [5, 5]}
+      - code: MA-NA-04
+        name: 因数与倍数
+        grade_band: [5, 5]
+        children:
+          - {code: MA-NA-04-01, name: 因数和倍数的认识, grade_band: [5, 5]}
+          - {code: MA-NA-04-02, name: 2、5、3的倍数的特征, grade_band: [5, 5]}
+          - {code: MA-NA-04-03, name: 质数和合数, grade_band: [5, 5]}
+          - {code: MA-NA-04-04, name: 奇数和偶数, grade_band: [5, 5]}
+          - {code: MA-NA-04-05, name: 最大公因数, grade_band: [5, 5]}
+          - {code: MA-NA-04-06, name: 最小公倍数, grade_band: [5, 5]}
+      - code: MA-NA-05
+        name: 分数与百分数
+        grade_band: [3, 6]
+        children:
+          - {code: MA-NA-05-01, name: 分数的初步认识, grade_band: [3, 3]}
+          - {code: MA-NA-05-02, name: 简单的分数加减法, grade_band: [3, 3]}
+          - {code: MA-NA-05-03, name: 分数的意义, grade_band: [5, 5]}
+          - {code: MA-NA-05-04, name: 真分数和假分数, grade_band: [5, 5]}
+          - {code: MA-NA-05-05, name: 分数的基本性质, grade_band: [5, 5]}
+          - {code: MA-NA-05-06, name: 约分, grade_band: [5, 5]}
+          - {code: MA-NA-05-07, name: 通分, grade_band: [5, 5]}
+          - {code: MA-NA-05-08, name: 分数和小数的互化, grade_band: [5, 5]}
+          - {code: MA-NA-05-09, name: 同分母分数加减法, grade_band: [5, 5]}
+          - {code: MA-NA-05-10, name: 异分母分数加减法, grade_band: [5, 5]}
+          - {code: MA-NA-05-11, name: 分数加减混合运算, grade_band: [5, 5]}
+          - {code: MA-NA-05-12, name: 分数乘整数, grade_band: [6, 6]}
+          - {code: MA-NA-05-13, name: 分数乘分数, grade_band: [6, 6]}
+          - {code: MA-NA-05-14, name: 分数乘法的应用, grade_band: [6, 6]}
+          - {code: MA-NA-05-15, name: 倒数的认识, grade_band: [6, 6]}
+          - {code: MA-NA-05-16, name: 分数除法, grade_band: [6, 6]}
+          - {code: MA-NA-05-17, name: 分数除法的应用, grade_band: [6, 6]}
+          - {code: MA-NA-05-18, name: 分数四则混合运算, grade_band: [6, 6]}
+          - {code: MA-NA-05-19, name: 百分数的意义, grade_band: [6, 6]}
+          - {code: MA-NA-05-20, name: 百分数与分数、小数的互化, grade_band: [6, 6]}
+          - {code: MA-NA-05-21, name: 用百分数解决问题, grade_band: [6, 6]}
+          - {code: MA-NA-05-22, name: 折扣、成数、税率和利率, grade_band: [6, 6]}
+      - code: MA-NA-06
+        name: 常见的量
+        grade_band: [1, 3]
+        children:
+          - {code: MA-NA-06-01, name: 认识人民币, grade_band: [1, 1]}
+          - {code: MA-NA-06-02, name: 认识钟表, grade_band: [1, 1]}
+          - {code: MA-NA-06-03, name: 认识时间, grade_band: [2, 2]}
+          - {code: MA-NA-06-04, name: 克和千克, grade_band: [2, 2]}
+          - {code: MA-NA-06-05, name: 时、分、秒, grade_band: [3, 3]}
+          - {code: MA-NA-06-06, name: 吨的认识, grade_band: [3, 3]}
+          - {code: MA-NA-06-07, name: 年、月、日, grade_band: [3, 3]}
+          - {code: MA-NA-06-08, name: 24时计时法, grade_band: [3, 3]}
+      - code: MA-NA-07
+        name: 式与方程（小学）
+        grade_band: [5, 5]
+        children:
+          - {code: MA-NA-07-01, name: 用字母表示数, grade_band: [5, 5]}
+          - {code: MA-NA-07-02, name: 方程的意义, grade_band: [5, 5]}
+          - {code: MA-NA-07-03, name: 等式的性质, grade_band: [5, 5]}
+          - {code: MA-NA-07-04, name: 解简易方程, grade_band: [5, 5]}
+          - {code: MA-NA-07-05, name: 列方程解决实际问题, grade_band: [5, 5]}
+      - code: MA-NA-08
+        name: 比和比例
+        grade_band: [6, 6]
+        children:
+          - {code: MA-NA-08-01, name: 比的意义和基本性质, grade_band: [6, 6]}
+          - {code: MA-NA-08-02, name: 按比分配, grade_band: [6, 6]}
+          - {code: MA-NA-08-03, name: 比例的意义和基本性质, grade_band: [6, 6]}
+          - {code: MA-NA-08-04, name: 解比例, grade_band: [6, 6]}
+          - {code: MA-NA-08-05, name: 正比例, grade_band: [6, 6]}
+          - {code: MA-NA-08-06, name: 反比例, grade_band: [6, 6]}
+          - {code: MA-NA-08-07, name: 用比例解决问题, grade_band: [6, 6]}
+      - code: MA-NA-09
+        name: 有理数
+        grade_band: [6, 7]
+        children:
+          - {code: MA-NA-09-01, name: 负数的初步认识, grade_band: [6, 6]}
+          - {code: MA-NA-09-02, name: 正数和负数, grade_band: [7, 7]}
+          - {code: MA-NA-09-03, name: 有理数与数轴, grade_band: [7, 7]}
+          - {code: MA-NA-09-04, name: 相反数与绝对值, grade_band: [7, 7]}
+          - {code: MA-NA-09-05, name: 有理数的大小比较, grade_band: [7, 7]}
+          - {code: MA-NA-09-06, name: 有理数的加法, grade_band: [7, 7]}
+          - {code: MA-NA-09-07, name: 有理数的减法, grade_band: [7, 7]}
+          - {code: MA-NA-09-08, name: 有理数的乘法, grade_band: [7, 7]}
+          - {code: MA-NA-09-09, name: 有理数的除法, grade_band: [7, 7]}
+          - {code: MA-NA-09-10, name: 有理数的乘方, grade_band: [7, 7]}
+          - {code: MA-NA-09-11, name: 有理数的混合运算, grade_band: [7, 7]}
+          - {code: MA-NA-09-12, name: 科学记数法与近似数, grade_band: [7, 7]}
+      - code: MA-NA-10
+        name: 实数
+        grade_band: [7, 8]
+        children:
+          - {code: MA-NA-10-01, name: 平方根, grade_band: [7, 7]}
+          - {code: MA-NA-10-02, name: 立方根, grade_band: [7, 7]}
+          - {code: MA-NA-10-03, name: 实数的概念与运算, grade_band: [7, 7]}
+          - {code: MA-NA-10-04, name: 二次根式的概念与性质, grade_band: [8, 8]}
+          - {code: MA-NA-10-05, name: 二次根式的乘除, grade_band: [8, 8]}
+          - {code: MA-NA-10-06, name: 二次根式的加减, grade_band: [8, 8]}
+      - code: MA-NA-11
+        name: 代数式
+        grade_band: [7, 8]
+        children:
+          - {code: MA-NA-11-01, name: 代数式与代数式的值, grade_band: [7, 7]}
+          - {code: MA-NA-11-02, name: 单项式与多项式, grade_band: [7, 7]}
+          - {code: MA-NA-11-03, name: 合并同类项, grade_band: [7, 7]}
+          - {code: MA-NA-11-04, name: 去括号, grade_band: [7, 7]}
+          - {code: MA-NA-11-05, name: 整式的加减, grade_band: [7, 7]}
+          - {code: MA-NA-11-06, name: 幂的运算, grade_band: [8, 8]}
+          - {code: MA-NA-11-07, name: 整式的乘法, grade_band: [8, 8]}
+          - {code: MA-NA-11-08, name: 乘法公式, grade_band: [8, 8]}
+          - {code: MA-NA-11-09, name: 整式的除法, grade_band: [8, 8]}
+          - {code: MA-NA-11-10, name: 提公因式法因式分解, grade_band: [8, 8]}
+          - {code: MA-NA-11-11, name: 公式法因式分解, grade_band: [8, 8]}
+          - {code: MA-NA-11-12, name: 分式的概念与基本性质, grade_band: [8, 8]}
+          - {code: MA-NA-11-13, name: 分式的乘除, grade_band: [8, 8]}
+          - {code: MA-NA-11-14, name: 分式的加减, grade_band: [8, 8]}
+          - {code: MA-NA-11-15, name: 整数指数幂, grade_band: [8, 8]}
+      - code: MA-NA-12
+        name: 方程与不等式
+        grade_band: [7, 9]
+        children:
+          - {code: MA-NA-12-01, name: 等式的性质与方程的解, grade_band: [7, 7]}
+          - {code: MA-NA-12-02, name: 一元一次方程的解法, grade_band: [7, 7]}
+          - {code: MA-NA-12-03, name: 一元一次方程的应用, grade_band: [7, 7]}
+          - {code: MA-NA-12-04, name: 二元一次方程组的概念, grade_band: [7, 7]}
+          - {code: MA-NA-12-05, name: 代入消元法, grade_band: [7, 7]}
+          - {code: MA-NA-12-06, name: 加减消元法, grade_band: [7, 7]}
+          - {code: MA-NA-12-07, name: 二元一次方程组的应用, grade_band: [7, 7]}
+          - {code: MA-NA-12-08, name: 不等式的性质, grade_band: [7, 7]}
+          - {code: MA-NA-12-09, name: 一元一次不等式的解法, grade_band: [7, 7]}
+          - {code: MA-NA-12-10, name: 一元一次不等式组, grade_band: [7, 7]}
+          - {code: MA-NA-12-11, name: 一元一次不等式的应用, grade_band: [7, 7]}
+          - {code: MA-NA-12-12, name: 分式方程, grade_band: [8, 8]}
+          - {code: MA-NA-12-13, name: 一元二次方程的概念, grade_band: [9, 9]}
+          - {code: MA-NA-12-14, name: 配方法解一元二次方程, grade_band: [9, 9]}
+          - {code: MA-NA-12-15, name: 公式法与根的判别式, grade_band: [9, 9]}
+          - {code: MA-NA-12-16, name: 因式分解法解一元二次方程, grade_band: [9, 9]}
+          - {code: MA-NA-12-17, name: 一元二次方程根与系数的关系, grade_band: [9, 9]}
+          - {code: MA-NA-12-18, name: 一元二次方程的应用, grade_band: [9, 9]}
+      - code: MA-NA-13
+        name: 函数
+        grade_band: [8, 9]
+        children:
+          - {code: MA-NA-13-01, name: 变量与函数, grade_band: [8, 8]}
+          - {code: MA-NA-13-02, name: 函数的图象与表示方法, grade_band: [8, 8]}
+          - {code: MA-NA-13-03, name: 正比例函数, grade_band: [8, 8]}
+          - {code: MA-NA-13-04, name: 一次函数的图象与性质, grade_band: [8, 8]}
+          - {code: MA-NA-13-05, name: 待定系数法求一次函数解析式, grade_band: [8, 8]}
+          - {code: MA-NA-13-06, name: 一次函数与方程、不等式, grade_band: [8, 8]}
+          - {code: MA-NA-13-07, name: 一次函数的应用, grade_band: [8, 8]}
+          - {code: MA-NA-13-08, name: 二次函数的概念, grade_band: [9, 9]}
+          - {code: MA-NA-13-09, name: 二次函数的图象与性质, grade_band: [9, 9]}
+          - {code: MA-NA-13-10, name: 二次函数解析式的确定, grade_band: [9, 9]}
+          - {code: MA-NA-13-11, name: 二次函数与一元二次方程, grade_band: [9, 9]}
+          - {code: MA-NA-13-12, name: 二次函数的应用, grade_band: [9, 9]}
+          - {code: MA-NA-13-13, name: 反比例函数的图象与性质, grade_band: [9, 9]}
+          - {code: MA-NA-13-14, name: 反比例函数的应用, grade_band: [9, 9]}
+  - code: MA-GM
+    name: 图形与几何
+    children:
+      - code: MA-GM-01
+        name: 图形的认识（小学）
+        grade_band: [1, 6]
+        children:
+          - {code: MA-GM-01-01, name: 认识立体图形, grade_band: [1, 1]}
+          - {code: MA-GM-01-02, name: 认识平面图形, grade_band: [1, 1]}
+          - {code: MA-GM-01-03, name: 角的初步认识, grade_band: [2, 2]}
+          - {code: MA-GM-01-04, name: 长方形和正方形的认识, grade_band: [3, 3]}
+          - {code: MA-GM-01-05, name: 四边形的认识, grade_band: [3, 3]}
+          - {code: MA-GM-01-06, name: 线段、直线和射线, grade_band: [4, 4]}
+          - {code: MA-GM-01-07, name: 角的度量与分类, grade_band: [4, 4]}
+          - {code: MA-GM-01-08, name: 画角, grade_band: [4, 4]}
+          - {code: MA-GM-01-09, name: 平行与垂直, grade_band: [4, 4]}
+          - {code: MA-GM-01-10, name: 平行四边形和梯形的认识, grade_band: [4, 4]}
+          - {code: MA-GM-01-11, name: 三角形的特性与三边关系, grade_band: [4, 4]}
+          - {code: MA-GM-01-12, name: 三角形的分类, grade_band: [4, 4]}
+          - {code: MA-GM-01-13, name: 三角形的内角和, grade_band: [4, 4]}
+          - {code: MA-GM-01-14, name: 圆的认识, grade_band: [6, 6]}
+          - {code: MA-GM-01-15, name: 扇形的初步认识, grade_band: [6, 6]}
+      - code: MA-GM-02
+        name: 测量（小学）
+        grade_band: [2, 6]
+        children:
+          - {code: MA-GM-02-01, name: 长度单位厘米和米, grade_band: [2, 2]}
+          - {code: MA-GM-02-02, name: 认识线段与量长度, grade_band: [2, 2]}
+          - {code: MA-GM-02-03, name: 毫米、分米和千米, grade_band: [3, 3]}
+          - {code: MA-GM-02-04, name: 周长的认识, grade_band: [3, 3]}
+          - {code: MA-GM-02-05, name: 长方形和正方形的周长, grade_band: [3, 3]}
+          - {code: MA-GM-02-06, name: 面积和面积单位, grade_band: [3, 3]}
+          - {code: MA-GM-02-07, name: 长方形和正方形的面积, grade_band: [3, 5]}
+          - {code: MA-GM-02-08, name: 面积单位间的进率, grade_band: [3, 3]}
+          - {code: MA-GM-02-09, name: 公顷和平方千米, grade_band: [4, 4]}
+          - {code: MA-GM-02-10, name: 平行四边形的面积, grade_band: [5, 5]}
+          - {code: MA-GM-02-11, name: 三角形的面积, grade_band: [5, 5]}
+          - {code: MA-GM-02-12, name: 梯形的面积, grade_band: [5, 5]}
+          - {code: MA-GM-02-13, name: 组合图形的面积, grade_band: [5, 5]}
+          - {code: MA-GM-02-14, name: 圆的周长, grade_band: [6, 6]}
+          - {code: MA-GM-02-15, name: 圆的面积, grade_band: [6, 6]}
+      - code: MA-GM-03
+        name: 立体图形（小学）
+        grade_band: [5, 6]
+        children:
+          - {code: MA-GM-03-01, name: 长方体和正方体的认识, grade_band: [5, 5]}
+          - {code: MA-GM-03-02, name: 长方体和正方体的表面积, grade_band: [5, 5]}
+          - {code: MA-GM-03-03, name: 体积和体积单位, grade_band: [5, 5]}
+          - {code: MA-GM-03-04, name: 长方体和正方体的体积, grade_band: [5, 5]}
+          - {code: MA-GM-03-05, name: 容积和容积单位, grade_band: [5, 5]}
+          - {code: MA-GM-03-06, name: 圆柱的认识与表面积, grade_band: [6, 6]}
+          - {code: MA-GM-03-07, name: 圆柱的体积, grade_band: [6, 6]}
+          - {code: MA-GM-03-08, name: 圆锥的认识与体积, grade_band: [6, 6]}
+      - code: MA-GM-04
+        name: 图形的位置与运动（小学）
+        grade_band: [1, 6]
+        children:
+          - {code: MA-GM-04-01, name: 上下、前后、左右, grade_band: [1, 1]}
+          - {code: MA-GM-04-02, name: 从不同位置观察物体, grade_band: [2, 2]}
+          - {code: MA-GM-04-03, name: 轴对称、平移和旋转的初步认识, grade_band: [2, 2]}
+          - {code: MA-GM-04-04, name: 东南西北与路线图, grade_band: [3, 3]}
+          - {code: MA-GM-04-05, name: 观察物体, grade_band: [4, 4]}
+          - {code: MA-GM-04-06, name: 轴对称与平移, grade_band: [4, 4]}
+          - {code: MA-GM-04-07, name: 用数对确定位置, grade_band: [5, 5]}
+          - {code: MA-GM-04-08, name: 图形的旋转, grade_band: [5, 5]}
+          - {code: MA-GM-04-09, name: 从三个方向观察物体, grade_band: [5, 5]}
+          - {code: MA-GM-04-10, name: 用方向和距离确定位置, grade_band: [6, 6]}
+          - {code: MA-GM-04-11, name: 比例尺, grade_band: [6, 6]}
+          - {code: MA-GM-04-12, name: 图形的放大与缩小, grade_band: [6, 6]}
+      - code: MA-GM-05
+        name: 几何图形初步
+        grade_band: [7, 7]
+        children:
+          - {code: MA-GM-05-01, name: 立体图形与平面展开图, grade_band: [7, 7]}
+          - {code: MA-GM-05-02, name: 直线、射线、线段, grade_band: [7, 7]}
+          - {code: MA-GM-05-03, name: 角的度量与比较, grade_band: [7, 7]}
+          - {code: MA-GM-05-04, name: 余角和补角, grade_band: [7, 7]}
+          - {code: MA-GM-05-05, name: 相交线与对顶角, grade_band: [7, 7]}
+          - {code: MA-GM-05-06, name: 垂线与点到直线的距离, grade_band: [7, 7]}
+          - {code: MA-GM-05-07, name: 同位角、内错角、同旁内角, grade_band: [7, 7]}
+          - {code: MA-GM-05-08, name: 平行线的判定, grade_band: [7, 7]}
+          - {code: MA-GM-05-09, name: 平行线的性质, grade_band: [7, 7]}
+          - {code: MA-GM-05-10, name: 命题与定理, grade_band: [7, 7]}
+      - code: MA-GM-06
+        name: 三角形
+        grade_band: [8, 9]
+        children:
+          - {code: MA-GM-06-01, name: 三角形三边关系, grade_band: [8, 8]}
+          - {code: MA-GM-06-02, name: 三角形的高、中线与角平分线, grade_band: [8, 8]}
+          - {code: MA-GM-06-03, name: 三角形的内角与外角, grade_band: [8, 8]}
+          - {code: MA-GM-06-04, name: 多边形的内角和与外角和, grade_band: [8, 8]}
+          - {code: MA-GM-06-05, name: 全等三角形的性质, grade_band: [8, 8]}
+          - {code: MA-GM-06-06, name: 三角形全等的判定, grade_band: [8, 8]}
+          - {code: MA-GM-06-07, name: 直角三角形全等的判定, grade_band: [8, 8]}
+          - {code: MA-GM-06-08, name: 角平分线的性质, grade_band: [8, 8]}
+          - {code: MA-GM-06-09, name: 线段垂直平分线, grade_band: [8, 8]}
+          - {code: MA-GM-06-10, name: 等腰三角形的性质与判定, grade_band: [8, 8]}
+          - {code: MA-GM-06-11, name: 等边三角形, grade_band: [8, 8]}
+          - {code: MA-GM-06-12, name: 勾股定理, grade_band: [8, 8]}
+          - {code: MA-GM-06-13, name: 勾股定理的逆定理, grade_band: [8, 8]}
+          - {code: MA-GM-06-14, name: 相似三角形的判定, grade_band: [9, 9]}
+          - {code: MA-GM-06-15, name: 相似三角形的性质, grade_band: [9, 9]}
+          - {code: MA-GM-06-16, name: 锐角三角函数的定义, grade_band: [9, 9]}
+          - {code: MA-GM-06-17, name: 特殊角的三角函数值, grade_band: [9, 9]}
+          - {code: MA-GM-06-18, name: 解直角三角形, grade_band: [9, 9]}
+          - {code: MA-GM-06-19, name: 解直角三角形的应用, grade_band: [9, 9]}
+      - code: MA-GM-07
+        name: 四边形
+        grade_band: [8, 8]
+        children:
+          - {code: MA-GM-07-01, name: 平行四边形的性质, grade_band: [8, 8]}
+          - {code: MA-GM-07-02, name: 平行四边形的判定, grade_band: [8, 8]}
+          - {code: MA-GM-07-03, name: 三角形中位线, grade_band: [8, 8]}
+          - {code: MA-GM-07-04, name: 矩形, grade_band: [8, 8]}
+          - {code: MA-GM-07-05, name: 菱形, grade_band: [8, 8]}
+          - {code: MA-GM-07-06, name: 正方形, grade_band: [8, 8]}
+      - code: MA-GM-08
+        name: 圆
+        grade_band: [9, 9]
+        children:
+          - {code: MA-GM-08-01, name: 圆的有关概念, grade_band: [9, 9]}
+          - {code: MA-GM-08-02, name: 垂径定理, grade_band: [9, 9]}
+          - {code: MA-GM-08-03, name: 弧、弦、圆心角的关系, grade_band: [9, 9]}
+          - {code: MA-GM-08-04, name: 圆周角, grade_band: [9, 9]}
+          - {code: MA-GM-08-05, name: 点和圆的位置关系, grade_band: [9, 9]}
+          - {code: MA-GM-08-06, name: 直线和圆的位置关系, grade_band: [9, 9]}
+          - {code: MA-GM-08-07, name: 切线的判定与性质, grade_band: [9, 9]}
+          - {code: MA-GM-08-08, name: 切线长定理与内切圆, grade_band: [9, 9]}
+          - {code: MA-GM-08-09, name: 正多边形和圆, grade_band: [9, 9]}
+          - {code: MA-GM-08-10, name: 弧长和扇形面积, grade_band: [9, 9]}
+      - code: MA-GM-09
+        name: 图形的变化与坐标
+        grade_band: [7, 9]
+        children:
+          - {code: MA-GM-09-01, name: 平移, grade_band: [7, 7]}
+          - {code: MA-GM-09-02, name: 平面直角坐标系, grade_band: [7, 7]}
+          - {code: MA-GM-09-03, name: 用坐标表示地理位置与平移, grade_band: [7, 7]}
+          - {code: MA-GM-09-04, name: 轴对称与轴对称图形, grade_band: [8, 8]}
+          - {code: MA-GM-09-05, name: 坐标系中的轴对称, grade_band: [8, 8]}
+          - {code: MA-GM-09-06, name: 最短路径问题, grade_band: [8, 8]}
+          - {code: MA-GM-09-07, name: 图形的旋转, grade_band: [9, 9]}
+          - {code: MA-GM-09-08, name: 中心对称与中心对称图形, grade_band: [9, 9]}
+          - {code: MA-GM-09-09, name: 关于原点对称的点的坐标, grade_band: [9, 9]}
+          - {code: MA-GM-09-10, name: 图形的相似与比例线段, grade_band: [9, 9]}
+          - {code: MA-GM-09-11, name: 位似, grade_band: [9, 9]}
+          - {code: MA-GM-09-12, name: 投影, grade_band: [9, 9]}
+          - {code: MA-GM-09-13, name: 三视图, grade_band: [9, 9]}
+  - code: MA-SP
+    name: 统计与概率
+    children:
+      - code: MA-SP-01
+        name: 数据分类与统计图表
+        grade_band: [1, 8]
+        children:
+          - {code: MA-SP-01-01, name: 分类与整理, grade_band: [1, 1]}
+          - {code: MA-SP-01-02, name: 数据收集整理, grade_band: [2, 2]}
+          - {code: MA-SP-01-03, name: 复式统计表, grade_band: [3, 3]}
+          - {code: MA-SP-01-04, name: 条形统计图, grade_band: [4, 4]}
+          - {code: MA-SP-01-05, name: 平均数, grade_band: [4, 4]}
+          - {code: MA-SP-01-06, name: 折线统计图, grade_band: [5, 5]}
+          - {code: MA-SP-01-07, name: 扇形统计图, grade_band: [6, 6]}
+          - {code: MA-SP-01-08, name: 统计图的选择, grade_band: [6, 6]}
+          - {code: MA-SP-01-09, name: 全面调查与抽样调查, grade_band: [7, 7]}
+          - {code: MA-SP-01-10, name: 频数分布直方图, grade_band: [7, 7]}
+          - {code: MA-SP-01-11, name: 加权平均数, grade_band: [8, 8]}
+          - {code: MA-SP-01-12, name: 中位数和众数, grade_band: [8, 8]}
+          - {code: MA-SP-01-13, name: 方差, grade_band: [8, 8]}
+      - code: MA-SP-02
+        name: 随机现象与概率
+        grade_band: [5, 9]
+        children:
+          - {code: MA-SP-02-01, name: 可能性, grade_band: [5, 5]}
+          - {code: MA-SP-02-02, name: 随机事件, grade_band: [9, 9]}
+          - {code: MA-SP-02-03, name: 概率的意义, grade_band: [9, 9]}
+          - {code: MA-SP-02-04, name: 列表法与树状图法求概率, grade_band: [9, 9]}
+          - {code: MA-SP-02-05, name: 用频率估计概率, grade_band: [9, 9]}
+  - code: MA-PR
+    name: 综合与实践
+    children:
+      - code: MA-PR-01
+        name: 数学广角与问题解决
+        grade_band: [1, 6]
+        children:
+          - {code: MA-PR-01-01, name: 找规律, grade_band: [1, 1]}
+          - {code: MA-PR-01-02, name: 用数学解决问题, grade_band: [1, 1]}
+          - {code: MA-PR-01-03, name: 搭配问题, grade_band: [2, 2]}
+          - {code: MA-PR-01-04, name: 简单的推理, grade_band: [2, 2]}
+          - {code: MA-PR-01-05, name: 集合与重叠问题, grade_band: [3, 3]}
+          - {code: MA-PR-01-06, name: 优化问题, grade_band: [4, 4]}
+          - {code: MA-PR-01-07, name: 鸡兔同笼, grade_band: [4, 4]}
+          - {code: MA-PR-01-08, name: 植树问题, grade_band: [5, 5]}
+          - {code: MA-PR-01-09, name: 找次品, grade_band: [5, 5]}
+          - {code: MA-PR-01-10, name: 数与形, grade_band: [6, 6]}
+          - {code: MA-PR-01-11, name: 鸽巢问题, grade_band: [6, 6]}

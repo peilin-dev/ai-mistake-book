@@ -23,6 +23,7 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 dc run --rm api alembic upgrade head
+dc run --rm api sh -c 'python -m app.knowledge.loader --prune data/knowledge/*.yaml'
 dc up -d --remove-orphans
 dc exec -T nginx nginx -s reload  # pick up nginx.conf changes; a bind-mounted file doesn't recreate the container
 sudo docker image prune -f >/dev/null

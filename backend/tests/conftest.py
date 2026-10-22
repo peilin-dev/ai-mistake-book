@@ -255,7 +255,7 @@ import yaml as _yaml  # noqa: E402
 
 @pytest.fixture
 def sample_yaml() -> Path:
-    return Path(__file__).resolve().parent.parent / "data" / "knowledge" / "math_primary_sample.yaml"
+    return Path(__file__).resolve().parent / "fixtures" / "knowledge_sample.yaml"
 
 
 @pytest.fixture
