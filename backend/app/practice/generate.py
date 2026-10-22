@@ -52,8 +52,8 @@ def _judge_value(s: str) -> bool | None:
     return None
 
 
-def _parse_number(s: str) -> tuple[float, str] | None:
-    """(value, unit) for '40', '0.5', '1/2', '50%', '40平方厘米', '40cm²'; else None."""
+def _parse_number(s: str) -> tuple[float, str, str] | None:
+    """(value, unit, form) for '40', '0.5', '1/2', '50%', '40平方厘米', '40cm²'; else None."""
     m = _NUM.match(normalize_answer(s).replace("−", "-"))
     if not m:
         return None
@@ -68,10 +68,12 @@ def _parse_number(s: str) -> tuple[float, str] | None:
         return None
     if pct:
         value /= 100
-    unit = unit.strip("。.")
+    if unit[:1] in ("。", "."):
+        unit = unit[1:]  # at most one sentence-final dot; ".." or "..." stays and is rejected below
     if unit and (not _UNIT.match(unit) or _CONNECTIVES & set(unit)):
         return None  # trailing text is not a plain unit: not safely comparable
-    return value, unit
+    form = "pct" if pct else ("frac" if den is not None else "num")
+    return value, unit, form
 
 
 def _choice_letter(s: str, options: list[str]) -> str | None:
@@ -90,6 +92,7 @@ def _choice_letter(s: str, options: list[str]) -> str | None:
                 return _LETTERS[idx]
     return None
 
+
 def answers_match(kind: str, expected: str, got: str, options: list[str] | None) -> bool | None:
     """True/False when decidable locally, None when a model must judge equivalence."""
     if kind == "choice":
@@ -105,8 +108,10 @@ def answers_match(kind: str, expected: str, got: str, options: list[str] | None)
         return True
     a, b = _parse_number(expected), _parse_number(got)
     if a and b:
-        if a[1] != b[1]:
-            return None  # different or one-sided units: let the model decide
+        if a[1] != b[1] or a[2] != b[2]:
+            return None  # different/one-sided units or notations (decimal vs fraction vs %): model decides
+        if a[2] == "frac":
+            return None  # identical spellings were handled above; "1/2" vs "2/4" is for the model
         return abs(a[0] - b[0]) < _TOL
     return None
 

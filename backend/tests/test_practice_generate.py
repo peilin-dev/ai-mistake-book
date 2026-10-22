@@ -82,14 +82,14 @@ def test_choice_answer_text_maps_to_letter():
 
 
 def test_numeric_and_judge_equivalence():
-    assert answers_match("blank", "0.5", "1/2", None) is True
-    assert answers_match("blank", "1/2", "50%", None) is True
-    assert answers_match("calc", "0.5", "50 %", None) is True
+    assert answers_match("blank", "0.5", "1/2", None) is None
+    assert answers_match("blank", "1/2", "50%", None) is None
+    assert answers_match("calc", "0.5", "50 %", None) is None
     assert answers_match("calc", "0.5", "0.6", None) is False
     assert answers_match("calc", "40", "40 平方厘米", None) is None  # one-sided unit -> model
     assert answers_match("calc", "40cm²", "40 cm²", None) is True
     assert answers_match("calc", "40cm", "40 kg", None) is None
-    assert answers_match("calc", "３／４", "0.75", None) is True
+    assert answers_match("calc", "３／４", "0.75", None) is None
     assert answers_match("blank", "叶绿体", "叶绿体", None) is True
     assert answers_match("blank", "叶绿体", "线粒体", None) is None
     assert answers_match("judge", "√", "正确", None) is True
@@ -162,3 +162,19 @@ async def test_equivalence_prompt_is_strict(db, teacher):
     m = FakeModel([{"answer": "2"}, {"equivalent": False}])
     assert await verify_draft(db, m, teacher.id, d) is False
     assert "严格" in m.prompts[1] and "完整" in m.prompts[1]
+
+
+@pytest.mark.parametrize("exp,got", [
+    ("0.33", "0.33..."), ("3.14", "3.14.."), ("0.33", "0.33…"), ("1/2", "2/4"), ("0.5", "1/2"),
+    ("50%", "0.5"), ("1/2", "50%"),
+])
+def test_truncated_and_cross_notation_not_true(exp, got):
+    assert answers_match("calc", exp, got, None) is not True
+
+
+def test_same_form_numbers_still_match():
+    assert answers_match("calc", "0.5", ".5", None) is True
+    assert answers_match("calc", "2", "2.0", None) is True
+    assert answers_match("calc", "1/2", "1/2", None) is True
+    assert answers_match("calc", "50%", "50.0%", None) is True
+    assert answers_match("calc", "1/2", "1/3", None) is None
