@@ -5,6 +5,7 @@ import { ApiError, request } from '../../../lib/api'
 import { errorText } from '../../../lib/messages'
 import { AI_LABEL, historyLine } from '../../../lib/analytics'
 import { NO_ANSWER_KEY_BANNER, scoreText, verdictText } from '../../../lib/results'
+import ExportSheet from '../../../components/ExportSheet'
 import type { AssignmentOut, HistoryItem, SubmissionOut, SummaryOut } from '../../../lib/types'
 
 type LoadState = 'loading' | 'ok' | 'error' | 'notfound'
@@ -17,6 +18,7 @@ export default function ResultDetail() {
   const [hasKey, setHasKey] = useState(true)
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [summary, setSummary] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
   const seq = useRef(0)
   const extraSeq = useRef(0)
   const loaded = useRef(false)
@@ -142,6 +144,16 @@ export default function ResultDetail() {
           </Text>
         ) : null}
       </View>
+      <Button className='big-btn ghost-btn' style={{ marginBottom: '24px' }} onClick={() => setExporting(true)}>
+        这位同学的错题单
+      </Button>
+      {exporting && sub.assignment_id ? (
+        <ExportSheet
+          assignmentId={sub.assignment_id}
+          items={[{ kind: 'student', label: '这位同学的错题单', hint: sub.student_name, submissionId: sub.id }]}
+          onClose={() => setExporting(false)}
+        />
+      ) : null}
       {history.length > 0 ? (
         <View className='card'>
           <Text className='strong' style={{ display: 'block' }}>最近几次</Text>

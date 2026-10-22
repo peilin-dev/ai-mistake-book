@@ -4,6 +4,7 @@ import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { ApiError, request } from '../../lib/api'
 import { overviewNotices, percent, questionLine } from '../../lib/analytics'
 import { errorText } from '../../lib/messages'
+import ExportSheet from '../../components/ExportSheet'
 import type { AnalyticsOut } from '../../lib/types'
 
 type LoadState = 'loading' | 'ok' | 'error' | 'notfound'
@@ -25,6 +26,7 @@ export default function AnalyticsPage() {
   const validId = Number.isInteger(assignmentId) && assignmentId > 0
   const [state, setState] = useState<LoadState>(validId ? 'loading' : 'notfound')
   const [data, setData] = useState<AnalyticsOut | null>(null)
+  const [exporting, setExporting] = useState(false)
   const seq = useRef(0)
   const loaded = useRef(false)
 
@@ -101,7 +103,19 @@ export default function AnalyticsPage() {
 
   return (
     <View className='page'>
-      {/* Task 11: the "导出讲评单" button goes here (top of the page). */}
+      <Button className='big-btn ghost-btn' style={{ marginBottom: '24px' }} onClick={() => setExporting(true)}>
+        导出 PDF
+      </Button>
+      {exporting ? (
+        <ExportSheet
+          assignmentId={assignmentId}
+          items={[
+            { kind: 'lecture', label: '班级讲评单', hint: '错得多的题，适合讲评课' },
+            { kind: 'class_students', label: '全班错题单', hint: '每位同学一份，发给学生订正' },
+          ]}
+          onClose={() => setExporting(false)}
+        />
+      ) : null}
       <View className='card' style={{ display: 'flex' }}>
         <View style={cell}>
           <Text className='title-xl' style={{ display: 'block' }}>{avgText(data.average_score)}</Text>
