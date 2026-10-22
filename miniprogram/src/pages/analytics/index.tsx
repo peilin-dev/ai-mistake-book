@@ -102,6 +102,15 @@ export default function AnalyticsPage() {
       <Button className='big-btn ghost-btn' style={{ marginBottom: '24px' }} onClick={() => setExporting(true)}>
         导出 PDF
       </Button>
+      {wrongQuestions.length > 0 ? (
+        <Button
+          className='big-btn ghost-btn'
+          style={{ marginBottom: '24px' }}
+          onClick={() => go(`/pages/practice/index?assignmentId=${assignmentId}`)}
+        >
+          生成练习纸
+        </Button>
+      ) : null}
       {exporting ? (
         <ExportSheet
           assignmentId={assignmentId}

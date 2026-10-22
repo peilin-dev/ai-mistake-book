@@ -3,7 +3,7 @@ import { ApiError, request } from './api'
 import { API_BASE } from './config'
 import { errorText } from './messages'
 
-export type ExportKind = 'lecture' | 'student' | 'class_students'
+export type ExportKind = 'lecture' | 'student' | 'class_students' | 'practice' | 'practice_student'
 
 export interface MeOut {
   id: number
@@ -21,11 +21,12 @@ export async function exportPdf(
   assignmentId: number,
   kind: ExportKind,
   submissionId?: number,
+  includeAnswers?: boolean,
 ): Promise<void> {
-  const out = await request<ExportOut>('POST', `/api/assignments/${assignmentId}/exports`, {
-    kind,
-    submission_id: submissionId ?? null,
-  })
+  const body: Record<string, unknown> = { kind, submission_id: submissionId ?? null }
+  // Only the practice kinds carry the answers switch.
+  if (includeAnswers !== undefined) body.include_answers = includeAnswers
+  const out = await request<ExportOut>('POST', `/api/assignments/${assignmentId}/exports`, body)
   const res = await Taro.downloadFile({ url: `${API_BASE}${out.url}` })
   if (res.statusCode !== 200 || !res.tempFilePath) {
     throw new Error('downloadFile:fail bad status')

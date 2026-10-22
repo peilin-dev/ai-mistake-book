@@ -74,6 +74,18 @@ describe('exportPdf', () => {
     expect(taro.request.mock.calls[0][0].data).toEqual({ kind: 'lecture', submission_id: null })
   })
 
+  it('sends include_answers for practice kinds', async () => {
+    taro.request.mockResolvedValue({ statusCode: 201, data: { url: '/x.pdf', filename: 'x.pdf' } })
+    taro.downloadFile.mockResolvedValue({ statusCode: 200, tempFilePath: 'p' })
+    taro.openDocument.mockResolvedValue({})
+    await exportPdf(3, 'practice_student', 9, false)
+    expect(taro.request.mock.calls[0][0].data).toEqual({
+      kind: 'practice_student',
+      submission_id: 9,
+      include_answers: false,
+    })
+  })
+
   it('stops and throws on a 409 without downloading', async () => {
     taro.request.mockResolvedValue({ statusCode: 409, data: { detail: '没有错题可以导出' } })
     await expect(exportPdf(3, 'class_students')).rejects.toMatchObject({ status: 409 })

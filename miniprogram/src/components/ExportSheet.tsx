@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Switch } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { needsSignature } from '../lib/analytics'
 import { exportErrorText, exportPdf, loadMe, saveSignature } from '../lib/export'
@@ -16,6 +16,8 @@ export interface ExportItem {
 interface Props {
   assignmentId: number
   items: ExportItem[]
+  /** Show the 附答案 switch (practice sheets); default on. */
+  answersSwitch?: boolean
   onClose: () => void
 }
 
@@ -48,8 +50,9 @@ async function askSignature(current: string): Promise<string | null> {
 }
 
 /** Bottom sheet: pick what to export; the signature is asked for the first time. */
-export default function ExportSheet({ assignmentId, items, onClose }: Props) {
+export default function ExportSheet({ assignmentId, items, answersSwitch, onClose }: Props) {
   const [me, setMe] = useState<MeOut | null>(null)
+  const [withAnswers, setWithAnswers] = useState(true)
   const [busyKind, setBusyKind] = useState<string | null>(null)
   const busy = useRef(false)
 
@@ -89,7 +92,7 @@ export default function ExportSheet({ assignmentId, items, onClose }: Props) {
       }
       setMe(cur)
       setBusyKind(item.kind)
-      await exportPdf(assignmentId, item.kind, item.submissionId)
+      await exportPdf(assignmentId, item.kind, item.submissionId, answersSwitch ? withAnswers : undefined)
     } catch (e) {
       const text = exportErrorText(e)
       // Closing the document viewer is not a failure.
@@ -106,6 +109,12 @@ export default function ExportSheet({ assignmentId, items, onClose }: Props) {
     <View className='sheet-mask' onClick={onClose}>
       <View className='sheet' onClick={(e) => e.stopPropagation()}>
         <Text className='sheet-title'>导出 PDF</Text>
+        {answersSwitch ? (
+          <View className='card picker-row'>
+            <Text style={{ fontSize: '30rpx' }}>附答案（最后一页）</Text>
+            <Switch checked={withAnswers} color='#b0763a' onChange={(e) => setWithAnswers(e.detail.value)} />
+          </View>
+        ) : null}
         {items.map((it) => (
           <View
             className='card picker-row'

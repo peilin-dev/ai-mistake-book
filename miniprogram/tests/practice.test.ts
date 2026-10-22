@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FAILED_TEXT, PARTIAL_TEXT, isWorking, optionLetter, progressText, sourceLabel } from '../src/lib/practice'
+import { FAILED_TEXT, PARTIAL_TEXT, failedReplace, generatedAtText, isWorking, optionLetter, progressText, sourceLabel } from '../src/lib/practice'
 import type { PracticeItemOut, PracticePaperOut } from '../src/lib/types'
 
 const item = (o: Partial<PracticeItemOut> = {}): PracticeItemOut => ({
@@ -58,5 +58,33 @@ describe('optionLetter and texts', () => {
   it('texts', () => {
     expect(PARTIAL_TEXT).toBe('部分题目没出成，可以重新生成')
     expect(FAILED_TEXT).toBe('这次没出成题，请稍后重试')
+  })
+})
+
+describe('generatedAtText', () => {
+  it('converts naive UTC to local time', () => {
+    const d = new Date(Date.UTC(2026, 9, 22, 8, 5))
+    const hh = String(d.getHours()).padStart(2, '0')
+    const mm = String(d.getMinutes()).padStart(2, '0')
+    const expected = `${d.getMonth() + 1}月${d.getDate()}日 ${hh}:${mm}`
+    expect(generatedAtText('2026-10-22T08:05:00')).toBe(expected)
+    expect(generatedAtText('2026-10-22T08:05:00.123456')).toBe(expected)
+  })
+  it('is empty for null or garbage', () => {
+    expect(generatedAtText(null)).toBe('')
+    expect(generatedAtText('soon')).toBe('')
+  })
+})
+
+describe('failedReplace', () => {
+  const flagged = (replacing: boolean) =>
+    paper({ last_replace_failed_item: 7, items: [item({ id: 7, replacing })] })
+  it('reports an asked item that stopped replacing and is flagged', () => {
+    expect(failedReplace([7], flagged(false))).toBe(7)
+  })
+  it('ignores items not asked about or still replacing', () => {
+    expect(failedReplace([8], flagged(false))).toBeNull()
+    expect(failedReplace([7], flagged(true))).toBeNull()
+    expect(failedReplace([7], paper())).toBeNull()
   })
 })

@@ -20,3 +20,24 @@ export function sourceLabel(item: PracticeItemOut): string {
 export function optionLetter(i: number): string {
   return String.fromCharCode(65 + i)
 }
+
+/** generated_at is a naive-UTC ISO string; show it in the phone's local time ("10月22日 16:30"). */
+export function generatedAtText(iso: string | null): string {
+  if (!iso) return ''
+  const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/.exec(iso)
+  if (!m) return ''
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] ?? 0)))
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${d.getMonth() + 1}月${d.getDate()}日 ${hh}:${mm}`
+}
+
+export const REPLACE_FAILED_TEXT = '没换成，原题保留'
+
+/** The asked-to-replace item that came back not replacing and is flagged as failed, if any. */
+export function failedReplace(asked: number[], p: PracticePaperOut): number | null {
+  const failed = p.last_replace_failed_item
+  if (failed === null || !asked.includes(failed)) return null
+  const it = p.items.find((i) => i.id === failed)
+  return it && !it.replacing ? failed : null
+}
