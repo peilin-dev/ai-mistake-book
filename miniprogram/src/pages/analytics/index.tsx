@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { View, Text, Button } from '@tarojs/components'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { ApiError, request } from '../../lib/api'
-import { overviewNotices, percent, questionLine } from '../../lib/analytics'
+import { avgText, overviewNotices, percent, questionLine } from '../../lib/analytics'
 import { errorText } from '../../lib/messages'
 import ExportSheet from '../../components/ExportSheet'
 import type { AnalyticsOut } from '../../lib/types'
@@ -15,10 +15,6 @@ function tone(accuracy: number | null): { band: string; fill: string } {
   if (accuracy < 0.6) return { band: 'band-danger', fill: 'fill-danger' }
   if (accuracy < 0.85) return { band: 'band-warn', fill: 'fill-warn' }
   return { band: 'band-ok', fill: 'fill-ok' }
-}
-
-function avgText(x: number | null): string {
-  return x === null || x === undefined ? '—' : String(Math.round(x * 10) / 10)
 }
 
 export default function AnalyticsPage() {
@@ -166,7 +162,7 @@ export default function AnalyticsPage() {
               <View style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text className='strong'>第 {q.question_no} 题</Text>
                 <Text className='label' style={{ marginBottom: 0 }}>
-                  错 {q.wrong_count} / {q.answered_count} 人 ›
+                  错 {q.wrong_count} / {q.student_count} 人 ›
                 </Text>
               </View>
               {q.knowledge_point ? (

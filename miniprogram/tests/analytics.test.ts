@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AI_LABEL, historyLine, needsSignature, overviewNotices, percent, questionLine } from '../src/lib/analytics'
+import { AI_LABEL, avgText, historyLine, needsSignature, overviewNotices, percent, questionLine } from '../src/lib/analytics'
 import type { AnalyticsOut, HistoryItem, QuestionStatOut } from '../src/lib/types'
 
 const base: AnalyticsOut = {
@@ -19,6 +19,7 @@ const q = (o: Partial<QuestionStatOut> = {}): QuestionStatOut => ({
   question_no: '3',
   knowledge_point: null,
   wrong_count: 5,
+  student_count: 10,
   answered_count: 10,
   accuracy: 0.5,
   top_wrong_answer: '13',
@@ -82,6 +83,18 @@ describe('historyLine', () => {
   })
   it('shows only the score when there is no full mark', () => {
     expect(historyLine(h({ max_score: 0, ratio: null }))).toBe('10-22 作业　9 分')
+  })
+  it('rounds scores to one decimal', () => {
+    expect(historyLine(h({ score: 8.333333, max_score: 12.5 }))).toBe('10-22 作业　8.3 / 12.5 分（67%）')
+    expect(historyLine(h({ score: 2.0000001, max_score: 0, ratio: null }))).toBe('10-22 作业　2 分')
+  })
+})
+
+describe('avgText', () => {
+  it('keeps at most one decimal and dashes null', () => {
+    expect(avgText(12.75)).toBe('12.8')
+    expect(avgText(4)).toBe('4')
+    expect(avgText(null)).toBe('—')
   })
 })
 

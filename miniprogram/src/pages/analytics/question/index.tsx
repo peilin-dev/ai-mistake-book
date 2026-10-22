@@ -147,7 +147,7 @@ export default function QuestionDetailPage() {
           <Text className='muted' style={{ display: 'block', marginTop: '8px' }}>{detail.knowledge_point}</Text>
         ) : null}
         <Text className='label' style={{ marginTop: '16px' }}>
-          全班 {detail.answered_count} 人作答，{detail.wrong_count} 人没拿满分
+          全班 {detail.student_count} 人作答，{detail.wrong_count} 人没拿满分
         </Text>
         {detail.question_text ? <Text style={{ display: 'block' }}>{detail.question_text}</Text> : null}
         <Text className='label' style={{ marginTop: '16px' }}>正确答案</Text>
@@ -199,7 +199,7 @@ export default function QuestionDetailPage() {
                 {causes[g.key] ? (
                   <View style={{ marginTop: '12px' }}>
                     <Text>{causes[g.key]}</Text>
-                    <Text className='muted' style={{ fontSize: '20px', marginLeft: '12px' }}>{AI_LABEL}</Text>
+                    <Text className='muted' style={{ fontSize: '24rpx', marginLeft: '12rpx' }}>{AI_LABEL}</Text>
                   </View>
                 ) : null}
               </View>
@@ -217,13 +217,13 @@ export default function QuestionDetailPage() {
                 <Image
                   src={c.crop_url}
                   mode='aspectFill'
-                  style={{ width: '100%', height: '160px', background: 'var(--card)', borderRadius: '8px' }}
+                  style={{ width: '100%', height: '200rpx', background: 'var(--card)', borderRadius: '8rpx' }}
                   onError={() => void onCropError()}
                   onClick={() => void Taro.previewImage({ urls: cropUrls, current: c.crop_url })}
                 />
                 <Text
                   className='link'
-                  style={{ display: 'block', fontSize: '20px', textAlign: 'center' }}
+                  style={{ display: 'block', fontSize: '24rpx', textAlign: 'center' }}
                   onClick={() => openResult(c.submission_id)}
                 >
                   {c.student_name}

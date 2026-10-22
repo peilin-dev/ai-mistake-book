@@ -7,6 +7,11 @@ export function percent(x: number | null): string {
   return x === null || x === undefined ? '—' : `${Math.round(x * 100)}%`
 }
 
+/** Scores and averages: at most one decimal; null -> "—". */
+export function avgText(x: number | null): string {
+  return x === null || x === undefined ? '—' : String(Math.round(x * 10) / 10)
+}
+
 export function overviewNotices(a: AnalyticsOut): { text: string; action: 'review' | null }[] {
   const out: { text: string; action: 'review' | null }[] = []
   if (a.pending_review > 0) out.push({ text: `还有 ${a.pending_review} 题待复核，统计可能不准`, action: 'review' })
@@ -24,8 +29,8 @@ export function questionLine(q: QuestionStatOut): string {
 
 /** "10-22 作业　9 / 14 分（64%）"; just the score when there is no full mark. */
 export function historyLine(h: HistoryItem): string {
-  if (!h.max_score) return `${h.title}　${h.score} 分`
-  return `${h.title}　${h.score} / ${h.max_score} 分（${percent(h.score / h.max_score)}）`
+  if (!h.max_score) return `${h.title}　${avgText(h.score)} 分`
+  return `${h.title}　${avgText(h.score)} / ${avgText(h.max_score)} 分（${percent(h.score / h.max_score)}）`
 }
 
 export function needsSignature(me: { display_name: string | null }): boolean {

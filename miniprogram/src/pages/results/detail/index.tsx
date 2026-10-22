@@ -174,7 +174,7 @@ export default function ResultDetail() {
       {summary ? (
         <View className='card'>
           <Text className='strong'>AI 总结</Text>
-          <Text className='muted' style={{ fontSize: '20px', marginLeft: '12px' }}>{AI_LABEL}</Text>
+          <Text className='muted' style={{ fontSize: '24rpx', marginLeft: '12rpx' }}>{AI_LABEL}</Text>
           <Text style={{ display: 'block', marginTop: '12px' }}>{summary}</Text>
         </View>
       ) : null}

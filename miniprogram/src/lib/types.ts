@@ -130,6 +130,9 @@ export interface QuestionStatOut {
   question_no: string
   knowledge_point: string | null
   wrong_count: number
+  /** everyone with a result for this question: use for headcounts */
+  student_count: number
+  /** those with a full mark on record: the accuracy denominator only */
   answered_count: number
   accuracy: number | null
   top_wrong_answer: string | null
@@ -184,6 +187,9 @@ export interface QuestionDetailOut {
   is_subjective: boolean
   knowledge_point: string | null
   wrong_count: number
+  /** everyone with a result for this question: use for headcounts */
+  student_count: number
+  /** those with a full mark on record: the accuracy denominator only */
   answered_count: number
   groups: AnswerGroupOut[]
   score_buckets: ScoreBucket[]

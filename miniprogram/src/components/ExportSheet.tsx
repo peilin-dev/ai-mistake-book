@@ -117,13 +117,13 @@ export default function ExportSheet({ assignmentId, items, onClose }: Props) {
             {it.hint && busyKind !== it.kind ? <Text className='label picker-no'>{it.hint}</Text> : null}
           </View>
         ))}
-        <View style={{ display: 'flex', justifyContent: 'center', padding: '24px 0 8px' }}>
+        <View style={{ display: 'flex', justifyContent: 'center', padding: '24rpx 0 8rpx' }}>
           <Text className='label' style={{ marginBottom: 0 }}>
             署名：{me && !needsSignature(me) ? me.display_name : '未设置'}
           </Text>
           <Text
             className='label'
-            style={{ marginBottom: 0, marginLeft: '24px', color: 'var(--link)' }}
+            style={{ marginBottom: 0, marginLeft: '24rpx', color: 'var(--link)' }}
             onClick={() => void changeSignature()}
           >
             修改
