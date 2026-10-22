@@ -66,7 +66,7 @@ export default function SingleShot({ mode, assignmentId, pageId }: Props) {
   if (working) {
     return (
       <View style={{ padding: '240px 48px 0', textAlign: 'center' }}>
-        <Text style={{ fontSize: '40px', fontWeight: 'bold', display: 'block', marginBottom: '16px' }}>
+        <Text className='title-xl' style={{ display: 'block', marginBottom: '16px' }}>
           {mode === 'answerKey' ? '正在识别答案…' : '正在上传…'}
         </Text>
         {mode === 'answerKey' ? <Text className='label'>大约需要 10 到 30 秒，请不要离开</Text> : null}

@@ -36,7 +36,7 @@ export default function ThumbStrip({ items, pausedId, onRetry }: Props) {
               width: '120px',
               height: '120px',
               marginLeft: '16px',
-              border: `4px solid ${bad ? '#d93025' : 'transparent'}`,
+              border: `4px solid ${bad ? 'var(--danger)' : 'transparent'}`,
               boxSizing: 'border-box',
             }}
           >
@@ -54,7 +54,7 @@ export default function ThumbStrip({ items, pausedId, onRetry }: Props) {
                 textAlign: 'center',
                 fontSize: '22px',
                 color: '#fff',
-                background: bad ? '#d93025' : 'rgba(0,0,0,0.55)',
+                background: bad ? 'var(--danger)' : 'rgba(0,0,0,0.55)',
               }}
             >
               {idx + 1} {LABEL[it.state]}

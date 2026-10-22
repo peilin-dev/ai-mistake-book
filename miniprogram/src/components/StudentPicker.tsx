@@ -37,7 +37,7 @@ export default function StudentPicker({ students, onPick, onClose, addUrl }: Pro
         {addUrl ? (
           <Text
             className='label'
-            style={{ display: 'block', textAlign: 'center', color: '#07c160', padding: '24px 0 8px' }}
+            style={{ display: 'block', textAlign: 'center', color: 'var(--link)', padding: '24px 0 8px' }}
             onClick={goAdd}
           >
             名单里没有这个学生？去添加

@@ -3,7 +3,7 @@ import { View, Text, Button } from '@tarojs/components'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { request } from '../../lib/api'
 import { errorText } from '../../lib/messages'
-import { classCardStatus } from '../../lib/classCard'
+import { classCardStatus, gradedPercent } from '../../lib/classCard'
 import type { AssignmentOut, ClassOut, ProgressOut } from '../../lib/types'
 import NewAssignmentSheet from '../../components/NewAssignmentSheet'
 import StatusPill from '../../components/StatusPill'
@@ -113,8 +113,8 @@ export default function ClassDetail() {
   return (
     <View className='page'>
       <View style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <Text style={{ fontSize: '40px', fontWeight: 'bold' }}>{cls ? cls.name : '班级'}</Text>
-        <Text style={{ color: '#07c160', padding: '12px 0 12px 24px' }} onClick={openRoster}>
+        <Text className='title-xl'>{cls ? cls.name : '班级'}</Text>
+        <Text className='link' style={{ padding: '12px 0 12px 24px' }} onClick={openRoster}>
           名单
         </Text>
       </View>
@@ -123,12 +123,18 @@ export default function ClassDetail() {
       ) : (
         rows.map(({ assignment, progress }) => {
           const status = classCardStatus(assignment, progress)
+          const percent = gradedPercent(progress)
           return (
-            <View className='card' key={assignment.id} onClick={() => openAssignment(assignment.id)}>
-              <Text style={{ fontSize: '34px', fontWeight: 'bold', marginRight: '16px' }}>{assignment.title}</Text>
+            <View className={`card card-band band-${status.tone}`} key={assignment.id} onClick={() => openAssignment(assignment.id)}>
+              <Text className='title-md' style={{ marginRight: '16px' }}>{assignment.title}</Text>
               <View style={{ marginTop: '16px' }}>
                 <StatusPill text={status.text} tone={status.tone} />
               </View>
+              {percent !== null ? (
+                <View className='progress'>
+                  <View className={`progress-fill fill-${status.tone}`} style={{ width: `${percent}%` }} />
+                </View>
+              ) : null}
             </View>
           )
         })

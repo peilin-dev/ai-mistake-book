@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classCardStatus } from '../src/lib/classCard'
+import { classCardStatus, gradedPercent, todayLine } from '../src/lib/classCard'
 import type { AssignmentOut, ProgressOut } from '../src/lib/types'
 
 const a = { id: 1, class_id: 1, subject: 'math', title: '单元测验', answer_key_status: 'none', has_answer_key: false } as AssignmentOut
@@ -26,5 +26,23 @@ describe('classCardStatus', () => {
   })
   it('all done', () => {
     expect(classCardStatus(a, p({ total: 3, done: 2, failed: 1 }))).toEqual({ text: '全部完成', tone: 'ok' })
+  })
+})
+
+describe('gradedPercent', () => {
+  it('no bar without photographed pages', () => {
+    expect(gradedPercent(null)).toBeNull()
+    expect(gradedPercent(p({}))).toBeNull()
+  })
+  it('counts finished pages, failed included', () => {
+    expect(gradedPercent(p({ total: 4, queued: 1, done: 2, failed: 1 }))).toBe(75)
+    expect(gradedPercent(p({ total: 3, done: 1, processing: 2 }))).toBe(33)
+  })
+})
+
+describe('todayLine', () => {
+  it('month, day and weekday', () => {
+    expect(todayLine(new Date(2026, 9, 22))).toBe('10月22日 · 周四')
+    expect(todayLine(new Date(2026, 9, 25))).toBe('10月25日 · 周日')
   })
 })

@@ -206,7 +206,7 @@ export default function Review() {
     return (
       <View className='page'>
         <View className='card' style={{ textAlign: 'center' }}>
-          <Text style={{ fontSize: '44px', fontWeight: 'bold', display: 'block', marginBottom: '16px' }}>复核完成</Text>
+          <Text className='title-xl' style={{ display: 'block', marginBottom: '16px' }}>复核完成</Text>
           <Text className='label'>没有需要确认的内容了</Text>
         </View>
         <View className='bottom-bar'>
@@ -225,8 +225,8 @@ export default function Review() {
     return (
       <View className='page' style={{ paddingBottom: items.length > 1 ? '380px' : '260px' }}>
         <Text className='label'>第 {progress} 项</Text>
-        <View className='card'>
-          <Text style={{ fontSize: '36px', fontWeight: 'bold', display: 'block' }}>这张卷子是谁的？</Text>
+        <View className='card card-band band-warn'>
+          <Text className='title-lg' style={{ display: 'block' }}>这张卷子是谁的？</Text>
           <Text className='label' style={{ marginTop: '8px' }}>
             识别到的名字：{item.recognizedName ?? '没认出名字'}
           </Text>
@@ -269,9 +269,9 @@ export default function Review() {
   return (
     <View className='page' style={{ paddingBottom: scoring ? '520px' : '400px' }}>
       <Text className='label'>第 {progress} 项</Text>
-      <View className='card'>
+      <View className='card card-band band-warn'>
         <View style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ fontSize: '36px', fontWeight: 'bold' }}>
+          <Text className='title-lg'>
             {q.student_name ?? '未识别学生'}　第 {q.question_no} 题
           </Text>
           <Text className='pill pill-warn'>{reasonText(q.reason)}</Text>
@@ -293,7 +293,7 @@ export default function Review() {
         <Text className='label' style={{ marginTop: '16px' }}>正确答案</Text>
         <Text style={{ display: 'block' }}>{q.correct_answer ?? '（无）'}</Text>
         <Text className='label' style={{ marginTop: '16px' }}>AI 判定</Text>
-        <Text style={{ display: 'block', color: q.is_correct ? '#1d7a3a' : '#d93025' }}>
+        <Text className={q.is_correct ? 'text-ok' : 'text-danger'} style={{ display: 'block' }}>
           {q.is_correct === null ? '没判出' : q.is_correct ? '对' : '错'}
           {q.score !== null ? `　${q.score}${q.max_score !== null ? ` / ${q.max_score}` : ''} 分` : ''}
         </Text>
@@ -327,7 +327,7 @@ export default function Review() {
               <Button className='big-btn' style={{ marginRight: '16px' }} disabled={busy} onClick={() => void judge(q.id, { is_correct: true })}>
                 判对
               </Button>
-              <Button className='big-btn' style={{ marginRight: '16px', background: '#d93025' }} disabled={busy} onClick={() => void judge(q.id, { is_correct: false })}>
+              <Button className='big-btn danger-btn' style={{ marginRight: '16px' }} disabled={busy} onClick={() => void judge(q.id, { is_correct: false })}>
                 判错
               </Button>
               <Button className='big-btn ghost-btn' disabled={busy} onClick={() => setScoring(true)}>

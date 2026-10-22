@@ -89,7 +89,7 @@ export default function Results() {
   return (
     <View className='page'>
       {!assignment.has_answer_key ? (
-        <Text className='label' style={{ color: '#8a6100' }}>
+        <Text className='label' style={{ color: 'var(--warn-text)' }}>
           {NO_ANSWER_KEY_BANNER}
         </Text>
       ) : null}
@@ -103,14 +103,15 @@ export default function Results() {
             style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
             onClick={() => void Taro.navigateTo({ url: `/pages/results/detail/index?submissionId=${s.id}` })}
           >
-            <Text style={{ fontSize: '34px', fontWeight: 'bold' }}>{s.student_name}</Text>
+            <Text className='title-md'>{s.student_name}</Text>
             <View style={{ display: 'flex', alignItems: 'center' }}>
               {s.needs_review_count > 0 ? (
                 <Text className='pill pill-warn' style={{ marginRight: '16px' }}>
                   待复核 {s.needs_review_count}
                 </Text>
               ) : null}
-              <Text style={{ fontSize: '40px', fontWeight: 'bold' }}>{s.total_score} 分</Text>
+              <Text className='title-xl'>{s.total_score}</Text>
+              <Text className='muted' style={{ marginLeft: '8px' }}>分</Text>
             </View>
           </View>
         ))

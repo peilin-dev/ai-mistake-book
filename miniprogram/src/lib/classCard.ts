@@ -15,3 +15,16 @@ export function classCardStatus(
   if (!isFinished(progress)) return { text: `批改中 ${progress.done}/${progress.total}`, tone: 'busy' }
   return { text: '全部完成', tone: 'ok' }
 }
+
+/** Share of photographed pages that finished grading (failed ones too), or null when there are none. */
+export function gradedPercent(progress: ProgressOut | null): number | null {
+  if (!progress || progress.total === 0) return null
+  return Math.round(((progress.done + progress.failed) / progress.total) * 100)
+}
+
+const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
+
+/** "10月22日 · 周四" for the home page header. */
+export function todayLine(d: Date): string {
+  return `${d.getMonth() + 1}月${d.getDate()}日 · 周${WEEKDAYS[d.getDay()]}`
+}

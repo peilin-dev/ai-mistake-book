@@ -120,8 +120,8 @@ export default function AnswerKeyPage() {
       {rows.map((r, i) => (
         <View className='card' key={r.key}>
           <View style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <Text style={{ fontWeight: 'bold' }}>第 {i + 1} 行</Text>
-            <Text style={{ color: '#d93025' }} onClick={() => remove(r.key)}>
+            <Text className='strong'>第 {i + 1} 行</Text>
+            <Text className='text-danger' onClick={() => remove(r.key)}>
               删除
             </Text>
           </View>

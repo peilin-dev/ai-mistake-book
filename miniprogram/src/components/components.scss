@@ -4,10 +4,10 @@
   border-radius: 24px;
   font-size: 26px;
 }
-.pill-warn { background: #fff3cd; color: #8a6100; }
-.pill-ok { background: #d9f2e0; color: #1d7a3a; }
-.pill-busy { background: #e1ecff; color: #2557b8; }
-.pill-gray { background: #eee; color: #666; }
+.pill-warn { background: var(--warn-bg); color: var(--warn-text); }
+.pill-ok { background: var(--ok-bg); color: var(--ok-text); }
+.pill-busy { background: var(--busy-bg); color: var(--busy-text); }
+.pill-gray { background: var(--gray-bg); color: var(--ink-2); }
 
 .empty-guide {
   display: flex;
@@ -15,8 +15,8 @@
   align-items: center;
   padding: 160px 48px 0;
 }
-.empty-title { font-size: 40px; font-weight: bold; margin-bottom: 16px; }
-.empty-hint { color: #777; margin-bottom: 64px; text-align: center; }
+.empty-title { font-family: var(--serif); font-size: 44px; font-weight: bold; margin-bottom: 16px; }
+.empty-hint { color: var(--ink-2); margin-bottom: 64px; text-align: center; }
 
 .sheet-mask {
   position: fixed;
@@ -24,7 +24,7 @@
   right: 0;
   top: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(58, 47, 34, 0.45);
   z-index: 100;
 }
 .sheet {
@@ -32,16 +32,16 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: #f5f6f8;
+  background: var(--paper);
   border-radius: 24px 24px 0 0;
   padding: 32px 24px 48px;
   box-sizing: border-box;
 }
-.sheet-title { font-size: 36px; font-weight: bold; display: block; margin-bottom: 24px; }
+.sheet-title { font-family: var(--serif); font-size: 36px; font-weight: bold; display: block; margin-bottom: 24px; }
 .subject-list { display: flex; flex-wrap: wrap; margin-bottom: 24px; }
 .subject-chip {
-  background: #fff;
-  border: 2px solid #ddd;
+  background: var(--card);
+  border: 2px solid var(--line);
   border-radius: 40px;
   padding: 12px 32px;
   margin: 0 16px 16px 0;
@@ -49,4 +49,4 @@
 }
 .picker-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 28px 32px; }
 .picker-no { margin: 0; }
-.subject-on { background: #d9f2e0; border-color: #07c160; color: #1d7a3a; }
+.subject-on { background: var(--warn-bg); border-color: var(--warn); color: var(--warn-text); }

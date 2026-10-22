@@ -12,7 +12,8 @@ export default defineConfig<'webpack5'>(async (merge) => {
     defineConstants: {},
     copy: { patterns: [], options: {} },
     framework: 'react',
-    compiler: 'webpack5',
+    // Dev prebundle (module federation) off: plain vendors.js is simpler to debug in devtools.
+    compiler: { type: 'webpack5', prebundle: { enable: false } },
     cache: { enable: false },
     mini: {
       postcss: {

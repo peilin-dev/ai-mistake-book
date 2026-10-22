@@ -1,28 +1,78 @@
+// "Warm paper" theme: cream page, brown-black ink, serif headings. Colours live here as variables.
 page {
-  background: #f5f6f8;
-  color: #222;
+  --paper: #faf6ef;
+  --card: #ffffff;
+  --ink: #3a2f22;
+  --ink-2: #7a6a55;
+  --ink-3: #a08f78;
+  --line: #ece3d4;
+  --link: #a0561c;
+  --warn: #d9822b;
+  --warn-text: #b35a14;
+  --warn-bg: #fbeedd;
+  --busy: #c49a3c;
+  --busy-text: #8a6416;
+  --busy-bg: #f6eedb;
+  --ok: #5b8c5a;
+  --ok-text: #3f6b3e;
+  --ok-bg: #e4eee3;
+  --danger: #c0392b;
+  --danger-bg: #f9e3df;
+  --gray-bg: #f1ebe0;
+  --serif: 'Songti SC', 'STSong', 'Noto Serif CJK SC', 'Source Han Serif SC', 'SimSun', serif;
+
+  background: var(--paper);
+  color: var(--ink);
   font-size: 30px;
 }
 
 .page { padding: 24px; padding-bottom: 180px; }
 
 .card {
-  background: #fff;
-  border-radius: 16px;
+  background: var(--card);
+  border-radius: 8px;
   padding: 32px;
   margin-bottom: 24px;
 }
+// Status card: a colour band on the left instead of a full outline.
+.card-band { border-radius: 0 8px 8px 0; border-left: 6px solid var(--line); }
+.band-warn { border-left-color: var(--warn); }
+.band-busy { border-left-color: var(--busy); }
+.band-ok { border-left-color: var(--ok); }
+.band-gray { border-left-color: var(--line); }
+.band-danger { border-left-color: var(--danger); }
+
+.title-xl, .title-lg, .title-md { font-family: var(--serif); font-weight: bold; color: var(--ink); }
+.title-xl { font-size: 42px; }
+.title-lg { font-size: 36px; }
+.title-md { font-size: 32px; }
+.date-line { font-family: var(--serif); color: var(--ink-3); font-size: 26px; display: block; margin: 8px 0 24px; }
+
+.muted { color: var(--ink-3); }
+.link { color: var(--link); }
+.text-ok { color: var(--ok-text); }
+.text-danger { color: var(--danger); }
+.hint { color: var(--warn-text); }
+.strong { font-weight: bold; }
+
+.progress { height: 8px; background: var(--gray-bg); border-radius: 4px; margin-top: 20px; overflow: hidden; }
+.progress-fill { height: 8px; border-radius: 4px; background: var(--ink-3); }
+.fill-warn { background: var(--warn); }
+.fill-busy { background: var(--busy); }
+.fill-ok { background: var(--ok); }
 
 .big-btn {
   width: 100%;
-  background: #07c160;
-  color: #fff;
+  background: var(--ink);
+  color: var(--paper);
   font-size: 34px;
-  border-radius: 16px;
+  border-radius: 12px;
   line-height: 100px;
 }
 .big-btn::after { border: none; }
-.ghost-btn { background: #fff; color: #07c160; border: 2px solid #07c160; }
+.ghost-btn { background: var(--card); color: var(--ink); border: 2px solid var(--ink); }
+.danger-btn { background: var(--danger); color: #fff; }
+.ghost-btn.danger-btn { background: var(--card); color: var(--danger); border-color: var(--danger); }
 
 .bottom-bar {
   position: fixed;
@@ -30,14 +80,16 @@ page {
   right: 0;
   bottom: 0;
   padding: 24px;
-  background: #fff;
+  background: var(--paper);
+  border-top: 2px solid var(--line);
   box-sizing: border-box;
 }
 
-.label { color: #777; font-size: 26px; margin-bottom: 12px; display: block; }
+.label { color: var(--ink-2); font-size: 26px; margin-bottom: 12px; display: block; }
 .field {
-  background: #fff;
-  border-radius: 12px;
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 8px;
   padding: 24px;
   font-size: 32px;
   margin-bottom: 24px;

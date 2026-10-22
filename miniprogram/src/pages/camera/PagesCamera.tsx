@@ -156,10 +156,10 @@ export default function PagesCamera({ assignmentId }: { assignmentId: number }) 
   const pausedItem = pausedIdx >= 0 ? snap.items[pausedIdx] : null
 
   const pausedCard = snap.paused ? (
-    <View style={{ background: '#fff', margin: '16px 24px 0', padding: '24px', borderRadius: '16px' }}>
+    <View style={{ background: 'var(--paper)', margin: '16px 24px 0', padding: '24px', borderRadius: '12px' }}>
       {retakeFor !== null ? (
         <View>
-          <Text style={{ display: 'block', color: '#333', marginBottom: '16px' }}>
+          <Text style={{ display: 'block', color: 'var(--ink)', marginBottom: '16px' }}>
             对准第 {pausedIdx + 1} 张按快门重拍，也可以从相册选一张。后面的照片会接着传。
           </Text>
           <Button className='big-btn ghost-btn' onClick={() => setRetakeFor(null)}>
@@ -168,7 +168,7 @@ export default function PagesCamera({ assignmentId }: { assignmentId: number }) 
         </View>
       ) : (
         <View>
-          <Text style={{ display: 'block', color: '#d93025', marginBottom: '16px' }}>
+          <Text className='text-danger' style={{ display: 'block', marginBottom: '16px' }}>
             第 {pausedIdx + 1} 张没传上去：{snap.paused.message}。后面的照片先等它传完。
           </Text>
           <View style={{ display: 'flex' }}>
@@ -214,7 +214,7 @@ export default function PagesCamera({ assignmentId }: { assignmentId: number }) 
       shutterOff={snap.stopped === 'quota'}
       strip={strip}
       right={
-        <Text style={{ color: '#07c160', fontSize: '36px', fontWeight: 'bold' }} onClick={() => void finish()}>
+        <Text style={{ color: 'var(--warn)', fontSize: '36px', fontWeight: 'bold' }} onClick={() => void finish()}>
           完成
         </Text>
       }

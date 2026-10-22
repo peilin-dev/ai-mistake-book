@@ -3,7 +3,7 @@ import { View, Text, Button } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { request } from '../../lib/api'
 import { errorText } from '../../lib/messages'
-import { classCardStatus } from '../../lib/classCard'
+import { classCardStatus, gradedPercent, todayLine } from '../../lib/classCard'
 import type { AssignmentOut, ClassOut, ProgressOut, StudentOut } from '../../lib/types'
 import EmptyGuide from '../../components/EmptyGuide'
 import StatusPill from '../../components/StatusPill'
@@ -72,17 +72,19 @@ export default function Index() {
 
   return (
     <View className='page'>
+      <Text className='date-line'>{todayLine(new Date())}</Text>
       {cards.map(({ cls, studentCount, latest, progress }) => {
         const status = classCardStatus(latest, progress)
+        const percent = gradedPercent(progress)
         return (
-          <View className='card' key={cls.id} onClick={() => openClass(cls.id)}>
-            <View style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: '36px', fontWeight: 'bold' }}>{cls.name}</Text>
-              {studentCount !== null ? <Text style={{ color: '#777' }}>{studentCount} 人</Text> : null}
+          <View className={`card card-band band-${status.tone}`} key={cls.id} onClick={() => openClass(cls.id)}>
+            <View style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <Text className='title-lg'>{cls.name}</Text>
+              {studentCount !== null ? <Text className='muted'>{studentCount} 人</Text> : null}
             </View>
             {latest ? (
               <View style={{ marginTop: '16px' }}>
-                <Text style={{ marginRight: '16px' }}>{latest.title}</Text>
+                <Text style={{ marginRight: '16px', color: 'var(--ink-2)' }}>{latest.title}</Text>
                 <StatusPill text={status.text} tone={status.tone} />
               </View>
             ) : (
@@ -90,6 +92,11 @@ export default function Index() {
                 <StatusPill text={status.text} tone={status.tone} />
               </View>
             )}
+            {percent !== null ? (
+              <View className='progress'>
+                <View className={`progress-fill fill-${status.tone}`} style={{ width: `${percent}%` }} />
+              </View>
+            ) : null}
           </View>
         )
       })}

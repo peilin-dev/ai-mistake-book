@@ -161,7 +161,7 @@ function StudentRow({ s, onChanged }: { s: StudentOut; onChanged: () => void }) 
     return (
       <View className='card' style={{ display: 'flex', justifyContent: 'space-between' }} onClick={open}>
         <Text>{s.name}</Text>
-        <Text style={{ color: '#777' }}>{s.student_no ? `学号 ${s.student_no}` : '点击修改'}</Text>
+        <Text className='muted'>{s.student_no ? `学号 ${s.student_no}` : '点击修改'}</Text>
       </View>
     )
   }
@@ -178,7 +178,7 @@ function StudentRow({ s, onChanged }: { s: StudentOut; onChanged: () => void }) 
         <Button className='big-btn ghost-btn' style={{ flex: 1 }} onClick={() => setEditing(false)}>
           取消
         </Button>
-        <Button className='big-btn ghost-btn' style={{ flex: 1, color: '#d93025', borderColor: '#d93025' }} onClick={remove}>
+        <Button className='big-btn ghost-btn danger-btn' style={{ flex: 1 }} onClick={remove}>
           删除
         </Button>
       </View>

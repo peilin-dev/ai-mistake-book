@@ -103,12 +103,12 @@ export default function ResultDetail() {
   return (
     <View className='page'>
       {!hasKey ? (
-        <Text className='label' style={{ color: '#8a6100' }}>
+        <Text className='label' style={{ color: 'var(--warn-text)' }}>
           {NO_ANSWER_KEY_BANNER}
         </Text>
       ) : null}
       <View className='card'>
-        <Text style={{ fontSize: '40px', fontWeight: 'bold', display: 'block' }}>{sub.student_name}</Text>
+        <Text className='title-xl' style={{ display: 'block' }}>{sub.student_name}</Text>
         <Text style={{ fontSize: '34px', display: 'block', marginTop: '8px' }}>总分 {sub.total_score} 分</Text>
         {sub.needs_review_count > 0 ? (
           <Text className='pill pill-warn' style={{ marginTop: '12px' }}>
@@ -117,16 +117,16 @@ export default function ResultDetail() {
         ) : null}
       </View>
       {questions.map((q) => (
-        <View className='card' key={q.id}>
+        <View className={`card card-band ${q.is_correct ? 'band-ok' : 'band-danger'}`} key={q.id}>
           <View style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ fontWeight: 'bold' }}>第 {q.question_no} 题</Text>
+            <Text className='strong'>第 {q.question_no} 题</Text>
             <View style={{ display: 'flex', alignItems: 'center' }}>
               {!q.answer_verified ? (
                 <Text className='pill pill-busy' style={{ marginRight: '12px' }}>
                   AI 判断
                 </Text>
               ) : null}
-              <Text style={{ color: q.is_correct ? '#1d7a3a' : '#d93025', fontWeight: 'bold' }}>
+              <Text className={`strong ${q.is_correct ? 'text-ok' : 'text-danger'}`}>
                 {verdictText(q)}　{scoreText(q)}
               </Text>
             </View>

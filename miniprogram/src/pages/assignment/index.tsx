@@ -184,7 +184,7 @@ export default function AssignmentHome() {
   return (
     <View className='page' style={{ paddingBottom: '420px' }}>
       <View className='card'>
-        <Text style={{ fontSize: '40px', fontWeight: 'bold', display: 'block' }}>{assignment.title}</Text>
+        <Text className='title-xl' style={{ display: 'block' }}>{assignment.title}</Text>
         <Text className='label' style={{ marginTop: '8px' }}>
           {subjectLabel}
         </Text>
@@ -198,13 +198,13 @@ export default function AssignmentHome() {
             确认答案卷
           </Button>
         ) : null}
-        {keyAction === 'confirmed' ? <Text style={{ color: '#1d7a3a' }}>✓ 已确认答案卷</Text> : null}
+        {keyAction === 'confirmed' ? <Text className='text-ok'>✓ 已确认答案卷</Text> : null}
       </View>
 
       <View className='card'>
         <Text style={{ fontSize: '34px', display: 'block' }}>{text.pages}</Text>
         {progress.failed > 0 ? (
-          <Text style={{ color: '#d93025', display: 'block', marginTop: '8px' }}>{progress.failed} 张没批成</Text>
+          <Text className='text-danger' style={{ display: 'block', marginTop: '8px' }}>{progress.failed} 张没批成</Text>
         ) : null}
         {rosterSize > 0 ? (
           <Text className='label' style={{ marginTop: '8px' }}>
@@ -212,7 +212,7 @@ export default function AssignmentHome() {
           </Text>
         ) : null}
         {hints.map((h) => (
-          <Text key={h} className='label' style={{ color: '#8a6100' }}>
+          <Text key={h} className='label' style={{ color: 'var(--warn-text)' }}>
             {h}
           </Text>
         ))}
@@ -232,21 +232,21 @@ export default function AssignmentHome() {
         orderPages(pages).map((p) => {
           const action = p.status === 'failed' ? failReasonAction(p.fail_reason) : null
           return (
-            <View className='card' key={p.page_id}>
+            <View className={p.status === 'failed' ? 'card card-band band-danger' : 'card'} key={p.page_id}>
               <View style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Text style={{ fontWeight: 'bold' }}>
+                <Text className='strong'>
                   第 {p.seq} 张　{p.student_name ?? '未识别'}
                 </Text>
                 <Text
                   className='label'
-                  style={{ marginBottom: 0, color: p.status === 'failed' ? '#d93025' : undefined }}
+                  style={{ marginBottom: 0, color: p.status === 'failed' ? 'var(--danger)' : undefined }}
                 >
                   {pageStatusText(p.status)}
                 </Text>
               </View>
               {p.status === 'failed' ? (
                 <View style={{ marginTop: '16px' }}>
-                  <Text style={{ color: '#d93025', display: 'block', marginBottom: '16px' }}>
+                  <Text className='text-danger' style={{ display: 'block', marginBottom: '16px' }}>
                     {failReasonText(p.fail_reason)}
                   </Text>
                   {action === 'retake' ? (

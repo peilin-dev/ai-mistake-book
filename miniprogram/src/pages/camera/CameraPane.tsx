@@ -37,7 +37,7 @@ export default function CameraPane({ onShutter, onAlbum, shutterOff, strip, righ
               没有拿到相机权限。可以去设置里打开相机，或者直接从相册选照片。
             </Text>
             <View
-              style={{ background: '#07c160', color: '#fff', borderRadius: '16px', lineHeight: '100px' }}
+              style={{ background: 'var(--warn)', color: '#fff', borderRadius: '12px', lineHeight: '100px' }}
               onClick={() => void openSettings()}
             >
               去设置
