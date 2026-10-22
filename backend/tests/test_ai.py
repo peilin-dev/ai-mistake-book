@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.ai.base import ModelCallError, ModelOutputError, ModelResult
 from app.ai.fake import FakeModel
 from app.ai.openai_compat import OpenAICompatModel
-from app.ai.registry import get_model
+from app.ai.registry import build_model, get_model
 from app.ai.usage import record_usage
 from app.models import UsageRecord
 
@@ -175,6 +175,7 @@ def test_get_model_by_purpose(settings):
     assert isinstance(m, OpenAICompatModel)
     assert (m.provider, m.model, m.base_url, m.api_key) == (
         "qwen", "qwen-vl-plus", "https://dashscope.aliyuncs.com/compatible-mode/v1", "dk")
+    settings.MODEL_FOR_PRACTICE_VERIFY = "doubao:doubao-vision"
     v = get_model("practice_verify")
     assert (v.provider, v.base_url, v.api_key) == (
         "doubao", "https://ark.cn-beijing.volces.com/api/v3", "ak")
@@ -184,6 +185,7 @@ def test_base_url_comes_from_settings(settings):
     settings.QWEN_BASE_URL = "https://ws-abc.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
     settings.ARK_BASE_URL = "https://ark.example/api/v3"
     settings.MODEL_FOR_GRADING = "qwen:qwen-vl-max"
+    settings.MODEL_FOR_PRACTICE_VERIFY = "doubao:doubao-vision"
     assert get_model("grading").base_url == "https://ws-abc.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
     assert get_model("practice_verify").base_url == "https://ark.example/api/v3"
 
@@ -193,6 +195,27 @@ def test_get_model_bad_value(settings, value):
     settings.MODEL_FOR_GRADING = value
     with pytest.raises(ValueError):
         get_model("grading")
+
+
+def test_deepseek_provider_builds_model(settings):
+    settings.DEEPSEEK_API_KEY = "dsk"
+    m = build_model("deepseek:deepseek-v4-pro")
+    assert isinstance(m, OpenAICompatModel)
+    assert (m.provider, m.model, m.base_url, m.api_key) == (
+        "deepseek", "deepseek-v4-pro", "https://api.deepseek.com", "dsk")
+
+
+def test_practice_verify_defaults_to_deepseek(settings):
+    settings.DEEPSEEK_API_KEY = "dsk"
+    assert get_model("practice_verify").provider == "deepseek"
+    assert get_model("practice_generate").provider == "qwen"
+
+
+def test_practice_verify_same_provider_still_rejected(settings):
+    settings.MODEL_FOR_PRACTICE_VERIFY = "deepseek:deepseek-flash"
+    settings.MODEL_FOR_PRACTICE_GENERATE = "deepseek:deepseek-v4-pro"
+    with pytest.raises(ValueError, match="different"):
+        get_model("practice_verify")
 
 
 def test_verify_must_differ_from_generate(settings):

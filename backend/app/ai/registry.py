@@ -10,13 +10,14 @@ Purpose = Literal["grading", "answer_key", "practice_generate", "practice_verify
 _PROVIDERS = {
     "qwen": ("QWEN_BASE_URL", "DASHSCOPE_API_KEY"),
     "doubao": ("ARK_BASE_URL", "ARK_API_KEY"),
+    "deepseek": ("DEEPSEEK_BASE_URL", "DEEPSEEK_API_KEY"),
 }
 
 
 def _parse(value: str) -> tuple[str, str]:
     provider, sep, model = value.partition(":")
     if not sep or not model or provider not in _PROVIDERS:
-        raise ValueError(f"invalid model setting {value!r}; expected 'qwen:<model>' or 'doubao:<model>'")
+        raise ValueError(f"invalid model setting {value!r}; expected '<provider>:<model>' with provider one of {sorted(_PROVIDERS)}")
     return provider, model
 
 
