@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     WX_APPID: str = ""
     WX_SECRET: str = ""
     STORAGE_DIR: str = "storage"
+    PDF_FONT_PATH: str = ""
     DASHSCOPE_API_KEY: str = ""
     ARK_API_KEY: str = ""
     # OpenAI-compatible endpoints. A Bailian workspace key (sk-ws-...) needs the

@@ -24,10 +24,11 @@ dependencies = [
     "pyyaml",
     "tzdata",
     "python-multipart",
+    "reportlab",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-asyncio"]
+dev = ["pytest", "pytest-asyncio", "pypdf"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]

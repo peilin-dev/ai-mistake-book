@@ -6,6 +6,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 TZ=Asia/Shanghai
 ARG PIP_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple
 ENV PIP_INDEX_URL=${PIP_INDEX_URL}
 
+# CJK font for PDF export; apt via the Tencent Cloud Debian mirror (reachable from mainland servers).
+RUN sed -i 's|deb.debian.org|mirrors.cloud.tencent.com|g' /etc/apt/sources.list.d/debian.sources \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends fonts-wqy-microhei \
+ && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY pyproject.toml ./
 COPY app ./app
