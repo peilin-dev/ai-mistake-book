@@ -21,7 +21,7 @@ from app.ai.usage import record_usage
 from app.config import Settings, get_settings
 from app.grading.consensus import refresh_answer_consensus
 from app.grading.crop import crop, prepare_image
-from app.grading.matching import match_student
+from app.grading.matching import MatchResult, match_student
 from app.grading.prompts import build_grading_prompt
 from app.grading.rules import filter_knowledge_point, needs_review
 from app.grading.schema import GradedPage, GradedQuestion
@@ -128,6 +128,9 @@ async def _write_phase(
     roster = [(sid, n) for sid, n in await db.execute(
         select(Student.id, Student.name).where(Student.class_id == ctx.class_id))]
     match = match_student(name, roster, await _previous_student(db, page), settings.NAME_MATCH_THRESHOLD)
+    if match.status == "continued" and await _repeats_questions(
+            db, ctx.assignment_id, match.student_id, page_id, {gq.no for gq in result.questions}):
+        match = MatchResult(None, "none")  # same question numbers again: someone else's paper, ask the teacher
     page.student_id, page.recognized_name = match.student_id, name
     old_submissions, old_crops = await clear_page_results(db, page_id)
     submission_id = await get_or_create_submission(db, ctx.assignment_id, match.student_id)
@@ -209,16 +212,34 @@ async def _previous_student(db: AsyncSession, page: Page) -> int | None:
     return (await db.execute(stmt)).scalar_one_or_none()
 
 
+async def _repeats_questions(
+    db: AsyncSession, assignment_id: int, student_id: int | None, page_id: int, nos: set[str]
+) -> bool:
+    """A nameless page whose question numbers the student already has on other pages is not their back page."""
+    if student_id is None or not nos:
+        return False
+    stmt = select(QuestionResult.id).join(Page, Page.id == QuestionResult.page_id).where(
+        Page.assignment_id == assignment_id,
+        Page.student_id == student_id,
+        Page.id != page_id,
+        QuestionResult.question_no.in_(nos),
+    ).limit(1)
+    return (await db.execute(stmt)).scalar_one_or_none() is not None
+
+
 async def attach_following_pages(db: AsyncSession, page: Page, submission_id: int, settings: Settings) -> None:
     """Nameless pages finished before this one become its continuation (spec 7.2)."""
     seq = page.seq + 1
     while (nxt := await fresh_page(db, Page.assignment_id == page.assignment_id, Page.seq == seq)) is not None:
         if nxt.status != PageStatus.done or nxt.student_id is not None or nxt.recognized_name is not None:
             break
-        nxt.student_id = page.student_id
         stmt = select(QuestionResult).where(QuestionResult.page_id == nxt.id).execution_options(
             populate_existing=True)
-        for row in (await db.execute(stmt)).scalars():
+        rows = list((await db.execute(stmt)).scalars())
+        if await _repeats_questions(db, page.assignment_id, page.student_id, nxt.id, {r.question_no for r in rows}):
+            break  # left for review: "这张卷子是谁的？"
+        nxt.student_id = page.student_id
+        for row in rows:
             row.submission_id = submission_id
             row.needs_review = needs_review(row.confidence, "continued", settings.REVIEW_CONFIDENCE_THRESHOLD,
                                             row.answer_mismatch)

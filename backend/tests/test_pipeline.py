@@ -66,6 +66,35 @@ async def test_second_page_without_name_joins_previous_student(db, storage, two_
     assert page2.student_id == roster_zhangsan.id
 
 
+async def test_nameless_page_repeating_question_numbers_goes_to_review(db, storage, two_uploaded_pages,
+                                                                       roster_zhangsan):
+    # Same question numbers as the previous page: another student's paper, not this one's back page.
+    model = FakeModel([graded(student_name="张三", questions=[q(no="1"), q(no="2")]),
+                       graded(student_name=None, questions=[q(no="2"), q(no="3")])])
+    await grade_page(db, storage, model, two_uploaded_pages[0].id)
+    await grade_page(db, storage, model, two_uploaded_pages[1].id)
+    page2 = await db.get(Page, two_uploaded_pages[1].id)
+    assert page2.status == "done" and page2.student_id is None
+    rows = (await db.execute(select(QuestionResult).where(QuestionResult.page_id == page2.id))).scalars().all()
+    assert all(r.submission_id is None and r.needs_review for r in rows)
+    sub = (await db.execute(select(Submission))).scalar_one()
+    assert sub.total_score == 4  # page 1 only
+
+
+async def test_late_nameless_page_repeating_question_numbers_is_not_attached(db, storage, two_uploaded_pages,
+                                                                             roster_zhangsan):
+    # Page 2 finishes first (nothing to continue yet); page 1 then must not pull it in.
+    model = FakeModel([graded(student_name=None, questions=[q(no="1")]),
+                       graded(student_name="张三", questions=[q(no="1"), q(no="2")])])
+    await grade_page(db, storage, model, two_uploaded_pages[1].id)
+    await grade_page(db, storage, model, two_uploaded_pages[0].id)
+    page2 = await db.get(Page, two_uploaded_pages[1].id)
+    await db.refresh(page2)
+    assert page2.student_id is None
+    sub = (await db.execute(select(Submission))).scalar_one()
+    assert sub.total_score == 4
+
+
 async def test_unreadable_page_fails(db, storage, uploaded_page):
     await grade_page(db, storage, FakeModel([graded(student_name=None, questions=[])]), uploaded_page.id)
     page = await db.get(Page, uploaded_page.id)
@@ -397,9 +426,10 @@ async def test_late_continuation_stops_at_first_named_page(
     ids, student_id = [p.id for p in pages], roster_zhangsan.id
     pages[0].status = "processing"
     await db.commit()
-    for pid, name in ((ids[1], None), (ids[2], "王五"), (ids[3], None)):
+    # Back pages carry other question numbers than the front page (repeats would go to review).
+    for pid, name, no in ((ids[1], None, "5"), (ids[2], "王五", "1"), (ids[3], None, "5")):
         await _grade_in_new_session(rc_sessionmaker, storage, FakeModel([graded(
-            student_name=name, questions=[q(no="1")])]), pid)
+            student_name=name, questions=[q(no=no)])]), pid)
     await _grade_in_new_session(rc_sessionmaker, storage, FakeModel([graded(
         student_name="张三", questions=[q(no="1")])]), ids[0])
     await _reset(db)
