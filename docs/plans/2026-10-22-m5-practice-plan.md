@@ -65,7 +65,7 @@
 **Interfaces:**
 - Produces:
   - 表 `practice_papers`：`assignment_id`（FK CASCADE）、`student_id`（可空，FK CASCADE）、`status`（String(16)：`queued` / `running` / `done` / `failed`）、`partial`（Boolean，默认 False）、`sources_total` / `sources_done`（Integer）、`error`（String(128) 可空）、`generated_at`（DateTime 可空，任务结束时写入）；唯一键 `(assignment_id, student_key)`，其中 `student_key` 为 Integer 非空（全班 0，单人为 student_id）——MySQL 唯一键不认 NULL 相等。
-  - 表 `practice_items`：`paper_id`（FK CASCADE）、`position`（Integer）、`source_no`（String(32)）、`knowledge_point_id`（可空，FK SET NULL）、`kind`（String(8)）、`stem`（Text）、`options`（Text，JSON 数组字符串，非选择题为 null）、`answer`（Text）
+  - 表 `practice_items`：`paper_id`（FK CASCADE）、`position`（Integer）、`source_no`（String(32)）、`knowledge_point_id`（可空，FK SET NULL）、`kind`（String(8)）、`stem`（Text）、`options`（Text，JSON 数组字符串，非选择题为 null）、`answer`（Text）、`replacing`（Boolean，默认 False，「换一道」进行中为 True）
   - `rules.py` 常量见全局约束
   - `@dataclass Source(question_no: str, text: str, correct_answer: str, knowledge_point_id: int | None, knowledge_point: str | None, grade: int, subject: str, lost: float | None)`
   - `async def class_sources(db, assignment_id: int) -> list[Source]`：用 M4 `assignment_stats` 的 `questions`（已按错误人数排序），按全局约束过滤、取前 `MAX_SOURCES`
@@ -118,7 +118,7 @@
   - `GET /api/assignments/{id}/practice` 与 `GET /api/submissions/{id}/practice` → 最近一张 `PaperOut`，没有 → 404
   - `GET /api/practice/{paper_id}` → `PaperOut`
   - `POST /api/practice-items/{item_id}/replace` → 202 `{"queued": true}`；纸在 `queued`/`running` → 409「还在出题，请稍等」；纸 `failed` → 409「这张练习纸没出成，请重新生成」
-  - `PaperOut = {"id", "scope": "class" | "student", "student_name": str | null, "status", "partial", "sources_total", "sources_done", "error", "generated_at", "items": [{"id", "position", "source_no", "knowledge_point", "kind", "stem", "options", "answer", "replacing": bool}]}`；`replacing` 由 Redis 或表字段标记换题进行中（实现者择一），换题结束后为 false
+  - `PaperOut = {"id", "scope": "class" | "student", "student_name": str | null, "status", "partial", "sources_total", "sources_done", "error", "generated_at", "items": [{"id", "position", "source_no", "knowledge_point", "kind", "stem", "options", "answer", "replacing": bool}]}`；`replacing` 取 `practice_items.replacing`：入队换题时置 True，任务结束（换成或没换成）置 False；`PaperOut` 另加 `"last_replace_failed_item": int | null`（最近一次没换成的题 id，供页面提示「没换成，原题保留」），可存在 `practice_papers` 新列 `last_replace_failed_item`（Integer 可空，放进迁移 0011）
 
 - [ ] **Step 1: 写失败的测试**：`test_generate_creates_paper_and_enqueues`、`test_second_generate_while_running_returns_same_paper`、`test_regenerate_resets_done_paper`、`test_no_sources_409_class_and_student`、`test_run_paper_keeps_only_verified_and_marks_partial`、`test_run_paper_retries_source_once`、`test_run_paper_zero_items_fails_with_message`、`test_run_paper_progress_counts`、`test_replace_swaps_only_when_verified`、`test_replace_rejected_while_running_or_failed`、`test_practice_endpoints_other_teacher_404`
 - [ ] **Step 2: 运行确认失败**
