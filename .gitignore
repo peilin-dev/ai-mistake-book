@@ -11,3 +11,4 @@ __pycache__/
 /miniprogram/.swc/
 !miniprogram/.env.development
 !miniprogram/.env.production
+!deploy/.env.example
