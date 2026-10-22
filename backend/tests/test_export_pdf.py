@@ -224,6 +224,14 @@ def test_practice_pdf_with_and_without_answer_page():
         assert line in last
 
 
+def test_practice_pdf_escapes_markup_characters():
+    from app.export.pdf import PracticeItem, PracticeSheet, render_practice
+    sheet = PracticeSheet("班", "作业", "2026-10-22", "老师", None, [
+        PracticeItem(1, "choice", "比较 a<b & c>d", ["x<y", "p&q"], "A")], False)
+    text = _pages(render_practice(sheet))[0]
+    assert "a<b & c>d" in text and "A. x<y" in text and "B. p&q" in text
+
+
 def test_practice_pdf_choice_options_and_student_header():
     from app.export.pdf import render_practice
     pages = _pages(render_practice(_practice(student_name="张三")))

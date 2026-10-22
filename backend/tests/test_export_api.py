@@ -166,6 +166,19 @@ async def test_export_practice_class_and_student(db, auth_client, my_assignment,
     assert "参考答案" not in text and "张三" in text
 
 
+@pytest.mark.parametrize("bad", ["{not json", '{"a": 1}', '[1, null, {"x": 1}, "A & <b>"]', '"str"'])
+async def test_export_practice_bad_options_still_pdf(db, auth_client, my_assignment, two_students, bad):
+    from app.models import PracticeItem
+    p = await _paper(db, my_assignment)
+    item = (await db.execute(select(PracticeItem).where(PracticeItem.paper_id == p.id,
+                                                        PracticeItem.position == 1))).scalar_one()
+    item.options = bad
+    await db.commit()
+    r = await auth_client.post(url_of(my_assignment), json={"kind": "practice"})
+    assert r.status_code == 201, r.text
+    assert (await auth_client.get(r.json()["url"])).content.startswith(b"%PDF")
+
+
 async def test_export_practice_not_ready_409(db, auth_client, my_assignment, two_students, roster_zhangsan):
     msg = "还没有可以导出的练习纸"
     r = await auth_client.post(url_of(my_assignment), json={"kind": "practice"})

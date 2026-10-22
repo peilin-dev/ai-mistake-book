@@ -139,6 +139,19 @@ async def build_export(db: AsyncSession, storage: Storage, teacher: Teacher, ass
     return pdf, f"{prefix}-错题单.pdf"
 
 
+def _parse_options(raw: str | None) -> list[str] | None:
+    """Options JSON from the DB; anything but a list of scalars prints as a stem with no options."""
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(data, list):
+        return None
+    return [str(o) for o in data if o is not None and not isinstance(o, (list, dict))] or None
+
+
 async def build_practice_export(db: AsyncSession, teacher: Teacher, assignment: Assignment,
                                 student_id: int | None, include_answers: bool) -> tuple[bytes, str]:
     """The class practice sheet (student_id None) or one student's; only a finished paper exports."""
@@ -158,7 +171,7 @@ async def build_practice_export(db: AsyncSession, teacher: Teacher, assignment: 
     if student_id is not None:
         student = await db.get(Student, student_id)
         student_name = student.name if student else None
-    items = [PracticeItem(number=n, kind=r.kind, stem=r.stem, options=json.loads(r.options) if r.options else None,
+    items = [PracticeItem(number=n, kind=r.kind, stem=r.stem, options=_parse_options(r.options),
                           answer=r.answer) for n, r in enumerate(rows, 1)]
     sheet = PracticeSheet(
         class_name=cls.name, title=assignment.title, date=_date(assignment.created_at),
