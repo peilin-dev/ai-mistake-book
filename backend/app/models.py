@@ -241,3 +241,39 @@ class AiNote(_Base):
         UniqueConstraint("assignment_id", "kind", "ref", name="uq_ai_note_ref"),
         {"mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"},
     )
+
+
+class PracticePaper(_Base):
+    """A generated practice sheet: one per assignment for the class (student_id NULL), one per student."""
+    __tablename__ = "practice_papers"
+    assignment_id: Mapped[int] = _fk("assignments.id")
+    student_id: Mapped[int | None] = _fk("students.id", nullable=True)
+    # 0 for the class paper, else student_id: MySQL unique keys do not treat NULLs as equal.
+    student_key: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(16))  # queued | running | done | failed
+    partial: Mapped[bool] = mapped_column(Boolean, default=False)
+    sources_total: Mapped[int] = mapped_column(Integer, default=0)
+    sources_done: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(String(128))
+    generated_at: Mapped[datetime | None] = mapped_column(DateTime)
+    last_replace_failed_item: Mapped[int | None] = mapped_column(Integer)
+
+    __table_args__ = (
+        UniqueConstraint("assignment_id", "student_key", name="uq_practice_paper_key"),
+        {"mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"},
+    )
+
+
+class PracticeItem(_Base):
+    __tablename__ = "practice_items"
+    paper_id: Mapped[int] = _fk("practice_papers.id")
+    position: Mapped[int] = mapped_column(Integer)
+    source_no: Mapped[str] = mapped_column(String(32))
+    knowledge_point_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("knowledge_points.id", ondelete="SET NULL"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(8))  # choice | blank | judge | calc
+    stem: Mapped[str] = mapped_column(Text)
+    options: Mapped[str | None] = mapped_column(Text)  # JSON array string; NULL unless choice
+    answer: Mapped[str] = mapped_column(Text)
+    replacing: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
