@@ -182,3 +182,43 @@ async def test_cli_imports_files(db, settings, sample_yaml, capsys):
     assert await asyncio.to_thread(main, [str(sample_yaml)]) == 0
     assert "分数加减法" in {k.name for k in await candidates(db, "math", 5)}
     assert "imported" in capsys.readouterr().out
+
+
+async def test_cli_prune_refuses_two_files_with_same_subject(db, settings, tmp_path):
+    files = tmp_path / "set"
+    files.mkdir()
+    (files / "a.yaml").write_text("subject: math\ngrade_band: [5, 6]\nnodes:\n  - {code: X, name: x}\n",
+                                  encoding="utf-8")
+    (files / "b.yaml").write_text("subject: math\ngrade_band: [5, 6]\nnodes:\n  - {code: Y, name: y}\n",
+                                  encoding="utf-8")
+    await import_yaml(db, _write(tmp_path, "subject: math\ngrade_band: [5, 6]\nnodes:\n  - {code: OLD, name: o}\n"))
+    with pytest.raises(SystemExit) as exc:
+        await asyncio.to_thread(main, ["--prune", str(files / "*.yaml")])
+    assert exc.value.code not in (0, None) and "same subject" in str(exc.value.code)
+    codes = {k.code for k in (await db.execute(select(KnowledgePoint).execution_options(populate_existing=True)))
+             .scalars()}
+    assert codes == {"OLD"}  # nothing imported, nothing deleted
+
+
+@pytest.mark.parametrize("prune", [True, False])
+async def test_cli_refuses_empty_file(db, settings, tmp_path, prune):
+    files = tmp_path / "set"
+    files.mkdir()
+    (files / "a.yaml").write_text("subject: physics\ngrade_band: [8, 9]\nnodes:\n  - {code: P, name: p}\n",
+                                  encoding="utf-8")
+    (files / "b.yaml").write_text("subject: math\ngrade_band: [5, 6]\nnodes: []\n", encoding="utf-8")
+    await import_yaml(db, _write(tmp_path, "subject: math\ngrade_band: [5, 6]\nnodes:\n  - {code: OLD, name: o}\n"))
+    argv = (["--prune"] if prune else []) + [str(files / "*.yaml")]
+    with pytest.raises(SystemExit) as exc:
+        await asyncio.to_thread(main, argv)
+    assert exc.value.code not in (0, None) and "no nodes" in str(exc.value.code)
+    codes = {k.code for k in (await db.execute(select(KnowledgePoint).execution_options(populate_existing=True)))
+             .scalars()}
+    assert codes == {"OLD"}
+
+
+async def test_import_yaml_refuses_empty_file(db, tmp_path):
+    await import_yaml(db, _write(tmp_path, "subject: math\ngrade_band: [5, 6]\nnodes:\n  - {code: OLD, name: o}\n"))
+    with pytest.raises(ValueError, match="no nodes"):
+        await import_yaml(db, _write(tmp_path, "subject: math\ngrade_band: [5, 6]\n"), prune=True)
+    assert {k.code for k in (await db.execute(select(KnowledgePoint))).scalars()} == {"OLD"}

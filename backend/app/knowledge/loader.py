@@ -67,16 +67,12 @@ def _parse(path: Path) -> tuple[Subject, list[_Node]]:
             walk(item.get("children"), code, band)
 
     walk(doc.get("nodes"), None, top_band)
+    if not nodes:
+        raise ValueError(f"{path}: no nodes")  # an empty file would prune its whole subject
     return subject, nodes
 
 
-async def import_yaml(db: AsyncSession, path: Path, prune: bool = False) -> int:
-    """Upsert every node in the file by code; returns the node count. Commits.
-
-    With prune=True, knowledge points of the file's subject whose code is not in the file are
-    deleted in the same transaction; question_results pointing at them are set to NULL by the FK.
-    """
-    subject, nodes = _parse(path)  # validate everything before touching the DB
+async def _upsert(db: AsyncSession, subject: Subject, nodes: list[_Node]) -> None:
     existing = {
         kp.code: kp
         for kp in (
@@ -98,13 +94,27 @@ async def import_yaml(db: AsyncSession, path: Path, prune: bool = False) -> int:
             if parent.id is None:
                 await db.flush()
             kp.parent_id = parent.id
+
+
+async def _prune(db: AsyncSession, subject: Subject, codes: set[str]) -> None:
+    await db.flush()  # re-parenting must land before the stale parents are deleted
+    await db.execute(
+        delete(KnowledgePoint)
+        .where(KnowledgePoint.subject == subject, KnowledgePoint.code.not_in(sorted(codes)))
+        .execution_options(synchronize_session=False)
+    )
+
+
+async def import_yaml(db: AsyncSession, path: Path, prune: bool = False) -> int:
+    """Upsert every node in the file by code; returns the node count. Commits.
+
+    With prune=True, knowledge points of the file's subject whose code is not in the file are
+    deleted in the same transaction; question_results pointing at them are set to NULL by the FK.
+    """
+    subject, nodes = _parse(path)  # validate everything before touching the DB
+    await _upsert(db, subject, nodes)
     if prune:
-        await db.flush()  # re-parenting must land before the stale parents are deleted
-        await db.execute(
-            delete(KnowledgePoint)
-            .where(KnowledgePoint.subject == subject, KnowledgePoint.code.not_in([n.code for n in nodes]))
-            .execution_options(synchronize_session=False)
-        )
+        await _prune(db, subject, {n.code for n in nodes})
     await db.commit()
     return len(nodes)
 
@@ -122,15 +132,19 @@ def _expand(args: list[str]) -> list[Path]:
     return paths
 
 
-async def _import_files(paths: list[Path], prune: bool = False) -> list[tuple[Path, int]]:
+async def _import_files(parsed: list[tuple[Path, Subject, list[_Node]]], prune: bool) -> None:
+    """Import every file, then prune once per subject, all in one transaction."""
     engine = create_async_engine(get_settings().DATABASE_URL)
     try:
-        factory = async_sessionmaker(engine, expire_on_commit=False)
-        results = []
-        for p in paths:
-            async with factory() as db:
-                results.append((p, await import_yaml(db, p, prune=prune)))
-        return results
+        async with async_sessionmaker(engine, expire_on_commit=False)() as db:
+            codes: dict[Subject, set[str]] = {}
+            for _, subject, nodes in parsed:
+                await _upsert(db, subject, nodes)
+                codes.setdefault(subject, set()).update(n.code for n in nodes)
+            if prune:
+                for subject, subject_codes in codes.items():
+                    await _prune(db, subject, subject_codes)
+            await db.commit()
     finally:
         await engine.dispose()
 
@@ -138,14 +152,27 @@ async def _import_files(paths: list[Path], prune: bool = False) -> list[tuple[Pa
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Import knowledge-point YAML files")
     parser.add_argument("--prune", action="store_true",
-                        help="delete knowledge points of each file's subject that the file no longer lists")
+                        help="delete knowledge points of each file's subject that the files no longer list")
     parser.add_argument("files", nargs="+")
     args = parser.parse_args(argv)
-    paths = _expand(args.files)
-    for p in paths:
-        _parse(p)  # validate every file before importing any
-    for path, count in asyncio.run(_import_files(paths, prune=args.prune)):
-        print(f"imported {count} nodes from {path}")
+    parsed = []
+    for p in _expand(args.files):  # validate every file before importing any
+        try:
+            subject, nodes = _parse(p)
+        except ValueError as e:
+            raise SystemExit(f"refusing to import: {e}") from None
+        parsed.append((p, subject, nodes))
+    if args.prune:
+        by_subject: dict[Subject, list[Path]] = {}
+        for p, subject, _ in parsed:
+            by_subject.setdefault(subject, []).append(p)
+        dupes = {s: ps for s, ps in by_subject.items() if len(ps) > 1}
+        if dupes:
+            detail = "; ".join(f"{s.value}: {', '.join(str(p) for p in ps)}" for s, ps in dupes.items())
+            raise SystemExit(f"refusing to prune: several files declare the same subject ({detail})")
+    asyncio.run(_import_files(parsed, prune=args.prune))
+    for p, _, nodes in parsed:
+        print(f"imported {len(nodes)} nodes from {p}")
     return 0
 
 
