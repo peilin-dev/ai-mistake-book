@@ -37,7 +37,7 @@ async def test_generate_model_error_returns_empty(db, teacher):
 
 async def test_verify_blind_then_local_match(db, teacher):
     d = Draft("calc", "一个长方形长10cm宽4cm，面积是多少？", None, "40")
-    m = FakeModel([{"answer": "40 cm²"}])
+    m = FakeModel([{"answer": "40"}])
     assert await verify_draft(db, m, teacher.id, d) is True
     assert len(m.prompts) == 1
     assert "一个长方形长10cm宽4cm" in m.prompts[0]
@@ -86,7 +86,7 @@ def test_numeric_and_judge_equivalence():
     assert answers_match("blank", "1/2", "50%", None) is True
     assert answers_match("calc", "0.5", "50 %", None) is True
     assert answers_match("calc", "0.5", "0.6", None) is False
-    assert answers_match("calc", "40", "40 平方厘米", None) is True
+    assert answers_match("calc", "40", "40 平方厘米", None) is None  # one-sided unit -> model
     assert answers_match("calc", "40cm²", "40 cm²", None) is True
     assert answers_match("calc", "40cm", "40 kg", None) is None
     assert answers_match("calc", "３／４", "0.75", None) is True
@@ -127,3 +127,38 @@ async def test_prompts_have_no_student_names(db, teacher):
     gen = m.prompts[0]
     assert SRC.text in gen and "40" in gen and "长方形面积" in gen and "已有题干" in gen
     assert "学生" not in m.prompts[1]
+
+@pytest.mark.parametrize("exp,got", [
+    ("2", "2或-2"), ("2", "2+3"), ("2x+1", "2"), ("6", "6×2"), ("3", "3²"), ("2", "2^3"),
+    ("1", "1e5"), ("3", "3又1/2"), ("12", "12:30"), ("1", "1,000"), ("2", "2,3"),
+    ("40", "40cm"), ("40cm", "40"), ("40cm", "40kg"), ("−2", "2"),
+])
+def test_numeric_never_accepts_wrong(exp, got):
+    assert answers_match("calc", exp, got, None) is not True
+
+
+def test_numeric_unicode_minus_and_same_unit():
+    assert answers_match("calc", "−2", "-2", None) is True
+    assert answers_match("calc", "40cm²", "40.0cm²", None) is True
+
+
+@pytest.mark.parametrize("got", ["B C", "B. 38", "BC", "A", "B、38"])
+def test_choice_rejects_multi_or_mismatched(got):
+    assert answers_match("choice", "B", got, ["38", "40", "13", "26"]) is False
+
+
+async def test_generate_rejects_bad_judge_and_duplicate_options(db, teacher):
+    m = FakeModel([{"objective": True, "items": [
+        _item(kind="judge", stem="地球是圆的", answer="也许"),
+        _item(kind="judge", stem="水是液体", answer="对"),
+        _item(kind="choice", stem="重复", options=["40", " 40", "1"], answer="A"),
+    ]}])
+    out = await generate_drafts(db, m, teacher.id, SRC, 2, [])
+    assert [d.stem for d in out] == ["水是液体"]
+
+
+async def test_equivalence_prompt_is_strict(db, teacher):
+    d = Draft("blank", "解方程", None, "2或-2")
+    m = FakeModel([{"answer": "2"}, {"equivalent": False}])
+    assert await verify_draft(db, m, teacher.id, d) is False
+    assert "严格" in m.prompts[1] and "完整" in m.prompts[1]

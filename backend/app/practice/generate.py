@@ -38,6 +38,9 @@ class Draft:
 _TRUE = {"对", "正确", "√", "✓", "t", "true", "是", "yes", "y"}
 _FALSE = {"错", "错误", "×", "✗", "x", "f", "false", "否", "不对", "no", "n"}
 _NUM = re.compile(r"^([+-]?\d+(?:\.\d+)?|[+-]?\.\d+)(?:/(\d+(?:\.\d+)?))?(%?)(.*)$")
+# A unit is a pure token: letters, CJK characters, superscript 2/3; no digits, operators or connectives.
+_UNIT = re.compile(r"^[A-Za-z\u4e00-\u9fffµμ²³]+$")
+_CONNECTIVES = set("又或和且与及")
 
 
 def _judge_value(s: str) -> bool | None:
@@ -51,7 +54,7 @@ def _judge_value(s: str) -> bool | None:
 
 def _parse_number(s: str) -> tuple[float, str] | None:
     """(value, unit) for '40', '0.5', '1/2', '50%', '40平方厘米', '40cm²'; else None."""
-    m = _NUM.match(normalize_answer(s))
+    m = _NUM.match(normalize_answer(s).replace("−", "-"))
     if not m:
         return None
     num, den, pct, unit = m.groups()
@@ -65,24 +68,27 @@ def _parse_number(s: str) -> tuple[float, str] | None:
         return None
     if pct:
         value /= 100
-    return value, unit.strip("。.")
+    unit = unit.strip("。.")
+    if unit and (not _UNIT.match(unit) or _CONNECTIVES & set(unit)):
+        return None  # trailing text is not a plain unit: not safely comparable
+    return value, unit
 
 
 def _choice_letter(s: str, options: list[str]) -> str | None:
     raw = (s or "").strip()
     n = len(options)
-    m = re.match(r"^\(?([A-Za-zＡ-Ｚａ-ｚ])\)?(?:[\s.、．:：)）]|$)", raw)
-    if m:
-        letter = normalize_answer(m.group(1)).upper()
-        idx = _LETTERS.find(letter)
-        if 0 <= idx < n:
-            return letter
     key = normalize_answer(raw)
     for i, opt in enumerate(options):
         if key and normalize_answer(opt) == key:
             return _LETTERS[i]
+    m = re.match(r"^\(?([A-Za-zＡ-Ｚａ-ｚ])\)?(?:[\s.、．:：)）]+(.*)|())$", raw, re.S)
+    if m:
+        idx = _LETTERS.find(normalize_answer(m.group(1)).upper())
+        if 0 <= idx < n:
+            rest = normalize_answer(m.group(2) or "")
+            if rest in ("", normalize_answer(options[idx])):
+                return _LETTERS[idx]
     return None
-
 
 def answers_match(kind: str, expected: str, got: str, options: list[str] | None) -> bool | None:
     """True/False when decidable locally, None when a model must judge equivalence."""
@@ -99,8 +105,8 @@ def answers_match(kind: str, expected: str, got: str, options: list[str] | None)
         return True
     a, b = _parse_number(expected), _parse_number(got)
     if a and b:
-        if a[1] and b[1] and a[1] != b[1]:
-            return None  # different units: let the model decide
+        if a[1] != b[1]:
+            return None  # different or one-sided units: let the model decide
         return abs(a[0] - b[0]) < _TOL
     return None
 
@@ -147,7 +153,7 @@ def _verify_prompt(draft: Draft) -> str:
 
 def _equivalence_prompt(draft: Draft, got: str) -> str:
     return "\n".join([
-        "下面是同一道题的两个答案，请判断它们是否等价（含义相同即可，写法、单位、多余修饰词不同不算不等价）。",
+        "下面是同一道题的两个答案，请严格判断它们是否等价：数值相同且单位相同或等价（如 1米 = 100厘米 等价，40cm 与 40m 不等价），答案必须完整（所有根/解都要有），不能多也不能少；只有书写格式上的差异可以忽略。",
         f"题目：{draft.stem}",
         f"答案一：{draft.answer}",
         f"答案二：{got}",
@@ -165,12 +171,16 @@ def _clean_item(raw: object) -> Draft | None:
     answer = str(raw.get("answer") if raw.get("answer") is not None else "").strip()
     if kind not in KINDS or not stem or not answer:
         return None
+    if kind == "judge" and _judge_value(answer) is None:
+        return None
     options = None
     if kind == "choice":
         opts = raw.get("options")
         if not isinstance(opts, list) or len(opts) < 2 or len(opts) > len(_LETTERS):
             return None
         options = [str(o).strip() for o in opts]
+        if len({normalize_answer(o) for o in options}) != len(options):
+            return None
         if _choice_letter(answer, options) is None:
             return None
         answer = _choice_letter(answer, options)
