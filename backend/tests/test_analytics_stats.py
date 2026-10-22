@@ -84,6 +84,16 @@ def test_blank_answers_grouped_as_unanswered():
     assert set(groups[0].students[0]) == {"student_id", "student_name", "submission_id", "score", "max_score"}
 
 
+def test_group_entries_carry_the_questions_own_score():
+    # paper total differs from the question's score; the entry must show 1 / 4
+    r = sr("张三", [sq("5", 1, 4, answer="13"), sq("6", 10, 10)])
+    r.score, r.max_score = 11, 14
+    groups = group_wrong_answers([r], "5")
+    entry = groups[0].students[0]
+    assert (entry["score"], entry["max_score"]) == (1, 4)
+    assert set(entry) == {"student_id", "student_name", "submission_id", "score", "max_score"}
+
+
 def test_groups_ordered_by_count_unanswered_last():
     groups = group_wrong_answers([sr_ans("a", None), sr_ans("b", None), sr_ans("c", None),
                                   sr_ans("d", "7"), sr_ans("e", "8"), sr_ans("f", "8")], "5")

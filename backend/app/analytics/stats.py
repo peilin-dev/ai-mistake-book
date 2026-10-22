@@ -128,15 +128,21 @@ def _student_ref(r: StudentResult) -> dict:
             "score": r.score, "max_score": r.max_score}
 
 
+def _answer_student_ref(r: StudentResult, q: StudentQuestion) -> dict:
+    """Group entries carry this question's own score, not the paper total."""
+    return {"student_id": r.student_id, "student_name": r.student_name, "submission_id": r.submission_id,
+            "score": q.score, "max_score": q.max_score if q.max_score is not None else 0.0}
+
+
 def _group_answers(entries: list[tuple[StudentResult, StudentQuestion]]) -> list[AnswerGroup]:
-    buckets: dict[str, list[tuple[StudentResult, str]]] = {}
+    buckets: dict[str, list[tuple[StudentResult, StudentQuestion, str]]] = {}
     for r, q in entries:
-        buckets.setdefault(normalize_answer(q.answer), []).append((r, (q.answer or "").strip()))
+        buckets.setdefault(normalize_answer(q.answer), []).append((r, q, (q.answer or "").strip()))
     groups = []
     for key, items in buckets.items():
-        shown = UNANSWERED if key == "" else Counter(raw for _, raw in items).most_common(1)[0][0]
+        shown = UNANSWERED if key == "" else Counter(raw for _, _, raw in items).most_common(1)[0][0]
         groups.append(AnswerGroup(answer=shown, key=key, count=len(items),
-                                  students=[_student_ref(r) for r, _ in items]))
+                                  students=[_answer_student_ref(r, q) for r, q, _ in items]))
     groups.sort(key=lambda g: (g.key == "", -g.count))
     return groups
 
