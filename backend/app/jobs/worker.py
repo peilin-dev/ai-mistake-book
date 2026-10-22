@@ -11,6 +11,7 @@ from app.ai.registry import get_model
 from app.config import get_settings
 from app.db import make_engine
 from app.assignments.router import grade_job_id
+from app.export.service import purge_old_exports
 from app.jobs.cleanup import purge_old_originals
 from app.jobs.requeue import STALE_AFTER, stale_queued_pages
 from app.grading.pipeline import grade_page, set_page_status
@@ -39,6 +40,12 @@ async def purge_originals_job(ctx: dict) -> None:
         await purge_old_originals(db, ctx["storage"], now, get_settings().ORIGINAL_RETENTION_DAYS)
 
 
+async def purge_exports_job(ctx: dict) -> None:
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    async with ctx["sessionmaker"]() as db:
+        await purge_old_exports(db, ctx["storage"], now)
+
+
 async def requeue_stale_job(ctx: dict) -> None:
     """Re-enqueue pages stuck in queued (e.g. enqueue hit 503 and nobody resent them)."""
     now = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -65,6 +72,7 @@ class WorkerSettings:
     functions = [grade_page_job]
     cron_jobs = [
         cron(purge_originals_job, hour=3, minute=0, second=0),
+        cron(purge_exports_job, hour=3, minute=30, second=0),
         cron(requeue_stale_job, second=0, run_at_startup=True),  # every minute, and once at startup
     ]
     timezone = ZoneInfo("Asia/Shanghai")  # cron times are evaluated in this zone

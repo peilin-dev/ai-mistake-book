@@ -220,6 +220,14 @@ class UsageRecord(_Base):
     cost_fen: Mapped[float] = mapped_column(Numeric(10, 4, asdecimal=False), default=0)
 
 
+class Export(_Base):
+    """A generated PDF kept in storage until the daily purge removes it."""
+    __tablename__ = "exports"
+    teacher_id: Mapped[int] = _fk("teachers.id")
+    file_key: Mapped[str] = mapped_column(String(255))
+    kind: Mapped[str] = mapped_column(String(16))  # "lecture" | "student" | "class_students"
+
+
 class AiNote(_Base):
     """Cached AI text for an assignment: a wrong-answer cause or a student summary."""
     __tablename__ = "ai_notes"
