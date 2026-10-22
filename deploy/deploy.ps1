@@ -18,7 +18,24 @@ try {
 $ssh = @('-i', $Key, '-o', 'BatchMode=yes')
 Write-Host "uploading $rev"
 scp @ssh $tar "${Server}:/tmp/mistake-book-deploy.tar"
-# Keep the server's deploy/.env; replace everything else.
-ssh @ssh $Server 'mkdir -p ~/mistake-book && tar -xf /tmp/mistake-book-deploy.tar -C ~/mistake-book && rm /tmp/mistake-book-deploy.tar && bash ~/mistake-book/deploy/remote.sh'
+# Replace the code cleanly so files deleted from the repo don't linger on the server:
+# backend/ is swapped for the fresh copy; in deploy/ every file except .env is removed unless the
+# upload has it, then the upload is copied over (cp keeps the inodes of bind-mounted configs).
+# Storage, MySQL and Redis live in Docker volumes, not in these folders.
+$remote = @(
+    'set -e'
+    'mkdir -p ~/mistake-book/deploy'
+    'new=$(mktemp -d ~/mistake-book/.upload.XXXXXX)'
+    'tar -xf /tmp/mistake-book-deploy.tar -C $new'
+    'rm /tmp/mistake-book-deploy.tar'
+    'rm -rf ~/mistake-book/backend'
+    'mv $new/backend ~/mistake-book/backend'
+    'shopt -s nullglob dotglob'
+    'for f in ~/mistake-book/deploy/*; do b=$(basename $f); [ $b = .env ] || [ -e $new/deploy/$b ] || rm -rf $f; done'
+    'cp -r $new/deploy/. ~/mistake-book/deploy/'
+    'rm -rf $new'
+    'bash ~/mistake-book/deploy/remote.sh'
+) -join '; '
+ssh @ssh $Server $remote
 if ($LASTEXITCODE -ne 0) { throw "deploy failed (exit $LASTEXITCODE)" }
 Write-Host "deployed $rev"
