@@ -36,7 +36,10 @@ async function askSignature(current: string): Promise<string | null> {
   })
   if (!res.confirm) return null
   const name = (res.content ?? '').trim()
-  if (!name) return null
+  if (!name) {
+    Taro.showToast({ title: '请填写署名', icon: 'none' })
+    return null
+  }
   if (name.length > NAME_MAX) {
     Taro.showToast({ title: `署名最多 ${NAME_MAX} 个字`, icon: 'none' })
     return null
@@ -77,7 +80,6 @@ export default function ExportSheet({ assignmentId, items, onClose }: Props) {
   const run = async (item: ExportItem) => {
     if (busy.current) return
     busy.current = true
-    setBusyKind(item.kind)
     try {
       let cur = await ensureMe()
       if (needsSignature(cur)) {
@@ -86,6 +88,7 @@ export default function ExportSheet({ assignmentId, items, onClose }: Props) {
         cur = await saveSignature(name)
       }
       setMe(cur)
+      setBusyKind(item.kind)
       await exportPdf(assignmentId, item.kind, item.submissionId)
     } catch (e) {
       const text = exportErrorText(e)
@@ -110,7 +113,7 @@ export default function ExportSheet({ assignmentId, items, onClose }: Props) {
             style={{ opacity: busyKind && busyKind !== it.kind ? 0.5 : 1 }}
             onClick={() => void run(it)}
           >
-            <Text style={{ fontSize: '34px' }}>{busyKind === it.kind ? '正在生成…' : it.label}</Text>
+            <Text style={{ fontSize: '30rpx' }}>{busyKind === it.kind ? '正在生成…' : it.label}</Text>
             {it.hint && busyKind !== it.kind ? <Text className='label picker-no'>{it.hint}</Text> : null}
           </View>
         ))}

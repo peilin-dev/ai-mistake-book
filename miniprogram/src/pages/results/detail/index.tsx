@@ -145,7 +145,7 @@ export default function ResultDetail() {
         ) : null}
       </View>
       <Button className='big-btn ghost-btn' style={{ marginBottom: '24px' }} onClick={() => setExporting(true)}>
-        这位同学的错题单
+        导出错题单
       </Button>
       {exporting && sub.assignment_id ? (
         <ExportSheet
