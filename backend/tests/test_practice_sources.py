@@ -34,7 +34,7 @@ RIGHT = dict(is_correct=True, score=2, max_score=2)
 
 
 def test_constants():
-    assert (ACCURACY_BELOW, MAX_SOURCES, VARIANTS_PER_SOURCE, CONCURRENCY) == (0.85, 5, 2, 4)
+    assert (ACCURACY_BELOW, MAX_SOURCES, VARIANTS_PER_SOURCE, CONCURRENCY) == (0.85, 5, 2, 5)
 
 
 async def test_class_sources_below_accuracy_sorted_and_capped(db, my_class, my_assignment, make_done_page):

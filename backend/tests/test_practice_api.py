@@ -92,6 +92,9 @@ async def test_regenerate_resets_done_paper(db, auth_client, my_assignment, prac
     assert (body["status"], body["partial"], body["sources_done"], body["items"]) == ("queued", False, 0, [])
     assert (body["generated_at"], body["last_replace_failed_item"]) == (None, None)
     assert practice_enqueued == [("practice_paper_job", paper.id)] * 2
+    # The old questions stay stored (hidden) until the job replaces them.
+    stored = (await db.execute(select(PracticeItem).where(PracticeItem.paper_id == paper.id))).scalars().all()
+    assert len(stored) == 2
 
     # A failed paper is regenerated the same way.
     await db.refresh(paper)
@@ -279,3 +282,80 @@ async def test_other_operational_errors_are_not_swallowed(db, auth_client, my_as
     monkeypatch.setattr(db, "commit", commit)
     with pytest.raises(OperationalError):
         await auth_client.post(f"/api/assignments/{aid}/practice")
+
+# --- final review fixes ---
+
+async def test_regenerate_enqueue_failure_keeps_the_old_sheet(db, app, auth_client, my_assignment,
+                                                              practice_enqueued):
+    from app.practice.router import get_practice_enqueuer
+
+    await build_sources(db, my_assignment)
+    first = (await auth_client.post(f"/api/assignments/{my_assignment.id}/practice")).json()
+    paper = await db.get(PracticePaper, first["id"])
+    items = await _add_items(db, paper.id)
+    done_at = utcnow().replace(microsecond=0)
+    paper.status, paper.partial, paper.sources_done, paper.generated_at = "done", True, 3, done_at
+    paper.last_replace_failed_item = items[1].id
+    await db.commit()
+
+    async def broken(function, obj_id):
+        raise ConnectionError("redis down")
+
+    app.dependency_overrides[get_practice_enqueuer] = lambda: broken
+    r = await auth_client.post(f"/api/assignments/{my_assignment.id}/practice")
+    assert r.status_code == 503
+    body = (await auth_client.get(f"/api/practice/{paper.id}")).json()
+    assert (body["status"], body["partial"], body["sources_done"], body["error"]) == ("done", True, 3, None)
+    assert body["last_replace_failed_item"] == items[1].id
+    assert [i["stem"] for i in body["items"]] == ["旧题0", "旧题1"]
+
+
+async def test_stale_cutoffs_running_vs_queued(db, auth_client, my_assignment, practice_enqueued, settings):
+    from app.practice.jobs import stale_after_queued, stale_after_running
+
+    assert stale_after_running() == timedelta(seconds=3 * settings.MODEL_TIMEOUT_S)
+    await build_sources(db, my_assignment)
+    paper_id = (await auth_client.post(f"/api/assignments/{my_assignment.id}/practice")).json()["id"]
+    paper = await db.get(PracticePaper, paper_id)
+    quiet = stale_after_running() + timedelta(seconds=30)
+    assert quiet < stale_after_queued()
+
+    # Queued that long: still waiting for the worker, not stale yet.
+    paper.updated_at = utcnow() - quiet
+    await db.commit()
+    assert (await auth_client.get(f"/api/practice/{paper_id}")).json()["status"] == "queued"
+
+    # Running with no progress for that long: the job is gone.
+    paper.status = "running"
+    await db.commit()
+    paper.updated_at = utcnow() - quiet
+    await db.commit()
+    assert (await auth_client.get(f"/api/practice/{paper_id}")).json()["status"] == "failed"
+
+    # Running with recent progress is left alone.
+    paper.status = "running"
+    await db.commit()
+    assert (await auth_client.get(f"/api/practice/{paper_id}")).json()["status"] == "running"
+
+
+async def test_stuck_replacing_item_expires(db, auth_client, my_assignment, practice_enqueued):
+    from app.practice.jobs import stale_after_running
+
+    await build_sources(db, my_assignment)
+    paper_id = (await auth_client.post(f"/api/assignments/{my_assignment.id}/practice")).json()["id"]
+    paper = await db.get(PracticePaper, paper_id)
+    paper.status = "done"
+    await db.commit()
+    items = await _add_items(db, paper_id)
+    for it in items:
+        it.replacing = True
+    await db.commit()
+    items[0].updated_at = utcnow() - stale_after_running() - timedelta(seconds=30)  # its job died
+    await db.commit()
+
+    body = (await auth_client.get(f"/api/practice/{paper_id}")).json()
+    assert [i["replacing"] for i in body["items"]] == [False, True]  # the live one is untouched
+    assert body["last_replace_failed_item"] == items[0].id
+    # The expired item can be replaced again.
+    r = await auth_client.post(f"/api/practice-items/{items[0].id}/replace")
+    assert r.status_code == 202 and practice_enqueued[-1] == ("practice_replace_job", items[0].id)

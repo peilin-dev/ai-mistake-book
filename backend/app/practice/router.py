@@ -6,7 +6,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +15,7 @@ from app.assignments.access import own_assignment
 from app.assignments.router import _arq_pool
 from app.deps import current_teacher, get_db
 from app.models import Assignment, Class_, KnowledgePoint, PracticeItem, PracticePaper, Student, Teacher
-from app.practice.jobs import FAILED_TEXT, _utcnow, stale_after_paper, stale_after_replace
+from app.practice.jobs import FAILED_TEXT, _utcnow, stale_after_queued, stale_after_running
 from app.practice.sources import class_sources, student_sources
 
 log = logging.getLogger(__name__)
@@ -75,12 +75,13 @@ async def _expire_stale(db: AsyncSession, paper: PracticePaper) -> None:
     """A job that died (worker crash, timeout, lost enqueue) must not leave the page polling forever."""
     now = _utcnow()
     changed = False
-    if paper.status in WORKING and paper.updated_at < now - stale_after_paper():
+    cutoff = {"queued": stale_after_queued(), "running": stale_after_running()}.get(paper.status)
+    if cutoff is not None and paper.updated_at < now - cutoff:
         paper.status, paper.error, paper.generated_at = "failed", FAILED_TEXT, now
         changed = True
     stuck = (await db.execute(select(PracticeItem).where(
         PracticeItem.paper_id == paper.id, PracticeItem.replacing.is_(True),
-        PracticeItem.updated_at < now - stale_after_replace(),
+        PracticeItem.updated_at < now - stale_after_running(),
     ))).scalars().all()
     for item in stuck:
         item.replacing = False
@@ -113,7 +114,9 @@ async def _paper_out(db: AsyncSession, paper: PracticePaper) -> PaperOut:
         error=paper.error,
         generated_at=paper.generated_at,
         last_replace_failed_item=paper.last_replace_failed_item,
-        items=[ItemOut(id=i.id, position=i.position, source_no=i.source_no, knowledge_point=kp, kind=i.kind,
+        # While a new sheet is being made the previous one is still stored (run_paper replaces it), but
+        # it is not shown: the page shows progress, and a failed enqueue brings it back.
+        items=[] if paper.status in WORKING else [ItemOut(id=i.id, position=i.position, source_no=i.source_no, knowledge_point=kp, kind=i.kind,
                        stem=i.stem, options=json.loads(i.options) if i.options else None, answer=i.answer,
                        replacing=i.replacing) for i, kp in rows],
     )
@@ -138,37 +141,42 @@ def _is_tap_conflict(exc: Exception) -> bool:
     return args[0] in _LOCK_CONFLICTS
 
 
+_RESTORE = ("status", "partial", "error", "sources_total", "sources_done", "generated_at", "last_replace_failed_item")
+
+
 async def _claim_paper(db: AsyncSession, assignment_id: int, student_id: int | None, sources_loader,
-                       no_sources_text: str) -> tuple[PracticePaper, bool]:
-    """(paper, True) after creating/resetting it to queued and committing; (paper, False) if one is in flight."""
+                       no_sources_text: str) -> tuple[PracticePaper, bool, dict | None]:
+    """(paper, True, previous fields) after creating/resetting it to queued and committing (previous is
+    None for a new paper); (paper, False, None) if one is in flight. Old items stay until run_paper."""
     key = student_id or 0
     paper = await _find_paper(db, assignment_id, key, lock=True)
     if paper is not None:
         await _expire_stale(db, paper)  # commits (releasing the lock) only when it changed something
         if paper.status in WORKING:
             await db.commit()
-            return paper, False
+            return paper, False, None
     sources = await sources_loader()
     if not sources:
         await db.commit()  # nothing changed; ends the transaction and its row lock
         raise HTTPException(409, no_sources_text)
+    previous = None
     if paper is None:
         paper = PracticePaper(assignment_id=assignment_id, student_id=student_id, student_key=key)
         db.add(paper)
     else:
-        await db.execute(delete(PracticeItem).where(PracticeItem.paper_id == paper.id))
+        previous = {f: getattr(paper, f) for f in _RESTORE}
     paper.status, paper.partial, paper.error = "queued", False, None
     paper.sources_total, paper.sources_done = len(sources), 0
     paper.generated_at, paper.last_replace_failed_item = None, None
     await db.commit()
-    return paper, True
+    return paper, True, previous
 
 
 async def _generate(db: AsyncSession, response: Response, enqueue: EnqueuePractice, assignment_id: int,
                     student_id: int | None, sources_loader, no_sources_text: str) -> PaperOut:
     for _ in range(2):  # the losing tap retries once and then normally finds the winner's paper
         try:
-            paper, created = await _claim_paper(db, assignment_id, student_id, sources_loader, no_sources_text)
+            paper, created, previous = await _claim_paper(db, assignment_id, student_id, sources_loader, no_sources_text)
             break
         except (IntegrityError, OperationalError) as exc:
             if not _is_tap_conflict(exc):
@@ -183,7 +191,11 @@ async def _generate(db: AsyncSession, response: Response, enqueue: EnqueuePracti
         await enqueue("practice_paper_job", paper.id)
     except Exception:
         log.exception("enqueue of practice paper %s failed", paper.id)
-        paper.status, paper.error = "failed", FAILED_TEXT
+        if previous is None:
+            paper.status, paper.error = "failed", FAILED_TEXT
+        else:  # the previous sheet (still stored) comes back as it was
+            for f, v in previous.items():
+                setattr(paper, f, v)
         await db.commit()
         raise HTTPException(503, QUEUE_DOWN) from None
     response.status_code = 201

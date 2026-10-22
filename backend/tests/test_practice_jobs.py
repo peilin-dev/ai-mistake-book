@@ -7,6 +7,7 @@ from sqlalchemy import select
 from app.ai.base import ModelCallError, ModelResult
 from app.models import KnowledgePoint, PracticeItem, PracticePaper, Student, Subject, Submission, UsageRecord
 from app.practice.jobs import FAILED_TEXT, run_paper, run_replace
+from app.practice.rules import CONCURRENCY, REPLACE_CANDIDATES
 from tests.conftest import make_result
 
 WRONG = dict(is_correct=False, score=0, max_score=2)
@@ -52,7 +53,8 @@ def calls_for(model: RoutedModel, src: str) -> int:
 
 
 def generator(bad: dict[str, int] | None = None, fail: dict[str, int] | None = None):
-    """Each call returns `count` calc items '<src>变式<n>' answering 10.
+    """Each call returns `count` calc items '<src>变式<letter>' answering 10 (letters, so no two stems
+    share their numbers and look like near-duplicates).
 
     bad[src] = how many items of each call are marked 坏 (the verifier rejects them);
     fail[src] = how many first calls for that source raise ModelCallError.
@@ -69,7 +71,7 @@ def generator(bad: dict[str, int] | None = None, fail: dict[str, int] | None = N
         for i in range(count_of(prompt)):
             seq[src] = seq.get(src, 0) + 1
             mark = "坏" if i < bad.get(src, 0) else ""
-            items.append({"kind": "calc", "stem": f"{src}变式{seq[src]}{mark}", "options": None, "answer": "10"})
+            items.append({"kind": "calc", "stem": f"{src}变式{'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[seq[src] - 1]}{mark}", "options": None, "answer": "10"})
         return {"objective": True, "items": items}
 
     return fn
@@ -220,7 +222,7 @@ async def test_run_paper_progress_counts(db, my_assignment, monkeypatch):
     assert [d for _, d, _ in running if d] == [1, 2, 3, 4, 5]  # one commit per finished source, in order
     assert all(t == 5 for _, d, t in running if d)
     assert seen[-1] == ("done", 5, 5)
-    assert 2 <= gen.max_inflight <= 4  # sources run concurrently, capped by CONCURRENCY
+    assert 2 <= gen.max_inflight <= CONCURRENCY  # sources run concurrently, capped by CONCURRENCY
     usage = (await db.execute(select(UsageRecord.purpose))).scalars().all()
     assert usage.count("practice_generate") == len(gen.prompts) == 5
     assert usage.count("practice_verify") == len(ver.prompts) == 10
@@ -247,6 +249,7 @@ async def test_replace_swaps_only_when_verified(db, my_assignment):
     paper, items = await _done_paper(db, my_assignment)
     target = items[0]
     others = [i.stem for i in items]
+    old_stem = target.stem
 
     # Verified: swapped, and the prompt lists every stem already on the paper.
     target.replacing = True
@@ -255,7 +258,8 @@ async def test_replace_swaps_only_when_verified(db, my_assignment):
         {"kind": "choice", "stem": "新题", "options": ["8", "10"], "answer": "B"}]})
     assert await run_replace(db, gen, RoutedModel(lambda p: {"answer": "B"}), target.id) is True
     assert all(s in gen.prompts[0] for s in others)
-    assert count_of(gen.prompts[0]) == 1
+    assert count_of(gen.prompts[0]) == REPLACE_CANDIDATES
+    assert f"被替换的题：{old_stem}（答案：10）" in gen.prompts[0]
     await db.refresh(target)
     await db.refresh(paper)
     assert (target.stem, target.kind, json.loads(target.options), target.answer) == ("新题", "choice", ["8", "10"], "B")
@@ -367,7 +371,7 @@ async def test_paper_job_commit_failure_stops_all_session_use(db, settings, my_a
         await engine.dispose()
     assert state["failed_at"] is not None
     assert calls[state["failed_at"]:] == []  # no sibling touched the session after the failure
-    assert len(gen.prompts) <= 4  # the 5th source never started
+    assert len(gen.prompts) <= 5  # one generate call per source at most: nothing retried after the failure
     await db.rollback()
     db.expire_all()
     p = await db.get(PracticePaper, paper_id)
@@ -416,3 +420,134 @@ async def test_paper_job_cancelled_marks_failed(db, settings, my_assignment):
     it = await db.get(PracticeItem, item_id)
     assert (p.status, p.error) == ("failed", FAILED_TEXT)
     assert (it.replacing, p.last_replace_failed_item) == (False, item_id)
+
+# --- final review fixes ---
+
+def fixed(items_per_call: list[list[tuple[str, str]]]):
+    """A generator returning the given (stem, answer) calc items, one list per call."""
+    calls = iter(items_per_call)
+
+    def fn(prompt: str):
+        return {"objective": True, "items": [
+            {"kind": "calc", "stem": st, "options": None, "answer": ans} for st, ans in next(calls)]}
+    return fn
+
+
+async def _done_paper_with(db, my_assignment, stems: list[str]):
+    paper, items = await _done_paper(db, my_assignment)
+    for it, st in zip(items, stems):
+        it.stem = st
+    await db.commit()
+    return paper, items
+
+
+async def test_replace_skips_duplicate_and_swapped_candidates(db, my_assignment):
+    paper, items = await _done_paper_with(db, my_assignment, ["6 × 7 =", "3 × 5 ="])
+    target = items[0]
+    target.replacing = True
+    await db.commit()
+    from datetime import timedelta
+
+    from tests.conftest import utcnow
+    target.updated_at = before = utcnow() - timedelta(hours=1)
+    await db.commit()
+    # The first candidate swaps the replaced item's numbers, the second repeats another item.
+    gen = RoutedModel(fixed([[("7 × 6 =", "10"), ("5×3=", "10"), ("8 × 9 =", "10")]]))
+    ver = RoutedModel(verifier)
+    assert await run_replace(db, gen, ver, target.id) is True
+    await db.refresh(target)
+    assert (target.stem, target.replacing) == ("8 × 9 =", False)
+    assert len(gen.prompts) == 1 and len(ver.prompts) == 1  # duplicates are never verified
+    assert target.updated_at > before  # the heartbeat keeps a live replace from looking stale
+
+
+async def test_replace_retries_once_avoiding_dropped_candidates(db, my_assignment):
+    paper, items = await _done_paper_with(db, my_assignment, ["6 × 7 =", "3 × 5 ="])
+    target = items[0]
+    # First batch: only duplicates or wrong answers; the retry is told about all of them.
+    gen = RoutedModel(fixed([[("7×6=", "10"), ("4 × 4 =坏", "10")], [("2 × 9 =", "10")]]))
+    assert await run_replace(db, gen, RoutedModel(verifier), target.id) is True
+    assert len(gen.prompts) == 2
+    assert "7×6=" in gen.prompts[1] and "4 × 4 =坏" in gen.prompts[1]
+    await db.refresh(target)
+    assert target.stem == "2 × 9 ="
+
+    # Both batches unusable: the original stays and the failure is remembered.
+    gen = RoutedModel(fixed([[("9 × 2 =", "10")], [("2×9=", "10")]]))
+    assert await run_replace(db, gen, RoutedModel(verifier), target.id) is False
+    await db.refresh(target)
+    await db.refresh(paper)
+    assert (target.stem, paper.last_replace_failed_item) == ("2 × 9 =", target.id)
+
+
+async def test_concurrent_replaces_never_write_the_same_question(db, settings, my_assignment):
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.db import make_engine
+
+    paper, items = await _done_paper_with(db, my_assignment, ["6 × 7 =", "3 × 5 ="])
+    a, b, paper_id = items[0].id, items[1].id, paper.id
+    engine = make_engine(settings.DATABASE_URL)
+    sm = async_sessionmaker(engine, expire_on_commit=False)
+    # Both read the paper before either writes (the delay), and both come up with the same question.
+    gen = RoutedModel(lambda p: {"objective": True, "items": [
+        {"kind": "calc", "stem": "9 × 9 =", "options": None, "answer": "10"}]}, delay=0.2)
+    ver = RoutedModel(verifier, delay=0.1)
+    try:
+        async with sm() as s1, sm() as s2:
+            results = await asyncio.gather(run_replace(s1, gen, ver, a), run_replace(s2, gen, ver, b))
+    finally:
+        await engine.dispose()
+    assert sorted(results) == [False, True]
+    db.expire_all()
+    stems = [i.stem for i in await items_of(db, paper_id)]
+    assert stems.count("9 × 9 =") == 1
+    loser = b if results[0] else a
+    p = await db.get(PracticePaper, paper_id)
+    assert p.last_replace_failed_item == loser
+
+
+async def test_run_paper_drops_near_duplicates_across_sources(db, my_assignment):
+    await build_sources(db, my_assignment, n_sources=2)
+    paper = await new_paper(db, my_assignment)
+
+    def fn(prompt):
+        if source_of(prompt) == "源题1":
+            return {"objective": True, "items": [
+                {"kind": "calc", "stem": "0.7 × 0.4 =", "options": None, "answer": "10"},
+                {"kind": "calc", "stem": "0.4 × 0.7 =", "options": None, "answer": "10"}]}
+        return {"objective": True, "items": [
+            {"kind": "calc", "stem": "0.4×0.7=", "options": None, "answer": "10"},
+            {"kind": "calc", "stem": "1.2 × 3 =", "options": None, "answer": "10"}]}
+
+    await run_paper(db, RoutedModel(fn), RoutedModel(verifier), paper.id)
+    stems = [i.stem for i in await items_of(db, paper.id)]
+    assert sorted(stems) == ["0.7 × 0.4 =", "1.2 × 3 ="]
+
+
+async def test_run_paper_retry_refreshes_updated_at(db, my_assignment, monkeypatch):
+    await build_sources(db, my_assignment, n_sources=1)
+    paper = await new_paper(db, my_assignment)
+    seen: list[tuple[str, int]] = []
+    real_commit = db.commit
+
+    async def spy_commit():
+        seen.append((paper.status, paper.sources_done))
+        await real_commit()
+
+    monkeypatch.setattr(db, "commit", spy_commit)
+    await run_paper(db, RoutedModel(generator(bad={"源题1": 1})), RoutedModel(verifier), paper.id)
+    # claim, sources_total, the heartbeat before the retry, the progress commit, the final write.
+    assert seen[1:] == [("running", 0), ("running", 0), ("running", 1), ("done", 1)]
+    usage = (await db.execute(select(UsageRecord.purpose))).scalars().all()
+    assert usage.count("practice_generate") == 2
+
+
+async def test_run_paper_clears_a_stale_replace_failure_marker(db, my_assignment):
+    paper, items = await _done_paper(db, my_assignment)
+    paper.status, paper.last_replace_failed_item = "queued", items[0].id
+    await db.commit()
+    await run_paper(db, RoutedModel(generator()), RoutedModel(verifier), paper.id)
+    await db.refresh(paper)
+    assert (paper.status, paper.last_replace_failed_item) == ("done", None)
+    assert len(await items_of(db, paper.id)) == 4  # the previous sheet was replaced, not appended to
