@@ -2,7 +2,9 @@ import { useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { setOnUnauthorized } from './lib/api'
 import { getToken } from './lib/auth'
+import Home from './pages/Home'
 import Login from './pages/Login'
+import Overview from './pages/Overview'
 import Placeholder from './pages/Placeholder'
 
 function RequireAuth({ children }: { children: JSX.Element }) {
@@ -28,8 +30,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/" element={<RequireAuth><Placeholder title="班级与作业" /></RequireAuth>} />
-      <Route path="/a/:assignmentId" element={<RequireAuth><Placeholder title="总览" /></RequireAuth>} />
+      <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
+      <Route path="/a/:assignmentId" element={<RequireAuth><Overview /></RequireAuth>} />
       <Route
         path="/a/:assignmentId/q/:questionNo"
         element={<RequireAuth><Placeholder title="投影" /></RequireAuth>}
