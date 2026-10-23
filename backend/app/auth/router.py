@@ -5,8 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.tokens import issue_token
 from app.auth.wechat import WeChatAuthError, WeChatClient, get_wechat_client
+from app.config import get_settings
 from app.deps import current_teacher, get_db
 from app.models import Subject, Teacher
+from app.quota.service import pages_used_this_month
 
 router = APIRouter()
 
@@ -29,6 +31,18 @@ class MeOut(BaseModel):
     id: int
     display_name: str | None
     last_subject: Subject | None
+    quota_total: int
+    quota_used: int
+
+
+async def _me_out(db: AsyncSession, teacher: Teacher) -> MeOut:
+    return MeOut(
+        id=teacher.id,
+        display_name=teacher.display_name,
+        last_subject=teacher.last_subject,
+        quota_total=get_settings().MONTHLY_PAGE_QUOTA,
+        quota_used=await pages_used_this_month(db, teacher.id),
+    )
 
 
 class MePatch(BaseModel):
@@ -107,8 +121,8 @@ async def dev_login(body: DevLoginIn, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/me", response_model=MeOut)
-async def get_me(teacher: Teacher = Depends(current_teacher)):
-    return teacher
+async def get_me(teacher: Teacher = Depends(current_teacher), db: AsyncSession = Depends(get_db)):
+    return await _me_out(db, teacher)
 
 
 @router.patch("/me", response_model=MeOut)
@@ -119,4 +133,4 @@ async def patch_me(
 ):
     teacher.display_name = body.display_name
     await db.commit()
-    return teacher
+    return await _me_out(db, teacher)

@@ -23,6 +23,7 @@ from app.models import (
     AnswerItem,
     AnswerKeyStatus,
     Assignment,
+    DeletedPageQuota,
     Page,
     PageStatus,
     QuestionResult,
@@ -464,6 +465,55 @@ async def replace_page(
             log.warning("could not delete old file of replaced page %s", page_id)
     await _enqueue_or_503(enqueue, page_id, retry)
     return PageUploadOut(page_id=page_id, seq=seq, status=PageStatus.queued, duplicate=False)
+
+
+@router.delete("/pages/{page_id}", status_code=204)
+async def delete_page(
+    page_id: int,
+    teacher: Teacher = Depends(current_teacher),
+    db: AsyncSession = Depends(get_db),
+    storage: Storage = Depends(get_storage),
+):
+    """Throw a page away in any state: results, crops, original. The quota it used is not refunded."""
+    assignment_id = (await db.execute(select(Page.assignment_id).where(Page.id == page_id))).scalar_one_or_none()
+    if assignment_id is None:
+        raise HTTPException(status_code=404, detail="page not found")
+    try:
+        await own_assignment(db, teacher, assignment_id)
+    except HTTPException:
+        raise HTTPException(status_code=404, detail="page not found") from None
+    teacher_id = teacher.id  # plain local: ORM attrs expire after a rollback
+
+    await lock_assignment(db, assignment_id)
+    page = (
+        await db.execute(select(Page).where(Page.id == page_id).execution_options(populate_existing=True))
+    ).scalar_one_or_none()
+    if page is None:  # deleted while we waited for the lock
+        await db.rollback()
+        raise HTTPException(status_code=404, detail="page not found")
+    original, created_at = page.image_key, page.created_at
+    try:
+        submissions, crops = await clear_page_results(db, page_id)
+        db.add(DeletedPageQuota(teacher_id=teacher_id, page_created_at=created_at))
+        await db.execute(delete(Page).where(Page.id == page_id))
+        for sid in submissions - {None}:
+            left = (await db.execute(
+                select(func.count(QuestionResult.id)).where(QuestionResult.submission_id == sid)
+            )).scalar_one()
+            if left:
+                await recompute_submission(db, sid)
+            else:
+                await db.execute(delete(Submission).where(Submission.id == sid))
+        await db.commit()
+    except BaseException:
+        await db.rollback()
+        raise
+    for key in {*crops, original}:  # best effort; a missing file is fine, the sweeper catches leftovers
+        try:
+            await storage.delete(key)
+        except Exception:
+            log.warning("could not delete file of deleted page %s", page_id)
+    return Response(status_code=204)
 
 
 @router.post("/pages/{page_id}:retry", response_model=PageUploadOut)

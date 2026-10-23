@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from app.auth.tokens import decode_token, issue_token
 from app.auth.wechat import HttpWeChatClient, WeChatAuthError, WxSession
+from app.config import get_settings
 from app.models import Teacher
 
 
@@ -97,7 +98,16 @@ async def test_get_me(client, fake_wx):
     data = await login(client, fake_wx)
     r = await client.get("/api/me", headers=bearer(data["token"]))
     assert r.status_code == 200
-    assert r.json() == {"id": data["teacher"]["id"], "display_name": None, "last_subject": None}
+    assert r.json() == {"id": data["teacher"]["id"], "display_name": None, "last_subject": None,
+                        "quota_total": get_settings().MONTHLY_PAGE_QUOTA, "quota_used": 0}
+
+
+async def test_me_includes_quota(auth_client, settings, my_assignment, make_page):
+    settings.MONTHLY_PAGE_QUOTA = 7
+    await make_page(1)
+    await make_page(2)
+    body = (await auth_client.get("/api/me")).json()
+    assert body["quota_total"] == 7 and body["quota_used"] == 2
 
 
 async def test_patch_me_display_name(client, fake_wx):

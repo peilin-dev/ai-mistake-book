@@ -1,4 +1,6 @@
 """Teacher review queue and corrections (spec 7.3)."""
+import re
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -172,6 +174,69 @@ async def assign_student(
         await recompute_submission(db, sid)
     await db.commit()
     return {"page_id": page.id, "student_id": page.student_id}
+
+
+def _natural_key(no: str) -> list:
+    return [(0, int(t), "") if t.isdigit() else (1, 0, t) for t in re.split(r"(\d+)", no) if t]
+
+
+@router.get("/pages/{page_id}/claim-candidates")
+async def claim_candidates(
+    page_id: int,
+    teacher: Teacher = Depends(current_teacher),
+    db: AsyncSession = Depends(get_db),
+    storage: Storage = Depends(get_storage),
+) -> dict:
+    """Students who could own an unassigned page; those lacking all its questions come first."""
+    row = (await db.execute(
+        select(Page, Class_.id)
+        .join(Assignment, Assignment.id == Page.assignment_id)
+        .join(Class_, Class_.id == Assignment.class_id)
+        .where(Page.id == page_id, Class_.teacher_id == teacher.id)
+    )).first()
+    if row is None:
+        raise HTTPException(404, "page not found")
+    page, class_id = row
+    if page.status != PageStatus.done:
+        raise HTTPException(409, "页面尚未批改完成")
+    nos = set((await db.execute(
+        select(QuestionResult.question_no).where(QuestionResult.page_id == page_id)
+    )).scalars())
+    students = (await db.execute(
+        select(Student).where(Student.class_id == class_id).order_by(Student.id)
+    )).scalars().all()
+    owned: dict[int, set[str]] = {}
+    pages_of: dict[int, list[Page]] = {}
+    other_pages = (await db.execute(
+        select(Page).where(Page.assignment_id == page.assignment_id, Page.student_id.is_not(None),
+                           Page.id != page_id).order_by(Page.seq)
+    )).scalars().all()
+    for p in other_pages:
+        pages_of.setdefault(p.student_id, []).append(p)
+    if other_pages:
+        for pid, no in (await db.execute(
+            select(QuestionResult.page_id, QuestionResult.question_no)
+            .where(QuestionResult.page_id.in_([p.id for p in other_pages]))
+        )).all():
+            owned.setdefault(pid, set()).add(no)
+    candidates = []
+    for s in students:
+        mine = pages_of.get(s.id, [])
+        have = set().union(*(owned.get(p.id, set()) for p in mine)) if mine else set()
+        candidates.append({
+            "student_id": s.id,
+            "name": s.name,
+            "missing_all": not (have & nos),
+            "page_count": len(mine),
+            "thumb_url": storage.signed_url(mine[0].image_key) if mine and not mine[0].original_deleted_at else None,
+        })
+    candidates.sort(key=lambda c: not c["missing_all"])  # stable: roster order within each group
+    return {
+        "page_id": page.id,
+        "image_url": None if page.original_deleted_at else storage.signed_url(page.image_key),
+        "question_nos": sorted(nos, key=_natural_key),
+        "candidates": candidates,
+    }
 
 
 async def _move_continuation(

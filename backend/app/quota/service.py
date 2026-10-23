@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.models import Assignment, Class_, Page
+from app.models import Assignment, Class_, DeletedPageQuota, Page
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 
@@ -31,7 +31,7 @@ async def pages_used_this_month(
     db: AsyncSession, teacher_id: int, now: datetime | None = None
 ) -> int:
     start, end = month_bounds_utc(now)
-    return (
+    live = (
         await db.execute(
             select(func.count(Page.id))
             .join(Assignment, Assignment.id == Page.assignment_id)
@@ -39,6 +39,16 @@ async def pages_used_this_month(
             .where(Class_.teacher_id == teacher_id, Page.created_at >= start, Page.created_at < end)
         )
     ).scalar_one()
+    deleted = (
+        await db.execute(
+            select(func.count(DeletedPageQuota.id)).where(
+                DeletedPageQuota.teacher_id == teacher_id,
+                DeletedPageQuota.page_created_at >= start,
+                DeletedPageQuota.page_created_at < end,
+            )
+        )
+    ).scalar_one()
+    return live + deleted
 
 
 async def check_quota(db: AsyncSession, teacher_id: int) -> None:

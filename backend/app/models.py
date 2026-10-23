@@ -159,6 +159,13 @@ class Page(_Base):
     )
 
 
+class DeletedPageQuota(_Base):
+    """One row per deleted page, so deleting a page does not refund this month's quota."""
+    __tablename__ = "deleted_page_quota"
+    teacher_id: Mapped[int] = _fk("teachers.id")
+    page_created_at: Mapped[datetime] = mapped_column(DateTime)
+
+
 class Submission(_Base):
     __tablename__ = "submissions"
     assignment_id: Mapped[int] = _fk("assignments.id")
