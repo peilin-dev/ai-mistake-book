@@ -119,6 +119,21 @@ async def test_register_rate_limited_per_ip(client, fake_tickets):
     assert (await _register(client, fake_tickets, name="user_y1", ip="8.8.8.8")).status_code == 201
 
 
+async def test_failed_register_attempts_do_not_use_up_the_ip_limit(client, fake_tickets):
+    ip = "5.5.5.5"
+    assert (await _register(client, fake_tickets, name="first_one", ip=ip)).status_code == 201
+    for _ in range(6):  # wrong captcha
+        r = await _register(client, fake_tickets, name="never_made", ip=ip, code="ZZZZ")
+        assert r.status_code in (400, 201)
+        if r.status_code == 201:
+            pytest.skip("improbable captcha collision")
+    for _ in range(6):  # duplicate name
+        assert (await _register(client, fake_tickets, name="first_one", ip=ip)).status_code == 409
+    for i in range(4):  # 4 more accounts still allowed: 5 in total
+        assert (await _register(client, fake_tickets, name=f"later_{i}x", ip=ip)).status_code == 201
+    assert (await _register(client, fake_tickets, name="one_more", ip=ip)).status_code == 429
+
+
 async def _login(client, name, password, ip=None):
     return await client.post("/api/auth/login", json={"login_name": name, "password": password},
                              headers={"X-Real-IP": ip} if ip else {})
@@ -251,11 +266,15 @@ async def test_quota_enforced_per_teacher(db, make_teacher, settings):
     await check_quota(db, t.id)
 
 
-async def test_admin_cli_reset_password(client, fake_tickets, db, capsys):
+async def test_admin_cli_reset_password(client, fake_tickets, db, capsys, monkeypatch):
     from app import admin_cli
 
+    monkeypatch.setattr(admin_cli, "get_ticket_store", lambda: fake_tickets)
     await _register(client, fake_tickets, name="forgot_1")
     assert (await _login(client, "forgot_1", PW)).status_code == 200
+    for _ in range(5):
+        await _login(client, "forgot_1", "bad-password")
+    assert (await _login(client, "forgot_1", PW)).status_code == 429
     # lockout is cleared by an admin reset too is not required; just the password changes
     rc = await asyncio.to_thread(admin_cli.main, ["reset-password", "Forgot_1"])
     assert rc == 0

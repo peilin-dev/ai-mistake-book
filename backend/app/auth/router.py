@@ -238,7 +238,9 @@ async def register(
     db: AsyncSession = Depends(get_db),
     store: TicketStore = Depends(get_ticket_store),
 ):
-    if await store.incr(f"register:ip:{_client_ip(request)}", REGISTER_WINDOW_S) > REGISTER_LIMIT:
+    # Only accounts actually created count towards the hourly limit (a school may share one IP).
+    reg_key = f"register:ip:{_client_ip(request)}"
+    if int(await store.get(reg_key) or 0) >= REGISTER_LIMIT:
         raise HTTPException(status_code=429, detail=TOO_FREQUENT)
     name = _clean_name(body.login_name)
     _check_password(body.password)
@@ -256,6 +258,7 @@ async def register(
     except IntegrityError:
         await db.rollback()
         raise HTTPException(status_code=409, detail=NAME_TAKEN) from None
+    await store.incr(reg_key, REGISTER_WINDOW_S)
     return _brief(teacher)
 
 

@@ -15,6 +15,7 @@ from app.auth.passwords import hash_password
 from app.config import get_settings
 from app.db import make_engine
 from app.models import Teacher
+from app.weblogin.store import get_ticket_store
 
 # No look-alike characters (0/O/1/I/l).
 _ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"
@@ -39,7 +40,14 @@ async def reset_password(login_name: str) -> str | None:
             password = _temp_password()
             teacher.password_hash = hash_password(password)
             await db.commit()
-            return password
+        name = login_name.strip().lower()[:64]
+        try:  # let the reset teacher log in at once
+            store = get_ticket_store()
+            await store.delete(f"login:fail:{name}")
+            await store.delete(f"login:lock:{name}")
+        except Exception:
+            print("warning: could not clear the login lockout", file=sys.stderr)
+        return password
     finally:
         await engine.dispose()
 
