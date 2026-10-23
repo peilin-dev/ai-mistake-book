@@ -6,6 +6,7 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import Overview from './pages/Overview'
 import Placeholder from './pages/Placeholder'
+import Question from './pages/Question'
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const location = useLocation()
@@ -34,7 +35,7 @@ export default function App() {
       <Route path="/a/:assignmentId" element={<RequireAuth><Overview /></RequireAuth>} />
       <Route
         path="/a/:assignmentId/q/:questionNo"
-        element={<RequireAuth><Placeholder title="投影" /></RequireAuth>}
+        element={<RequireAuth><Question /></RequireAuth>}
       />
       <Route
         path="/a/:assignmentId/downloads"

@@ -289,3 +289,27 @@ html {
   background: var(--gray-bg);
   color: var(--ink);
 }
+
+/* projector question page: headline >= 48px, root 20px, first two groups visible at 1024x768 */
+.question .q-toolbar { display: flex; align-items: center; gap: 12px; }
+.question .q-spacer { flex: 1; }
+.question .q-toolbar button {
+  padding: 6px 16px; border: 1px solid var(--link); border-radius: 8px;
+  background: var(--card); color: var(--link); font-size: 1rem;
+}
+.question .q-toolbar button:disabled { opacity: 0.4; }
+.question .q-headline { font-family: var(--serif); font-size: 48px; line-height: 1.2; margin: 8px 0 10px; }
+.question .q-bar { height: 14px; background: var(--gray-bg); border-radius: 7px; overflow: hidden; }
+.question .q-bar-fill { height: 100%; background: var(--danger); }
+.question .q-meta { font-size: 1.2rem; margin: 10px 0; color: var(--ink-2); }
+.question .q-group { background: var(--card); border: 1px solid var(--line); border-left: 6px solid var(--danger); border-radius: 8px; padding: 8px 16px; margin-bottom: 10px; }
+.question .q-group h2 { font-size: 1.4rem; margin: 0 0 6px; }
+.question .q-crops { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.question .q-crops img { height: 90px; max-width: 260px; object-fit: contain; background: var(--gray-bg); border-radius: 6px; cursor: zoom-in; }
+.question .q-more { padding: 6px 14px; border: 1px dashed var(--link); border-radius: 8px; background: none; color: var(--link); font-size: 1rem; }
+.question .q-cause { margin: 6px 0 0; font-size: 1.1rem; }
+.question .q-ai { margin-left: 8px; font-size: 0.7rem; color: var(--ink-3); }
+.question .q-buckets { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+.question .q-bucket { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 16px; font-size: 1.2rem; display: flex; gap: 12px; }
+.lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.9); display: flex; align-items: center; justify-content: center; z-index: 100; cursor: zoom-out; }
+.lightbox img { max-width: 96vw; max-height: 96vh; object-fit: contain; }
