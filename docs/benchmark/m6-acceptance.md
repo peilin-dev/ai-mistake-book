@@ -1,4 +1,4 @@
-﻿# M6 验收清单（网页版管理端）
+# M6 验收清单（网页版管理端）
 
 依据：设计文档第 8 节（`docs/specs/2026-10-23-m6-web-admin-design.md`）。上线后在电脑浏览器和手机上逐项走一遍，填写「结果」（通过 / 未通过 / 未测）和「备注」。
 
@@ -7,11 +7,11 @@
 按顺序：
 
 1. 合并 `feat/m6-web-admin` 到 `master`。
-2. 运行 `powershell -File deploy\deploy.ps1`。部署后先在服务器的 nginx 容器内执行 `nginx -t`，再检查：`http://42.194.206.186/` 能打开；`/healthz` 返回 `{"ok":true}`；`/api/me` 返回 401；刷新一个 SPA 子路由（如作业页）仍能打开页面。
+2. 运行 `powershell -File deploy\deploy.ps1`。部署后先在服务器的 nginx 容器内执行 `nginx -t`，再检查：`http://42.194.206.186/` 能打开；`/healthz` 返回 `{"ok":true}`；`/api/me` 返回 401；刷新一个 SPA 子路由（如作业页）仍能打开页面；`POST http://42.194.206.186/api/web-login/tickets` 返回小程序码（`qr_png`）；`GET /api/web-login/tickets/{ticket}` 不带 `poll_key` 什么也拿不到（404 或 422）。
 3. 构建小程序体验版：`npx taro build --type weapp --mode staging`，用开发者工具 CLI 上传，版本号 `0.2.0`，备注「网页版扫码登录」；上传后恢复本地开发构建 `npm run dev:weapp`。
 4. 产品负责人在微信公众平台把 0.2.0 设为体验版。
 
-标注「待产品负责人真机」的条目需要手机扫码，由产品负责人完成。
+标注「待产品负责人真机」的条目需要手机扫码，由产品负责人完成。除仅调接口的行（A4、A6、A7）外，其余行都需要先用体验版微信登录网页。
 
 ## A. 扫码登录
 
