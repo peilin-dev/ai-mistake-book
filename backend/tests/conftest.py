@@ -657,6 +657,34 @@ class FakeTicketStore:
         item = self.data.get(key)
         return item[1] if item else 0
 
+    async def transition(self, key, expect_status, new_status, new_teacher_id=None,
+                         expect_teacher_id=None) -> str:
+        item = self.data.get(key)
+        if item is None:
+            return "missing"
+        d = _json2.loads(item[0])
+        if d["status"] != expect_status:
+            return "conflict"
+        if expect_teacher_id is not None and d["teacher_id"] != expect_teacher_id:
+            return "conflict"
+        d["status"] = new_status
+        if new_teacher_id is not None:
+            d["teacher_id"] = new_teacher_id
+        self.data[key] = (_json2.dumps(d), item[1])
+        return "ok"
+
+    async def take_confirmed(self, key, poll_key):
+        item = self.data.get(key)
+        if item is None:
+            return "missing", None
+        d = _json2.loads(item[0])
+        if d["poll_key"] != poll_key:
+            return "badkey", None
+        if d["status"] != "confirmed":
+            return "notready", None
+        del self.data[key]
+        return "ok", d
+
     def expire(self, key: str) -> None:
         self.data.pop(key, None)
 

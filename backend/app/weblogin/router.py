@@ -89,33 +89,24 @@ async def poll_ticket(
         return PollOut(status="expired")
     if not secrets.compare_digest(data["poll_key"], poll_key):
         raise HTTPException(status_code=404, detail="not found")
-    expires_in = await store.ttl(_key(ticket))
-    if data["status"] == "confirmed":
-        teacher = await db.get(Teacher, data["teacher_id"])
-        await store.delete(_key(ticket))
-        if teacher is None:
-            return PollOut(status="expired")
-        return PollOut(
-            status="confirmed",
-            expires_in=expires_in,
-            token=issue_token(teacher.id),
-            teacher=TeacherBrief(id=teacher.id, display_name=teacher.display_name),
-        )
-    return PollOut(status=data["status"], expires_in=expires_in)
+    if data["status"] != "confirmed":
+        return PollOut(status=data["status"], expires_in=await store.ttl(_key(ticket)))
+    # Atomic handout: only one caller ever gets the confirmed ticket, and it is deleted.
+    code, taken = await store.take_confirmed(_key(ticket), poll_key)
+    if code != "ok" or taken is None:
+        return PollOut(status="expired")
+    teacher = await db.get(Teacher, taken["teacher_id"])
+    if teacher is None:
+        return PollOut(status="expired")
+    return PollOut(
+        status="confirmed",
+        token=issue_token(teacher.id),
+        teacher=TeacherBrief(id=teacher.id, display_name=teacher.display_name),
+    )
 
 
-async def _load(store: TicketStore, ticket: str) -> dict:
-    data = await store.get_json(_key(ticket))
-    if data is None:
-        raise HTTPException(status_code=410, detail=EXPIRED_DETAIL)
-    return data
-
-
-async def _save(store: TicketStore, ticket: str, data: dict) -> None:
-    ttl = await store.ttl(_key(ticket))
-    if ttl <= 0:
-        raise HTTPException(status_code=410, detail=EXPIRED_DETAIL)
-    await store.set_json(_key(ticket), data, ttl)
+def _expired() -> HTTPException:
+    return HTTPException(status_code=410, detail=EXPIRED_DETAIL)
 
 
 @router.post("/web-login/tickets/{ticket}:scan", response_model=ScanOut)
@@ -124,22 +115,25 @@ async def scan_ticket(
     teacher: Teacher = Depends(current_teacher),
     store: TicketStore = Depends(get_ticket_store),
 ):
-    data = await _load(store, ticket)
-    if data["status"] == "pending":
-        data["status"] = "scanned"
-        data["teacher_id"] = teacher.id
-        await _save(store, ticket, data)
-    elif data["teacher_id"] != teacher.id or data["status"] != "scanned":
+    res = await store.transition(_key(ticket), "pending", "scanned", new_teacher_id=teacher.id)
+    if res == "missing":
+        raise _expired()
+    data = await store.get_json(_key(ticket))
+    if data is None:
+        raise _expired()
+    if res == "conflict" and not (data["status"] == "scanned" and data["teacher_id"] == teacher.id):
         raise HTTPException(status_code=409, detail="二维码已被使用")
     return ScanOut(pair_code=data["pair_code"])
 
 
 async def _decide(ticket: str, teacher: Teacher, store: TicketStore, new_status: str) -> Response:
-    data = await _load(store, ticket)
-    if data["status"] != "scanned" or data["teacher_id"] != teacher.id:
+    res = await store.transition(
+        _key(ticket), "scanned", new_status, expect_teacher_id=teacher.id
+    )
+    if res == "missing":
+        raise _expired()
+    if res == "conflict":
         raise HTTPException(status_code=409, detail="二维码状态不对，请在电脑上刷新")
-    data["status"] = new_status
-    await _save(store, ticket, data)
     return Response(status_code=204)
 
 

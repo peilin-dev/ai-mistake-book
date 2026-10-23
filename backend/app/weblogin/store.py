@@ -18,6 +18,54 @@ class TicketStore(KeyValueCache, Protocol):
 
     async def ttl(self, key: str) -> int: ...
 
+    async def transition(
+        self,
+        key: str,
+        expect_status: str,
+        new_status: str,
+        new_teacher_id: int | None = None,
+        expect_teacher_id: int | None = None,
+    ) -> str:
+        """Atomic compare-and-set on a ticket, keeping its TTL and never recreating it.
+
+        Returns "ok", "missing" (no such ticket) or "conflict" (status/teacher mismatch).
+        """
+        ...
+
+    async def take_confirmed(self, key: str, poll_key: str) -> tuple[str, dict | None]:
+        """Atomically hand out and delete a confirmed ticket.
+
+        Returns ("ok", data) once; otherwise ("missing" | "badkey" | "notready", None)
+        and the ticket is left untouched.
+        """
+        ...
+
+
+# Lua (EVAL works on Redis 3.2 as well as 7; no GETDEL / KEEPTTL needed).
+_TRANSITION_LUA = """
+local raw = redis.call('GET', KEYS[1])
+if not raw then return 'missing' end
+local d = cjson.decode(raw)
+if d.status ~= ARGV[1] then return 'conflict' end
+if ARGV[4] ~= '' and tostring(d.teacher_id) ~= ARGV[4] then return 'conflict' end
+local pttl = redis.call('PTTL', KEYS[1])
+if pttl <= 0 then return 'missing' end
+d.status = ARGV[2]
+if ARGV[3] ~= '' then d.teacher_id = tonumber(ARGV[3]) end
+redis.call('SET', KEYS[1], cjson.encode(d), 'PX', pttl)
+return 'ok'
+"""
+
+_TAKE_LUA = """
+local raw = redis.call('GET', KEYS[1])
+if not raw then return 'missing' end
+local d = cjson.decode(raw)
+if d.poll_key ~= ARGV[1] then return 'badkey' end
+if d.status ~= 'confirmed' then return 'notready' end
+redis.call('DEL', KEYS[1])
+return raw
+"""
+
 
 class RedisTicketStore:
     def __init__(self, client: aioredis.Redis) -> None:
@@ -48,6 +96,31 @@ class RedisTicketStore:
     async def ttl(self, key: str) -> int:
         n = await self._r.ttl(key)
         return max(int(n), 0)
+
+    async def transition(
+        self,
+        key: str,
+        expect_status: str,
+        new_status: str,
+        new_teacher_id: int | None = None,
+        expect_teacher_id: int | None = None,
+    ) -> str:
+        res = await self._r.eval(
+            _TRANSITION_LUA,
+            1,
+            key,
+            expect_status,
+            new_status,
+            "" if new_teacher_id is None else str(new_teacher_id),
+            "" if expect_teacher_id is None else str(expect_teacher_id),
+        )
+        return str(res)
+
+    async def take_confirmed(self, key: str, poll_key: str) -> tuple[str, dict | None]:
+        res = str(await self._r.eval(_TAKE_LUA, 1, key, poll_key))
+        if res.startswith("{"):
+            return "ok", json.loads(res)
+        return res, None
 
 
 _store: RedisTicketStore | None = None

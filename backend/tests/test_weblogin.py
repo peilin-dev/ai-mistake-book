@@ -184,3 +184,50 @@ async def test_dev_login_absent_unless_enabled(client, teacher, settings, db, fa
         assert r.status_code == 200
         r = await c.post("/api/auth/dev-login", json={"teacher_id": 999999})
         assert r.status_code == 404
+
+
+async def test_wrong_poll_key_does_not_consume_confirmed_token(
+    client, client_for, teacher, fake_tickets
+):
+    t = await _create(client)
+    phone = client_for(teacher)
+    await phone.post(f"{BASE}/{t['ticket']}:scan")
+    await phone.post(f"{BASE}/{t['ticket']}:confirm")
+    assert (await client.get(f"{BASE}/{t['ticket']}?poll_key=wrong")).status_code == 404
+    r = await client.get(f"{BASE}/{t['ticket']}?poll_key={t['poll_key']}")
+    assert r.json()["status"] == "confirmed" and r.json()["token"]
+
+
+async def test_second_take_is_expired_and_late_confirm_cannot_resurrect(
+    client, client_for, teacher, fake_tickets
+):
+    t = await _create(client)
+    poll = f"{BASE}/{t['ticket']}?poll_key={t['poll_key']}"
+    phone = client_for(teacher)
+    await phone.post(f"{BASE}/{t['ticket']}:scan")
+    await phone.post(f"{BASE}/{t['ticket']}:confirm")
+    assert (await client.get(poll)).json()["token"]
+    assert (await client.get(poll)).json()["status"] == "expired"
+    # a late confirm/cancel/scan after the handout must not recreate the ticket
+    for action in ("confirm", "cancel", "scan"):
+        assert (await phone.post(f"{BASE}/{t['ticket']}:{action}")).status_code == 410
+    assert (await client.get(poll)).json()["status"] == "expired"
+    assert f"weblogin:{t['ticket']}" not in fake_tickets.data
+
+
+async def test_second_teacher_scan_of_scanned_ticket_is_409_and_first_keeps_it(
+    client, client_for, teacher, make_teacher, fake_tickets
+):
+    other = await make_teacher()
+    t = await _create(client)
+    assert (await client_for(teacher).post(f"{BASE}/{t['ticket']}:scan")).status_code == 200
+    assert (await client_for(other).post(f"{BASE}/{t['ticket']}:scan")).status_code == 409
+    assert (await client_for(teacher).post(f"{BASE}/{t['ticket']}:confirm")).status_code == 204
+
+
+async def test_confirm_then_cancel_is_conflict(client, client_for, teacher, fake_tickets):
+    t = await _create(client)
+    phone = client_for(teacher)
+    await phone.post(f"{BASE}/{t['ticket']}:scan")
+    assert (await phone.post(f"{BASE}/{t['ticket']}:confirm")).status_code == 204
+    assert (await phone.post(f"{BASE}/{t['ticket']}:cancel")).status_code == 409
