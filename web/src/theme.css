@@ -326,6 +326,10 @@ body:has(.page.question) .header .brand { font-size: 18px; }
 .dl-row { display: flex; gap: 12px; margin-top: 12px; }
 .dl-btn { padding: 12px 20px; border: 1px solid var(--link); border-radius: 8px; font-weight: 700; cursor: pointer; }
 .dl-btn:disabled, .downloads button:disabled { opacity: 0.5; cursor: not-allowed; }
+.dl-btn { background: var(--card); color: var(--ink); }
+.dl-btn.dl-view { background: var(--link); color: #fff; }
+.dl-check { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.downloads .muted { color: var(--ink-2); margin: 4px 0 0; }
 .dl-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); display: flex; align-items: center; justify-content: center; }
 .dl-dialog { background: #fff; border-radius: 10px; padding: 20px 24px; width: 420px; }
 .dl-dialog input { width: 100%; box-sizing: border-box; font-size: 1rem; padding: 8px; }
