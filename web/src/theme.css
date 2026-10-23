@@ -1,0 +1,127 @@
+:root {
+  --paper: #faf6ef;
+  --card: #ffffff;
+  --ink: #3a2f22;
+  --ink-2: #7a6a55;
+  --ink-3: #a08f78;
+  --line: #ece3d4;
+  --link: #a0561c;
+  --warn: #d9822b;
+  --warn-text: #b35a14;
+  --warn-bg: #fbeedd;
+  --busy: #c49a3c;
+  --ok: #5b8c5a;
+  --danger: #c0392b;
+  --danger-bg: #f9e3df;
+  --gray-bg: #f1ebe0;
+  --serif: 'Songti SC', 'STSong', 'Noto Serif CJK SC', 'Source Han Serif SC', 'SimSun', serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 16px;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 24px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+}
+.header .brand {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--link);
+}
+.header .spacer {
+  flex: 1;
+}
+.header .who {
+  color: var(--ink-2);
+}
+.header button {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink-2);
+  border-radius: 6px;
+  padding: 6px 12px;
+}
+
+.login {
+  max-width: 420px;
+  margin: 64px auto;
+  padding: 32px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  text-align: center;
+}
+.login h1 {
+  font-family: var(--serif);
+  color: var(--link);
+  margin: 0 0 8px;
+}
+.login .qr {
+  width: 220px;
+  height: 220px;
+  margin: 16px auto;
+  display: block;
+}
+.login .qr-wrap {
+  position: relative;
+  width: 220px;
+  margin: 0 auto;
+}
+.login .qr-wrap.dim .qr {
+  opacity: 0.25;
+}
+.login .qr-wrap button.refresh {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  color: var(--danger);
+  font-weight: 700;
+}
+.login .pair {
+  font-family: var(--serif);
+  font-size: 56px;
+  letter-spacing: 12px;
+  color: var(--ink);
+}
+.login .hint {
+  color: var(--ink-2);
+}
+.login .scanned {
+  color: var(--ok);
+  font-weight: 700;
+}
+.login .err {
+  color: var(--danger);
+  background: var(--danger-bg);
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+.login .dev {
+  margin-top: 24px;
+  border: 1px dashed var(--ink-3);
+  background: transparent;
+  color: var(--ink-3);
+  padding: 6px 12px;
+  border-radius: 6px;
+}
