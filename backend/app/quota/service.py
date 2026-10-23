@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.models import Assignment, Class_, DeletedPageQuota, Page
+from app.models import Assignment, Class_, DeletedPageQuota, Page, Teacher
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 
@@ -51,6 +51,13 @@ async def pages_used_this_month(
     return live + deleted
 
 
+def quota_limit(teacher: Teacher | None) -> int:
+    if teacher is not None and teacher.page_quota is not None:
+        return teacher.page_quota
+    return get_settings().MONTHLY_PAGE_QUOTA
+
+
 async def check_quota(db: AsyncSession, teacher_id: int) -> None:
-    if await pages_used_this_month(db, teacher_id) >= get_settings().MONTHLY_PAGE_QUOTA:
+    teacher = await db.get(Teacher, teacher_id)
+    if await pages_used_this_month(db, teacher_id) >= quota_limit(teacher):
         raise QuotaExceeded()

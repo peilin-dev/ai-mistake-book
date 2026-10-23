@@ -653,6 +653,10 @@ class FakeTicketStore:
         self.data[key] = (str(n), ttl)
         return n
 
+    async def take_json(self, key: str) -> dict | None:
+        item = self.data.pop(key, None)
+        return _json2.loads(item[0]) if item else None
+
     async def ttl(self, key: str) -> int:
         item = self.data.get(key)
         return item[1] if item else 0

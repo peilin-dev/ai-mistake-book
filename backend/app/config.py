@@ -47,6 +47,8 @@ class Settings(BaseSettings):
     REVIEW_CONFIDENCE_THRESHOLD: float = 0.8
     NAME_MATCH_THRESHOLD: float = 0.8
     MONTHLY_PAGE_QUOTA: int = 300
+    # Allowance given to teachers created from now on (existing teachers were set to 300).
+    FREE_MONTHLY_PAGES: int = 30
     ORIGINAL_RETENTION_DAYS: int = 30
 
     # model name -> (input fen per 1k tokens, output fen per 1k tokens)

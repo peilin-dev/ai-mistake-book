@@ -99,7 +99,8 @@ async def test_get_me(client, fake_wx):
     r = await client.get("/api/me", headers=bearer(data["token"]))
     assert r.status_code == 200
     assert r.json() == {"id": data["teacher"]["id"], "display_name": None, "last_subject": None,
-                        "quota_total": get_settings().MONTHLY_PAGE_QUOTA, "quota_used": 0}
+                        "login_name": None,
+                        "quota_total": get_settings().FREE_MONTHLY_PAGES, "quota_used": 0}
 
 
 async def test_me_includes_quota(auth_client, settings, my_assignment, make_page):

@@ -16,6 +16,10 @@ class TicketStore(KeyValueCache, Protocol):
 
     async def incr(self, key: str, ttl_s: int) -> int: ...
 
+    async def take_json(self, key: str) -> dict | None:
+        """Atomically read and delete a JSON value (single-use secrets such as captchas)."""
+        ...
+
     async def ttl(self, key: str) -> int: ...
 
     async def transition(
@@ -67,6 +71,23 @@ return raw
 """
 
 
+# INCR and (re)arm the expiry in one step, so a counter can never be left without a TTL.
+_INCR_LUA = """
+local n = redis.call('INCR', KEYS[1])
+if n == 1 or redis.call('TTL', KEYS[1]) < 0 then
+  redis.call('EXPIRE', KEYS[1], tonumber(ARGV[1]))
+end
+return n
+"""
+
+_TAKE_ANY_LUA = """
+local raw = redis.call('GET', KEYS[1])
+if not raw then return false end
+redis.call('DEL', KEYS[1])
+return raw
+"""
+
+
 class RedisTicketStore:
     def __init__(self, client: aioredis.Redis) -> None:
         self._r = client
@@ -88,10 +109,11 @@ class RedisTicketStore:
         await self._r.delete(key)
 
     async def incr(self, key: str, ttl_s: int) -> int:
-        n = await self._r.incr(key)
-        if n == 1:
-            await self._r.expire(key, ttl_s)
-        return int(n)
+        return int(await self._r.eval(_INCR_LUA, 1, key, str(ttl_s)))
+
+    async def take_json(self, key: str) -> dict | None:
+        raw = await self._r.eval(_TAKE_ANY_LUA, 1, key)
+        return json.loads(raw) if raw else None
 
     async def ttl(self, key: str) -> int:
         n = await self._r.ttl(key)

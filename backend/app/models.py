@@ -96,6 +96,10 @@ class Teacher(_Base):
         BigInteger, ForeignKey("schools.id", ondelete="SET NULL")
     )
     last_subject: Mapped[Subject | None] = mapped_column(_enum(Subject, "subject"))
+    login_name: Mapped[str | None] = mapped_column(String(32), unique=True)
+    password_hash: Mapped[str | None] = mapped_column(String(255))
+    # Monthly page allowance; NULL falls back to settings.MONTHLY_PAGE_QUOTA.
+    page_quota: Mapped[int | None] = mapped_column(Integer)
 
 
 class Class_(_Base):
