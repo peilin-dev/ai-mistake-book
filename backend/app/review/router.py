@@ -9,6 +9,7 @@ from app.assignments.access import own_assignment
 from app.deps import current_teacher, get_db
 from app.grading.pipeline import (
     attach_following_pages,
+    chains,
     fresh_page,
     get_or_create_submission,
     lock_assignment,
@@ -182,7 +183,7 @@ async def _move_continuation(
     seq = page.seq + 1
     while (nxt := await fresh_page(db, Page.assignment_id == page.assignment_id, Page.seq == seq)) is not None:
         if (nxt.status != PageStatus.done or nxt.recognized_name is not None
-                or nxt.student_id != old_student_id):
+                or nxt.student_id != old_student_id or not chains(last, nxt)):
             break
         nxt.student_id = page.student_id
         stmt = select(QuestionResult).where(QuestionResult.page_id == nxt.id).execution_options(

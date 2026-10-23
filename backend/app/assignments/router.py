@@ -2,7 +2,7 @@ import asyncio
 import hashlib
 import logging
 from collections.abc import Awaitable, Callable
-from typing import Annotated
+from typing import Annotated, Literal
 
 from arq import create_pool
 from arq.connections import RedisSettings
@@ -150,6 +150,7 @@ class PageListItem(BaseModel):
     student_id: int | None
     student_name: str | None
     recognized_name: str | None
+    source: str
 
 
 class SubmissionListItem(BaseModel):
@@ -175,7 +176,8 @@ async def list_pages(
     )).all()
     return [
         PageListItem(page_id=p.id, seq=p.seq, status=p.status, fail_reason=p.fail_reason,
-                     student_id=p.student_id, student_name=name, recognized_name=p.recognized_name)
+                     student_id=p.student_id, student_name=name, recognized_name=p.recognized_name,
+                     source=p.source)
         for p, name in rows
     ]
 
@@ -306,6 +308,7 @@ async def upload_page(
     assignment_id: int,
     file: UploadFile,
     response: Response,
+    source: Literal["phone", "web"] = "phone",
     teacher: Teacher = Depends(current_teacher),
     db: AsyncSession = Depends(get_db),
     storage: Storage = Depends(get_storage),
@@ -364,6 +367,7 @@ async def upload_page(
         image_key="",  # real key needs page.id; set right after the flush
         image_sha256=sha,
         status=PageStatus.queued,
+        source=source,
     )
     db.add(page)
     try:

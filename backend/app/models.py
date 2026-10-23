@@ -147,6 +147,8 @@ class Page(_Base):
         BigInteger, ForeignKey("students.id", ondelete="SET NULL"), index=True
     )
     original_deleted_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # "phone" (mini program) or "web" (batch upload); only phone pages follow the previous page's student.
+    source: Mapped[str] = mapped_column(String(8), default="phone", server_default="phone")
     # Teacher-triggered retries of a failed page; part of the arq job id (grade:{id}:{n}).
     retry_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 

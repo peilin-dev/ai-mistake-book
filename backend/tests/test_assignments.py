@@ -130,11 +130,11 @@ async def test_list_pages_and_submissions(auth_client, db, my_assignment, my_cla
     pages = (await auth_client.get(f"/api/assignments/{my_assignment.id}/pages")).json()
     assert pages == [
         {"page_id": p1.id, "seq": 1, "status": "done", "fail_reason": None,
-         "student_id": roster_zhangsan.id, "student_name": "张三", "recognized_name": "张三"},
+         "student_id": roster_zhangsan.id, "student_name": "张三", "recognized_name": "张三", "source": "phone"},
         {"page_id": p2.id, "seq": 2, "status": "done", "fail_reason": None,
-         "student_id": None, "student_name": None, "recognized_name": "王五"},
+         "student_id": None, "student_name": None, "recognized_name": "王五", "source": "phone"},
         {"page_id": p3.id, "seq": 3, "status": "failed", "fail_reason": "unreadable",
-         "student_id": None, "student_name": None, "recognized_name": None},
+         "student_id": None, "student_name": None, "recognized_name": None, "source": "phone"},
     ]
     subs = (await auth_client.get(f"/api/assignments/{my_assignment.id}/submissions")).json()
     by_name = sorted([("张三", s_z), ("李四", s_l)])

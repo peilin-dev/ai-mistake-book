@@ -204,12 +204,18 @@ async def _call_model(
 
 
 async def _previous_student(db: AsyncSession, page: Page) -> int | None:
-    stmt = select(Page.student_id).where(
+    stmt = select(Page).where(
         Page.assignment_id == page.assignment_id,
         Page.seq == page.seq - 1,
         Page.status == PageStatus.done,
     ).limit(1)
-    return (await db.execute(stmt)).scalar_one_or_none()
+    prev = (await db.execute(stmt)).scalar_one_or_none()
+    return prev.student_id if prev is not None and chains(prev, page) else None
+
+
+def chains(prev: Page, nxt: Page) -> bool:
+    """A nameless page may follow the previous page's student only when both came from the phone."""
+    return prev.source == "phone" and nxt.source == "phone"
 
 
 async def _repeats_questions(
@@ -231,7 +237,8 @@ async def attach_following_pages(db: AsyncSession, page: Page, submission_id: in
     """Nameless pages finished before this one become its continuation (spec 7.2)."""
     seq = page.seq + 1
     while (nxt := await fresh_page(db, Page.assignment_id == page.assignment_id, Page.seq == seq)) is not None:
-        if nxt.status != PageStatus.done or nxt.student_id is not None or nxt.recognized_name is not None:
+        if (nxt.status != PageStatus.done or nxt.student_id is not None or nxt.recognized_name is not None
+                or not chains(page, nxt)):
             break
         stmt = select(QuestionResult).where(QuestionResult.page_id == nxt.id).execution_options(
             populate_existing=True)
