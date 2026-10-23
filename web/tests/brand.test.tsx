@@ -22,15 +22,15 @@ const question = (no: string, wrong: number) => ({
   accuracy: (10 - wrong) / 10, top_wrong_answer: null, is_subjective: false,
 })
 
-function renderOverview(pending: number) {
+function renderOverview(pending: number, questions = [question('1', 5), question('2', 4), question('3', 1)]) {
   req.mockImplementation((_m: string, path: string) => {
     if (path === '/api/me') return Promise.resolve({ id: 1, display_name: '林老师' })
     if (path === '/api/classes') return Promise.resolve([])
     if (path.endsWith('/analytics')) {
       return Promise.resolve({
         counted_students: 10, roster_size: 10, average_score: 5, average_ratio: 0.5, pass_rate: 0.5,
-        pending_review: pending, pages_not_counted: 0,
-        questions: [question('1', 5), question('2', 4), question('3', 1)],
+        pending_review: pending, pages_not_counted: 2,
+        questions,
       })
     }
     return Promise.resolve({ id: 1, class_id: 1, subject: 'math', title: '周测' })
@@ -82,6 +82,23 @@ describe('红笔君 identity', () => {
     expect(hot).toMatch(/background/)
     expect(hot).not.toMatch(/#b53632|var\(--link\)/i)
     expect(hot).not.toMatch(/color:\s*white/)
+  })
+
+  it('overview shows at most 3 red-pen marks (circles + wavy) with preview-like data', async () => {
+    // same error counts as preview.tsx: q3 45%, q6 53%, q9 38%, q15 43% (of 40)
+    const wrong = [3, 5, 18, 7, 2, 21, 9, 4, 15, 6, 1, 12, 8, 3, 17]
+    const qs = wrong.map((n, i) => ({ ...question(String(i + 1), n), student_count: 40, answered_count: 40 }))
+    const { container } = renderOverview(3, qs)
+    await waitFor(() => expect(screen.getByText('第 15 题')).toBeTruthy())
+    const marks = container.querySelectorAll('.red-circle, .red-wavy')
+    expect(marks.length).toBeLessThanOrEqual(3)
+    expect(container.querySelectorAll('.red-wavy')).toHaveLength(1)
+    const cells = [...container.querySelectorAll('.q-cell')]
+    const circled = cells.filter((c) => c.querySelector('.red-circle')).map((c) => c.querySelector('.qno')!.textContent)
+    expect(circled).toEqual(['第 3 题', '第 6 题'])
+    // q15 is still hot (light tile, vermilion number), just not circled
+    expect(cells[14].className).toContain('heat-hot')
+    expect(cells[14].querySelector('.red-circle')).toBeNull()
   })
 
   it('pending-review hint carries the red wavy underline', async () => {

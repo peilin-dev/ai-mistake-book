@@ -60,6 +60,21 @@ export function heatLevel(rate: number | null): Heat {
   return 'cool'
 }
 
+/**
+ * Questions that get a red-pen circle: the worst one (if anyone got it wrong) plus others at >= 40%,
+ * at most `max` in total — highest rates first, ties in question order.
+ */
+export function circledQuestions(
+  questions: { question_no: string; wrong_count: number; student_count: number }[], max = 2,
+): Set<string> {
+  const rated = questions
+    .map((q, i) => ({ no: q.question_no, rate: errorRate(q) ?? 0, i }))
+    .filter((q) => q.rate > 0)
+    .sort((a, b) => b.rate - a.rate || a.i - b.i)
+  const picked = rated.filter((q, i) => i === 0 || q.rate >= 0.4).slice(0, max)
+  return new Set(picked.map((q) => q.no))
+}
+
 export function pendingHint(pending: number): string | null {
   return pending > 0 ? `还有 ${pending} 项没复核，统计可能变化，请在手机上复核` : null
 }

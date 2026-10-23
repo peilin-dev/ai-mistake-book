@@ -5,7 +5,7 @@ import Icon from '../components/Icon'
 import RedCircle from '../components/RedCircle'
 import { errorText, request } from '../lib/api'
 import {
-  avgText, dateText, errorRate, heatLevel, percent, subjectLabel,
+  avgText, circledQuestions, dateText, errorRate, heatLevel, pendingHint, percent, subjectLabel,
   type Analytics, type AssignmentOut, type ClassOut,
 } from '../lib/overview'
 
@@ -41,6 +41,11 @@ export default function Overview() {
     }
   }, [assignmentId])
 
+  const circled = circledQuestions(stats?.questions ?? [])
+  const hintText = stats ? pendingHint(stats.pending_review) : null
+  const hintMark = stats ? `${stats.pending_review} 项没复核` : ''
+  const [hintBefore, hintAfter] = hintText?.split(hintMark) ?? []
+  const hint = hintText && hintAfter !== undefined ? { before: hintBefore, mark: hintMark, after: hintAfter } : null
   const heading = assignment
     ? [className, subjectLabel(assignment.subject), assignment.title, dateText(assignment.created_at)]
         .filter(Boolean)
@@ -62,10 +67,11 @@ export default function Overview() {
               <div className="stat"><span className="num">{avgText(stats.average_score)}</span><span className="lbl">平均分</span></div>
               <div className="stat"><span className="num">{percent(stats.pass_rate)}</span><span className="lbl">及格率</span></div>
             </div>
-            {stats.pending_review > 0 && (
-              <p className="pending-hint">还有 <span className="red-wavy">{stats.pending_review} 项没复核</span>，统计可能变化，请在手机上复核</p>
+            {hint && (
+              // the one wavy underline on this screen
+              <p className="pending-hint">{hint.before}<span className="red-wavy">{hint.mark}</span>{hint.after}</p>
             )}
-            <div className="section-heading heat-heading"><div><h2 className="serif">每道题，错在哪里</h2><p>查看错误率，点击题目进入课堂讲评。</p></div><div className="heat-legend"><span><i className="legend-hot" />圈出 ≥ 40%</span><span><i className="legend-warm" />20–39%</span><span><i className="legend-cool" />低于 20%</span></div></div>
+            <div className="section-heading heat-heading"><div><h2 className="serif">每道题，错在哪里</h2><p>查看错误率，点击题目进入课堂讲评。</p></div><div className="heat-legend"><span><i className="legend-circle" />红圈：错得最多的题</span><span><i className="legend-hot" />≥ 40%</span><span><i className="legend-warm" />20–39%</span><span><i className="legend-cool" />低于 20%</span></div></div>
             {stats.questions.length === 0 ? (
               <p className="empty">还没有错题数据</p>
             ) : (
@@ -80,7 +86,7 @@ export default function Overview() {
                       className={`q-cell heat-${heat}`}
                     >
                       <span className="qno serif">第 {q.question_no} 题</span>
-                      <span className="qpct serif">{heat === 'hot' ? <RedCircle>{percent(rate)}</RedCircle> : percent(rate)}</span>
+                      <span className="qpct serif">{circled.has(q.question_no) ? <RedCircle>{percent(rate)}</RedCircle> : percent(rate)}</span>
                       <span className="q-count">{q.wrong_count} / {q.student_count} 人答错</span>
                       <span className="q-knowledge">{q.knowledge_point || '查看作答详情'}</span>
                       {q.is_subjective && <span className="qsub">主观</span>}
