@@ -618,6 +618,56 @@ async def other_teacher_failed_page(db, make_assignment) -> Page:
     return page
 
 
+# --- M6 Task 2 fixtures ---
+import json as _json2  # noqa: E402
+
+from app.weblogin.store import get_ticket_store  # noqa: E402
+
+
+class FakeTicketStore:
+    """In-memory TicketStore; `expire(key)` simulates TTL running out."""
+
+    def __init__(self) -> None:
+        self.data: dict[str, tuple[str, int]] = {}
+
+    async def get(self, key: str) -> str | None:
+        item = self.data.get(key)
+        return item[0] if item else None
+
+    async def set(self, key: str, value: str, ttl_s: int) -> None:
+        self.data[key] = (value, ttl_s)
+
+    async def get_json(self, key: str) -> dict | None:
+        raw = await self.get(key)
+        return _json2.loads(raw) if raw else None
+
+    async def set_json(self, key: str, value: dict, ttl_s: int) -> None:
+        self.data[key] = (_json2.dumps(value), ttl_s)
+
+    async def delete(self, key: str) -> None:
+        self.data.pop(key, None)
+
+    async def incr(self, key: str, ttl_s: int) -> int:
+        raw, ttl = self.data.get(key, ("0", ttl_s))
+        n = int(raw) + 1
+        self.data[key] = (str(n), ttl)
+        return n
+
+    async def ttl(self, key: str) -> int:
+        item = self.data.get(key)
+        return item[1] if item else 0
+
+    def expire(self, key: str) -> None:
+        self.data.pop(key, None)
+
+
+@pytest.fixture
+def fake_tickets(app) -> FakeTicketStore:
+    store = FakeTicketStore()
+    app.dependency_overrides[get_ticket_store] = lambda: store
+    return store
+
+
 # --- M5 Task 4 fixtures ---
 from app.practice.router import get_practice_enqueuer  # noqa: E402
 

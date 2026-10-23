@@ -157,4 +157,6 @@ class HttpWeChatClient:
 
 
 def get_wechat_client() -> WeChatClient:
-    return HttpWeChatClient()
+    from app.weblogin.store import get_ticket_store  # local import: store imports this module
+
+    return HttpWeChatClient(cache=get_ticket_store())
