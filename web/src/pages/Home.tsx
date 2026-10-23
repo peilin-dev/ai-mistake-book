@@ -28,6 +28,7 @@ export default function Home() {
     if (selected === null) return
     let alive = true
     setAssignments(null)
+    setError('')
     request<AssignmentOut[]>('GET', `/api/classes/${selected}/assignments`)
       .then((list) => alive && setAssignments([...list].sort((a, b) => b.id - a.id)))
       .catch((e) => alive && setError(errorText(e)))
@@ -41,6 +42,7 @@ export default function Home() {
       <Header />
       <main className="page home">
         {error && <p className="err">{error}</p>}
+        {classes === null && !error && <p className="empty">加载中…</p>}
         {classes && classes.length === 0 && <p className="empty">还没有班级，请先在小程序里建班</p>}
         {classes && classes.length > 0 && (
           <div className="home-grid">

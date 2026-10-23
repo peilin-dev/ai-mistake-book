@@ -18,10 +18,14 @@ export default function Overview() {
   useEffect(() => {
     let alive = true
     setError('')
+    setAssignment(null)
+    setStats(null)
+    setClassName('')
     Promise.all([
       request<AssignmentOut>('GET', `/api/assignments/${assignmentId}`),
       request<Analytics>('GET', `/api/assignments/${assignmentId}/analytics`),
-      request<ClassOut[]>('GET', '/api/classes'),
+      // only used for the heading; a failure must not hide the overview
+      request<ClassOut[]>('GET', '/api/classes').catch(() => [] as ClassOut[]),
     ])
       .then(([a, s, classes]) => {
         if (!alive) return
@@ -48,6 +52,7 @@ export default function Overview() {
       <main className="page overview">
         <Link to="/" className="back">← 返回班级</Link>
         {error && <p className="err">{error}</p>}
+        {!error && !(assignment && stats) && <p className="empty">加载中…</p>}
         {assignment && stats && (
           <>
             <h1 className="main-title">{heading}</h1>
