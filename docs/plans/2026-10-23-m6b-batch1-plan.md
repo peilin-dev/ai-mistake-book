@@ -10,7 +10,7 @@
 
 **Spec:** `docs/specs/2026-10-23-m6b-web-full-design.md`（上游：`docs/specs/2026-10-23-m6-web-admin-design.md`、`docs/specs/2026-10-21-m3-miniprogram-design.md`）
 
-**执行顺序：** 1 → 2 → 3 → 3b → 5 → 4 → 6 → 7 → 8 → 10 → 11 → 9（任务 4 的「换一张」用到任务 5 的 `prepareOne`；任务 11 扩充任务 3b 的账号弹窗）。
+**执行顺序：** 1 → 2 → 10 → 2c → 3 → 3b → 5 → 4 → 6 → 7 → 8 → 11 → 9（所有网页任务按 `docs/specs/web-ui-v1.md` 及其「红笔君识别细节」做）（任务 4 的「换一张」用到任务 5 的 `prepareOne`；任务 11 扩充任务 3b 的账号弹窗）。
 
 ## Global Constraints
 
@@ -73,6 +73,20 @@
 - [ ] **Step 4: 全量测试通过并提交** `feat(pages): delete page, claim candidates, quota on /me`
 
 ## 二、网页（任务 3–8）
+
+### Task 2c: 红笔君识别细节（套用到现有页面）
+
+**Files:**
+- Create: `web/src/components/RedCircle.tsx`（手绘红圈 SVG，包住子元素）、`web/src/components/Brand.tsx`（印章 + 宋体「红笔君」）
+- Modify: `web/src/theme.css`（`--serif`、圆角 ≤ 6px、去投影、细线）、`web/src/components/Header.tsx`（用 `Brand`）、`web/index.html`（favicon 用 `/brand/seal-64.png`）、`web/src/pages/Overview.tsx`（≥ 40% 的题用红圈而不是整块红；待复核提示加红波浪线）、`web/src/pages/Question.tsx`、`web/src/pages/Login.tsx`、`web/src/pages/Home.tsx`、`web/src/pages/Downloads.tsx`（标题宋体等）、`web/src/preview.tsx`（预览同步）
+- Test: `web/tests/brand.test.tsx`
+
+**Interfaces:**
+- Produces: `<RedCircle>{children}</RedCircle>`、`<Brand size?: number />`；CSS 变量 `--serif`、工具类 `.serif`、`.red-wavy`。之后所有新页面（任务 3–8、11）按 `docs/specs/web-ui-v1.md` 的「红笔君识别细节」使用它们。
+- [ ] **Step 1: 写失败的测试**：`header shows the seal brand`、`hot questions (>= 40%) are wrapped in RedCircle and not filled red`、`pending-review hint carries the red wavy underline`
+- [ ] **Step 2: 运行确认失败**
+- [ ] **Step 3: 实现**（照 `docs/specs/web-ui-v1.md` 的增补节；`npm run dev` 打开 `preview.html` 自查，1440 与 375 宽各看一眼）
+- [ ] **Step 4: 全量 vitest、`npx tsc --noEmit`、`npm run build` 通过并提交** `feat(web): 红笔君 identity — serif titles, red-pen marks, seal brand`
 
 ### Task 3: 班级管理
 

@@ -10,5 +10,19 @@ FIRST VIEWPORT: 1440px 桌面，72px 顶栏，224px 班级栏，内容区最大 
 FORM: 用户指定的纸白墨色朱红方向优先；seed:b54b3cbcd7d3fd24。参考候选只用于密度与可读性，不用随机风格覆盖用户接受的方向。
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 
+## 红笔君识别细节（2026-10-23 增补，产品负责人确认）
+
+在第一版布局之上加四处，让它像「老师拿红笔批改」而不是通用后台模板：
+
+1. **标题用宋体**：页面标题、题号、大数字（统计值、错误人数）用 `--serif: "Source Han Serif SC", "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`（只用系统字体，不下载网页字体），字重 700–900、墨色；正文、表格、按钮保持无衬线。
+2. **红笔笔迹（只用在关键处）**：
+   - 学情格子里错误率最高的那一题（及所有 ≥ 40% 的题）不再整块涂红，改为浅底 + **手绘红圈**（SVG 路径，略不闭合、粗细 2–3px），数字用朱红；
+   - 需要老师注意的数字或提示（待复核数、失败页数）下面一道**红色波浪线**（`text-decoration: underline wavy` 或 SVG）；
+   - 当前导航项的红色下划线保留。全站红色笔迹每屏不超过 3 处。
+3. **标志是朱红方印**：页头左上角用 `web/public/brand/seal-64.png`（32px 显示，2 倍图）＋「红笔君」宋体字；浏览器标签图标用同一印章（`seal-64.png`）。原笔尖图标不再作为品牌标志。小程序头像为 `docs/brand/avatar-1024.png`（由 `docs/brand/make_seal.py` 生成，字体思源宋体 Heavy，SIL OFL 可商用）。
+4. **纸面感**：卡片圆角不超过 6px、去掉投影，用 1px 细线分隔；表格行用细横线，像纸上的表格。
+
+不做：纸纹背景图、满屏手写字体、吉祥物。
+
 ## Preview boundary
 仅开发入口 preview.html 使用示例数据，复用真实页面组件，独立 MemoryRouter，不存登录凭证，不向真实 API 发送请求。生产入口维持现有登录与 API。
