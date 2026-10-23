@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import Brand from './Brand'
 import Icon from './Icon'
 import { clearToken } from '../lib/auth'
 import { request } from '../lib/api'
@@ -29,7 +30,7 @@ export default function Header({ teacherName }: { teacherName?: string }) {
   return (
     <header className="header">
       <a className="skip-link" href="#main-content">跳到主要内容</a>
-      <Link className="brand" to="/" aria-label="红笔君，返回班级"><Icon name="pen" size={26} /><span>红笔君<span className="brand-dot">.</span></span></Link>
+      <Link className="brand" to="/" aria-label="红笔君，返回班级"><Brand /></Link>
       <Link className="header-workspace" to="/">老师工作台</Link>
       <span className="spacer" />
       <span className="who"><span className="avatar" aria-hidden="true">{(shown || '老师').slice(0, 1)}</span>{shown || '老师'}</span>

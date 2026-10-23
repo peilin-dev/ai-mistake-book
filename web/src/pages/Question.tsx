@@ -134,7 +134,7 @@ export default function Question() {
                 const more = urls.length - PREVIEW
                 return (
                   <section className="q-group" key={g.key}>
-                    <h2>写成 {g.answer || '（空白）'}，{g.count} 人</h2>
+                    <h2 className="serif">写成 {g.answer || '（空白）'}，{g.count} 人</h2>
                     <div className={open ? 'q-crops open' : 'q-crops'}>
                       {shown.map((u) => (
                         <img key={u} src={u} alt="学生作答原图" onClick={() => setZoom(u)} />

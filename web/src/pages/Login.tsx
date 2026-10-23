@@ -3,7 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { errorText, request } from '../lib/api'
 import { setToken } from '../lib/auth'
 import { createTicket, qrDataUrl, startPolling, type Ticket } from '../lib/login'
+import Brand from '../components/Brand'
 import Icon from '../components/Icon'
+import RedCircle from '../components/RedCircle'
 
 type View = 'pending' | 'scanned' | 'expired'
 
@@ -68,12 +70,12 @@ export default function Login({ previewOnly = false }: { previewOnly?: boolean }
   return (
     <main id="main-content" className="login-shell">
       <section className="login-story">
-        <div className="brand"><Icon name="pen" size={30} /><span>红笔君<span className="brand-dot">.</span></span></div>
-        <div className="login-message"><h1>认真批改，<br />从容讲评<span className="brand-dot">。</span></h1><p>把整理错题的时间，<br />留给真正需要讲清楚的那道题。</p><div className="login-values"><span><Icon name="check" size={17} />班级学情，一目了然</span><span><Icon name="check" size={17} />错题与练习，随时打印</span></div></div>
+        <div className="brand"><Brand size={40} /></div>
+        <div className="login-message"><h1>认真批改，<br />从容<RedCircle>讲评</RedCircle>。</h1><p>把整理错题的时间，<br />留给真正需要讲清楚的那道题。</p><div className="login-values"><span><Icon name="check" size={17} />班级学情，一目了然</span><span><Icon name="check" size={17} />错题与练习，随时打印</span></div></div>
         <p className="login-signature">老师的每一笔，都有意义。</p>
       </section>
       <section className="login" aria-labelledby="login-heading">
-      <h2 id="login-heading">欢迎回到红笔君</h2>
+      <h2 id="login-heading" className="serif">欢迎回到红笔君</h2>
       <p className="hint">用微信扫一扫，在小程序里确认登录</p>
       {error && <p className="err" role="alert">{error}</p>}
       {previewOnly ? <div className="qr-loading preview-login-placeholder"><Icon name="pen" size={38} /><strong>登录码展示区域</strong><span>界面预览，无需扫码</span></div> : !ticket && !error && <div className="qr-loading" role="status">正在准备登录码…</div>}

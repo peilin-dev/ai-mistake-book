@@ -140,7 +140,7 @@ export default function Downloads() {
         {error && <p className="err" role="alert">{error}</p>}
         <div className="dl-cards">
           <section className="dl-card">
-            <h2>讲评单</h2>
+            <h2 className="serif">讲评单</h2>
             <p>按错题整理的课堂讲评材料，不含学生姓名</p>
             <div className="dl-row">
               {btn('lecture-view', '在线查看', 'lecture', undefined, true)}
@@ -148,7 +148,7 @@ export default function Downloads() {
             </div>
           </section>
           <section className="dl-card">
-            <h2>全班错题单</h2>
+            <h2 className="serif">全班错题单</h2>
             <p>每位学生一份的错题清单</p>
             <p className="muted">含学生姓名，请下载后打印</p>
             <div className="dl-row">
@@ -156,7 +156,7 @@ export default function Downloads() {
             </div>
           </section>
           <section className="dl-card">
-            <h2>练习卷</h2>
+            <h2 className="serif">练习卷</h2>
             {practiceOk === false && <p className="empty">练习卷请先在手机上生成</p>}
             <label className="dl-check">
               <input
@@ -179,7 +179,7 @@ export default function Downloads() {
         {dialog && (
           <div className="dl-mask">
             <div className="dl-dialog" role="dialog" aria-label="署名">
-              <h2>署名</h2>
+              <h2 className="serif">署名</h2>
               <p>PDF 上会印上这个署名</p>
               <input
                 value={name}

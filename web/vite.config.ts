@@ -11,5 +11,7 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // let tests read theme.css as text (`?raw`); other CSS imports stay empty
+    css: { include: [/theme\.css/] },
   },
 })

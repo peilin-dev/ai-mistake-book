@@ -81,7 +81,7 @@ export default function Home() {
             </aside>
             <section className="workspace" aria-label="班级作业">
             <div className="page-heading"><div><h1>{activeClass?.name || '班级作业'}</h1><p>整理每一次练习，看见每一点进步。</p></div><span className="quiet-label">{activeClass?.grade} 年级</span></div>
-            <div className="section-heading"><h2>全部作业 <span className="count">{assignments?.length ?? '—'}</span></h2><label className="search-field"><Icon name="search" size={18} /><input type="search" name="assignment-search" autoComplete="off" aria-label="搜索作业" placeholder="搜索作业名称…" value={query} onChange={e => setFilter('q', e.target.value)} /></label></div>
+            <div className="section-heading"><h2 className="serif">全部作业 <span className="count">{assignments?.length ?? '—'}</span></h2><label className="search-field"><Icon name="search" size={18} /><input type="search" name="assignment-search" autoComplete="off" aria-label="搜索作业" placeholder="搜索作业名称…" value={query} onChange={e => setFilter('q', e.target.value)} /></label></div>
             <div className="subject-filters" aria-label="学科筛选"><button type="button" aria-pressed={!subject} onClick={() => setFilter('subject', '')}>全部学科</button>{subjects.map(s => <button type="button" key={s} aria-pressed={subject === s} onClick={() => setFilter('subject', s)}>{subjectLabel(s)}</button>)}</div>
             <div className="assignment-list" aria-live="polite" aria-busy={assignments === null && !error}>
               {assignments === null && !error && <p className="empty">加载中…</p>}
