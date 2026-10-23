@@ -78,6 +78,34 @@ async def wx_login(
     )
 
 
+class DevLoginIn(BaseModel):
+    teacher_id: int | None = None
+
+
+# Only included by create_app() when settings.DEV_LOGIN is true.
+dev_router = APIRouter()
+
+
+@dev_router.post("/auth/dev-login", response_model=WxLoginOut)
+async def dev_login(body: DevLoginIn, db: AsyncSession = Depends(get_db)):
+    if body.teacher_id is not None:
+        teacher = await db.get(Teacher, body.teacher_id)
+        if teacher is None:
+            raise HTTPException(status_code=404, detail="teacher not found")
+    else:
+        teacher = (
+            await db.execute(select(Teacher).order_by(Teacher.id).limit(1))
+        ).scalar_one_or_none()
+        if teacher is None:
+            teacher = Teacher(unionid=None, mp_openid="dev-login")
+            db.add(teacher)
+            await db.commit()
+    return WxLoginOut(
+        token=issue_token(teacher.id),
+        teacher=TeacherBrief(id=teacher.id, display_name=teacher.display_name),
+    )
+
+
 @router.get("/me", response_model=MeOut)
 async def get_me(teacher: Teacher = Depends(current_teacher)):
     return teacher

@@ -69,11 +69,16 @@ async def db(settings):
 class FakeWeChatClient:
     def __init__(self) -> None:
         self.sessions: dict[str, WxSession] = {}
+        self.scenes: list[str] = []
 
     async def code2session(self, code: str) -> WxSession:
         if code not in self.sessions:
             raise WeChatAuthError("invalid code")
         return self.sessions[code]
+
+    async def wxacode(self, scene: str) -> bytes:
+        self.scenes.append(scene)
+        return b"\x89PNG-fake"
 
 
 @pytest.fixture
@@ -611,6 +616,84 @@ async def other_teacher_failed_page(db, make_assignment) -> Page:
     db.add(page)
     await db.commit()
     return page
+
+
+# --- M6 Task 2 fixtures ---
+import json as _json2  # noqa: E402
+
+from app.weblogin.store import get_ticket_store  # noqa: E402
+
+
+class FakeTicketStore:
+    """In-memory TicketStore; `expire(key)` simulates TTL running out."""
+
+    def __init__(self) -> None:
+        self.data: dict[str, tuple[str, int]] = {}
+
+    async def get(self, key: str) -> str | None:
+        item = self.data.get(key)
+        return item[0] if item else None
+
+    async def set(self, key: str, value: str, ttl_s: int) -> None:
+        self.data[key] = (value, ttl_s)
+
+    async def get_json(self, key: str) -> dict | None:
+        raw = await self.get(key)
+        return _json2.loads(raw) if raw else None
+
+    async def set_json(self, key: str, value: dict, ttl_s: int) -> None:
+        self.data[key] = (_json2.dumps(value), ttl_s)
+
+    async def delete(self, key: str) -> None:
+        self.data.pop(key, None)
+
+    async def incr(self, key: str, ttl_s: int) -> int:
+        raw, ttl = self.data.get(key, ("0", ttl_s))
+        n = int(raw) + 1
+        self.data[key] = (str(n), ttl)
+        return n
+
+    async def ttl(self, key: str) -> int:
+        item = self.data.get(key)
+        return item[1] if item else 0
+
+    async def transition(self, key, expect_status, new_status, new_teacher_id=None,
+                         expect_teacher_id=None) -> str:
+        item = self.data.get(key)
+        if item is None:
+            return "missing"
+        d = _json2.loads(item[0])
+        if d["status"] != expect_status:
+            return "conflict"
+        if expect_teacher_id is not None and d["teacher_id"] != expect_teacher_id:
+            return "conflict"
+        d["status"] = new_status
+        if new_teacher_id is not None:
+            d["teacher_id"] = new_teacher_id
+        self.data[key] = (_json2.dumps(d), item[1])
+        return "ok"
+
+    async def take_confirmed(self, key, poll_key):
+        item = self.data.get(key)
+        if item is None:
+            return "missing", None
+        d = _json2.loads(item[0])
+        if d["poll_key"] != poll_key:
+            return "badkey", None
+        if d["status"] != "confirmed":
+            return "notready", None
+        del self.data[key]
+        return "ok", d
+
+    def expire(self, key: str) -> None:
+        self.data.pop(key, None)
+
+
+@pytest.fixture
+def fake_tickets(app) -> FakeTicketStore:
+    store = FakeTicketStore()
+    app.dependency_overrides[get_ticket_store] = lambda: store
+    return store
 
 
 # --- M5 Task 4 fixtures ---
