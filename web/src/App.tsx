@@ -7,6 +7,8 @@ import Login from './pages/Login'
 import Overview from './pages/Overview'
 import Downloads from './pages/Downloads'
 import Question from './pages/Question'
+import ClassNew from './pages/ClassNew'
+import ClassDetail from './pages/ClassDetail'
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const location = useLocation()
@@ -31,6 +33,8 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
+      <Route path="/classes/new" element={<RequireAuth><ClassNew /></RequireAuth>} />
+      <Route path="/classes/:classId" element={<RequireAuth><ClassDetail /></RequireAuth>} />
       <Route path="/a/:assignmentId" element={<RequireAuth><Overview /></RequireAuth>} />
       <Route
         path="/a/:assignmentId/q/:questionNo"

@@ -7,6 +7,8 @@ import Overview from './pages/Overview'
 import Question from './pages/Question'
 import Downloads from './pages/Downloads'
 import Login from './pages/Login'
+import ClassNew from './pages/ClassNew'
+import ClassDetail from './pages/ClassDetail'
 import './theme.css'
 import './preview.css'
 
@@ -30,6 +32,7 @@ const analytics = {
   pending_review: 3, pages_not_counted: 2,
   questions: wrong.map((n, i) => ({ question_no: String(i + 1), knowledge_point: knowledge[i % 5], wrong_count: n, student_count: 40, answered_count: 40, accuracy: (40 - n) / 40, top_wrong_answer: null, is_subjective: false })),
 }
+const students = ['示例学生甲', '示例学生乙', '示例学生丙', '示例学生丁', '示例学生戊', '示例学生己'].map((name, i) => ({ id: i + 1, name, student_no: i === 2 ? null : String(i + 1).padStart(2, '0') }))
 const response = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } })
 
 if (import.meta.env.DEV) {
@@ -38,7 +41,12 @@ if (import.meta.env.DEV) {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url, location.origin)
     const p = url.pathname
     if (p === '/api/me') return response({ id: 1, display_name: '林老师', last_subject: 'math' })
+    if (p === '/api/classes' && init?.method === 'POST') return response({ id: 1, name: '示例班级', grade: 5 }, 201)
     if (p === '/api/classes') return response(classes)
+    if (/^\/api\/classes\/\d+\/students$/.test(p)) return response(students)
+    if (/^\/api\/classes\/\d+\/students:import$/.test(p)) return response({ created: 2, students })
+    if (/^\/api\/students\/\d+$/.test(p) && init?.method === 'PATCH') return response({ ...students[0], ...JSON.parse(String(init.body)) })
+    if (/^\/api\/(students|classes)\/\d+$/.test(p) && init?.method === 'DELETE') return new Response(null, { status: 204 })
     const classMatch = p.match(/^\/api\/classes\/(\d+)\/assignments$/)
     if (classMatch) return response(classMatch[1] === '3' ? [] : assignments.map(a => ({ ...a, class_id: Number(classMatch[1]) })))
     if (p.endsWith('/analytics')) return response(analytics)
@@ -54,7 +62,7 @@ if (import.meta.env.DEV) {
 }
 
 function Preview() {
-  return <MemoryRouter><div className="preview-bar"><span><strong>第一版预览</strong><span className="preview-note">示例数据 · 不影响真实班级</span></span><nav aria-label="预览页面"><NavLink to="/" end>班级作业</NavLink><NavLink to="/a/6" end>学情概览</NavLink><NavLink to="/a/6/q/3">课堂讲评</NavLink><NavLink to="/a/6/downloads">下载打印</NavLink><NavLink to="/login">登录页</NavLink></nav></div><Routes><Route path="/" element={<Home />} /><Route path="/a/:assignmentId" element={<Overview />} /><Route path="/a/:assignmentId/q/:questionNo" element={<Question />} /><Route path="/a/:assignmentId/downloads" element={<Downloads />} /><Route path="/login" element={<Login previewOnly />} /></Routes></MemoryRouter>
+  return <MemoryRouter><div className="preview-bar"><span><strong>第一版预览</strong><span className="preview-note">示例数据 · 不影响真实班级</span></span><nav aria-label="预览页面"><NavLink to="/" end>班级作业</NavLink><NavLink to="/a/6" end>学情概览</NavLink><NavLink to="/a/6/q/3">课堂讲评</NavLink><NavLink to="/a/6/downloads">下载打印</NavLink><NavLink to="/classes/new">新建班级</NavLink><NavLink to="/classes/1">班级管理</NavLink><NavLink to="/login">登录页</NavLink></nav></div><Routes><Route path="/" element={<Home />} /><Route path="/a/:assignmentId" element={<Overview />} /><Route path="/a/:assignmentId/q/:questionNo" element={<Question />} /><Route path="/a/:assignmentId/downloads" element={<Downloads />} /><Route path="/classes/new" element={<ClassNew />} /><Route path="/classes/:classId" element={<ClassDetail />} /><Route path="/login" element={<Login previewOnly />} /></Routes></MemoryRouter>
 }
 
 if (import.meta.env.DEV) ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><Preview /></React.StrictMode>)
