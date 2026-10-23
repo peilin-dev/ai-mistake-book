@@ -1,0 +1,12 @@
+.web-login { text-align: center; padding-top: 80rpx; }
+.web-login .pair-code {
+  display: block;
+  font-family: var(--serif);
+  font-size: 160rpx;
+  font-weight: bold;
+  letter-spacing: 24rpx;
+  margin: 48rpx 0;
+}
+.web-login .tip { display: block; color: var(--ink-2); font-size: 30rpx; margin-bottom: 64rpx; }
+.web-login .result { display: block; font-size: 36rpx; margin: 48rpx 0; }
+.web-login .btn-row { margin-bottom: 24rpx; }
