@@ -62,6 +62,13 @@ async def main():
             subs=await call('GET',f'/assignments/{aid}/submissions')
             assert len(subs)==1 and subs[0]['total_score']==5
             print('PASS production upload, worker, model and score',flush=True)
+            detail = await call('GET', f"/submissions/{subs[0]['id']}")
+            assert detail['questions']
+            for question in detail['questions']:
+                assert question['scoring_basis'] and question['guidance']
+                if question['score'] < question['max_score']:
+                    assert question['error_reason']
+            print('PASS production instructional feedback persisted and served', flush=True)
             r=await client.get(f'/api/assignments/{aid}',headers={'Authorization':'Bearer '+other_token})
             assert r.status_code==404
             print('PASS production teacher isolation',flush=True)
