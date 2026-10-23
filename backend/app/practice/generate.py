@@ -116,6 +116,12 @@ def answers_match(kind: str, expected: str, got: str, options: list[str] | None)
     return None
 
 
+def same_answer(draft: Draft, answer: str) -> bool:
+    """A fill-in/calculation draft whose answer certainly equals `answer` (a variant should not just
+    reuse the source's answer). Choice letters and 对/错 say nothing about the question, so never."""
+    return draft.kind in ("blank", "calc") and answers_match(draft.kind, answer, draft.answer, None) is True
+
+
 # ---------- prompts ----------
 
 def _generate_prompt(source: Source, count: int, avoid_stems: list[str],

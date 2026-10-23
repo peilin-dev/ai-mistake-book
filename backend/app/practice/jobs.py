@@ -16,7 +16,7 @@ from sqlalchemy import delete, select, update
 
 from app.config import get_settings
 from app.models import Assignment, Class_, KnowledgePoint, PracticeItem, PracticePaper, Submission
-from app.practice.generate import Draft, dedupe, generate_drafts, verify_draft
+from app.practice.generate import Draft, dedupe, generate_drafts, same_answer, verify_draft
 from app.practice.rules import CONCURRENCY, MAX_SOURCES, REPLACE_CANDIDATES, VARIANTS_PER_SOURCE
 from app.practice.sources import Source, _usable, class_sources, student_sources
 
@@ -101,12 +101,13 @@ async def _variants(gen_model, verify_model, teacher_id: int, source: Source, bu
         kept_pairs = [(d.kind, d.stem) for d in kept]
         raw = await generate_drafts(buf, gen_model, teacher_id, source, need, [d.stem for d in kept] + rejected)
         fresh = dedupe(raw, kept_pairs)
-        drafts = fresh[:need]
+        new_answer = [d for d in fresh if not same_answer(d, source.correct_answer)]
+        drafts = new_answer[:need]
         oks = await asyncio.gather(*(verify_draft(buf, verify_model, teacher_id, d) for d in drafts))
         kept += [d for d, ok in zip(drafts, oks) if ok]
         rejected += [d.stem for d, ok in zip(drafts, oks) if not ok]
-        log.info("practice source %s attempt %d: %d drafts, %d duplicate, %d unverified, %d kept",
-                 source.question_no, attempt + 1, len(raw), len(raw) - len(fresh),
+        log.info("practice source %s attempt %d: %d drafts, %d duplicate, %d same answer, %d unverified, %d kept",
+                 source.question_no, attempt + 1, len(raw), len(raw) - len(fresh), len(fresh) - len(new_answer),
                  sum(1 for ok in oks if not ok), sum(1 for ok in oks if ok))
         if len(kept) >= VARIANTS_PER_SOURCE:
             break
@@ -251,8 +252,8 @@ async def _paper_pairs(db, paper_id: int) -> list[tuple[str, str]]:
 
 async def _replacement(db, gen_model, verify_model, teacher_id: int, source: Source,
                        item: PracticeItem, paper_id: int) -> Draft | None:
-    """The first candidate that repeats nothing on the paper (the replaced item included) and passes
-    verification; a second batch is asked for, told what was dropped, when the first yields none."""
+    """The first candidate that repeats nothing on the paper (the replaced item included), has an answer
+    other than the source's and the replaced item's, and passes verification; a second batch is asked for, told what was dropped, when the first yields none."""
     avoid: list[str] = []
     for attempt in range(REPLACE_ATTEMPTS):
         buf = _UsageBuffer()
@@ -260,10 +261,13 @@ async def _replacement(db, gen_model, verify_model, teacher_id: int, source: Sou
         raw = await generate_drafts(buf, gen_model, teacher_id, source, REPLACE_CANDIDATES,
                                     [s for _, s in existing] + avoid, replacing=(item.stem, item.answer))
         fresh = dedupe(raw, existing)
-        oks = await asyncio.gather(*(verify_draft(buf, verify_model, teacher_id, d) for d in fresh))
-        picked = next((d for d, ok in zip(fresh, oks) if ok), None)
-        log.info("practice replace %s attempt %d: %d drafts, %d duplicate, %d unverified, %s",
-                 item.id, attempt + 1, len(raw), len(raw) - len(fresh), sum(1 for ok in oks if not ok),
+        new_answer = [d for d in fresh
+                      if not same_answer(d, source.correct_answer) and not same_answer(d, item.answer)]
+        oks = await asyncio.gather(*(verify_draft(buf, verify_model, teacher_id, d) for d in new_answer))
+        picked = next((d for d, ok in zip(new_answer, oks) if ok), None)
+        log.info("practice replace %s attempt %d: %d drafts, %d duplicate, %d same answer, %d unverified, %s",
+                 item.id, attempt + 1, len(raw), len(raw) - len(fresh), len(fresh) - len(new_answer),
+                 sum(1 for ok in oks if not ok),
                  "picked" if picked else "none usable")
         # Usage rows plus a heartbeat for the stale check (stale_after_running).
         db.add_all(buf.rows)

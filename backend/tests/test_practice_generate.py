@@ -3,7 +3,7 @@ import pytest
 from app.ai.base import ModelCallError, ModelOutputError
 from app.ai.fake import FakeModel
 from app.models import UsageRecord
-from app.practice.generate import Draft, answers_match, dedupe, generate_drafts, verify_draft
+from app.practice.generate import Draft, answers_match, dedupe, generate_drafts, same_answer, verify_draft
 from app.practice.sources import Source
 from sqlalchemy import select
 
@@ -211,3 +211,10 @@ async def test_verify_prompt_number_only_when_unit_is_printed(db, teacher):
     assert "答案只写数字" not in m.prompts[1]
     # The local comparison stays strict: a unit on one side only is never accepted locally.
     assert answers_match("blank", "40", "40平方厘米", None) is None
+
+def test_same_answer_only_for_certain_numeric_matches():
+    assert same_answer(Draft("calc", "480 ÷ 8 =", None, "60"), "60") is True
+    assert same_answer(Draft("blank", "x", None, "60.0"), "60") is True
+    assert same_answer(Draft("blank", "x", None, "84"), "40 平方厘米") is False
+    assert same_answer(Draft("choice", "x", ["1", "2"], "B"), "B") is False
+    assert same_answer(Draft("judge", "x", None, "对"), "对") is False

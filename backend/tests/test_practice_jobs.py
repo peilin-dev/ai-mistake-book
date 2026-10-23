@@ -83,7 +83,8 @@ def verifier(prompt: str):
 
 
 async def build_sources(db, assignment, n_sources: int = 3, n_students: int = 2):
-    """Every student gets questions 1..n wrong; question k has text '源题k'. Returns (students, subs)."""
+    """Every student gets questions 1..n wrong; question k has text '源题k' (answer 7, so the variants'
+    answer 10 differs from it). Returns (students, subs, kp)."""
     kp = KnowledgePoint(subject=Subject.math, grade_min=1, grade_max=6, code=f"kp-{assignment.id}", name="面积")
     db.add(kp)
     await db.flush()
@@ -103,7 +104,7 @@ async def build_sources(db, assignment, n_sources: int = 3, n_students: int = 2)
         db.add(sub)
         await db.flush()
         for k in range(1, n_sources + 1):
-            db.add(make_result(page.id, sub.id, str(k), question_text=f"源题{k}", correct_answer="10",
+            db.add(make_result(page.id, sub.id, str(k), question_text=f"源题{k}", correct_answer="7",
                                knowledge_point_id=kp.id, **WRONG))
         subs.append(sub)
     await db.commit()
@@ -259,7 +260,7 @@ async def test_replace_swaps_only_when_verified(db, my_assignment):
     assert await run_replace(db, gen, RoutedModel(lambda p: {"answer": "B"}), target.id) is True
     assert all(s in gen.prompts[0] for s in others)
     assert count_of(gen.prompts[0]) == REPLACE_CANDIDATES
-    assert f"被替换的题：{old_stem}（答案：10）" in gen.prompts[0]
+    assert f"被替换的题：{old_stem}（答案：10）" in gen.prompts[0] and "原题正确答案：7" in gen.prompts[0]
     await db.refresh(target)
     await db.refresh(paper)
     assert (target.stem, target.kind, json.loads(target.options), target.answer) == ("新题", "choice", ["8", "10"], "B")
@@ -436,7 +437,7 @@ def fixed(items_per_call: list[list[tuple[str, str]]]):
 async def _done_paper_with(db, my_assignment, stems: list[str]):
     paper, items = await _done_paper(db, my_assignment)
     for it, st in zip(items, stems):
-        it.stem = st
+        it.stem, it.answer = st, "1"  # replacement candidates answer 10: a different answer
     await db.commit()
     return paper, items
 
@@ -551,3 +552,22 @@ async def test_run_paper_clears_a_stale_replace_failure_marker(db, my_assignment
     await db.refresh(paper)
     assert (paper.status, paper.last_replace_failed_item) == ("done", None)
     assert len(await items_of(db, paper.id)) == 4  # the previous sheet was replaced, not appended to
+
+async def test_variants_reusing_the_answer_are_dropped(db, my_assignment):
+    await build_sources(db, my_assignment, n_sources=1)
+    paper = await new_paper(db, my_assignment)
+    gen = RoutedModel(fixed([[("3 × 9 =", "27"), ("14 ÷ 2 =", "7")], [("2 × 8 =", "16")]]))
+    ver = RoutedModel(lambda p: {"answer": {"3 × 9 =": "27", "2 × 8 =": "16"}.get(
+        re.search(r"题目：(.*)", p).group(1), "?")})
+    await run_paper(db, gen, ver, paper.id)
+    # '14 ÷ 2 = 7' repeats the source's answer 7: never verified, the retry fills the gap.
+    assert [i.stem for i in await items_of(db, paper.id)] == ["3 × 9 =", "2 × 8 ="]
+    assert len(ver.prompts) == 2
+
+
+async def test_replacement_reusing_the_replaced_answer_is_dropped(db, my_assignment):
+    paper, items = await _done_paper_with(db, my_assignment, ["6 × 7 =", "3 × 5 ="])
+    gen = RoutedModel(fixed([[("1 × 1 =", "1"), ("2 × 5 =", "10")]]))
+    assert await run_replace(db, gen, RoutedModel(verifier), items[0].id) is True
+    await db.refresh(items[0])
+    assert items[0].stem == "2 × 5 ="
