@@ -5,7 +5,7 @@ import { getToken } from './lib/auth'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Overview from './pages/Overview'
-import Placeholder from './pages/Placeholder'
+import Downloads from './pages/Downloads'
 import Question from './pages/Question'
 
 function RequireAuth({ children }: { children: JSX.Element }) {
@@ -39,7 +39,7 @@ export default function App() {
       />
       <Route
         path="/a/:assignmentId/downloads"
-        element={<RequireAuth><Placeholder title="下载" /></RequireAuth>}
+        element={<RequireAuth><Downloads /></RequireAuth>}
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

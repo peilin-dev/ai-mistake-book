@@ -313,3 +313,13 @@ html {
 .question .q-bucket { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 16px; font-size: 1.2rem; display: flex; gap: 12px; }
 .lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.9); display: flex; align-items: center; justify-content: center; z-index: 100; cursor: zoom-out; }
 .lightbox img { max-width: 96vw; max-height: 96vh; object-fit: contain; }
+
+.downloads .dl-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.downloads .dl-card { border: 1px solid var(--link); border-radius: 10px; padding: 16px 20px; }
+.downloads .dl-card h2 { margin: 0 0 8px; }
+.dl-row { display: flex; gap: 12px; margin-top: 12px; }
+.dl-btn { padding: 12px 20px; border: 1px solid var(--link); border-radius: 8px; font-weight: 700; cursor: pointer; }
+.dl-btn:disabled, .downloads button:disabled { opacity: 0.5; cursor: not-allowed; }
+.dl-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); display: flex; align-items: center; justify-content: center; }
+.dl-dialog { background: #fff; border-radius: 10px; padding: 20px 24px; width: 420px; }
+.dl-dialog input { width: 100%; box-sizing: border-box; font-size: 1rem; padding: 8px; }
