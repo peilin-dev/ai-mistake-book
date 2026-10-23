@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     JWT_EXPIRE_DAYS: int = 7
     WX_APPID: str = ""
     WX_SECRET: str = ""
+    WX_QR_PAGE: str = "pages/web-login/index"
+    # trial = 体验版; switch to release after the mini program is published.
+    WX_QR_ENV_VERSION: str = "trial"
+    # Registers POST /api/auth/dev-login when True. Never set in production.
+    DEV_LOGIN: bool = False
     STORAGE_DIR: str = "storage"
     PDF_FONT_PATH: str = ""
     DASHSCOPE_API_KEY: str = ""

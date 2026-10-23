@@ -69,11 +69,16 @@ async def db(settings):
 class FakeWeChatClient:
     def __init__(self) -> None:
         self.sessions: dict[str, WxSession] = {}
+        self.scenes: list[str] = []
 
     async def code2session(self, code: str) -> WxSession:
         if code not in self.sessions:
             raise WeChatAuthError("invalid code")
         return self.sessions[code]
+
+    async def wxacode(self, scene: str) -> bytes:
+        self.scenes.append(scene)
+        return b"\x89PNG-fake"
 
 
 @pytest.fixture
