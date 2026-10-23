@@ -58,6 +58,7 @@ services:
       - "80:80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./web:/srv/web:ro
     depends_on:
       - api
 
