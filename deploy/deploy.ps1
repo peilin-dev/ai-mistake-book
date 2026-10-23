@@ -66,10 +66,8 @@ $remote = @(
     'shopt -s nullglob dotglob'
     'for f in ~/mistake-book/deploy/*; do b=$(basename $f); [ $b = .env ] || [ -e $new/deploy/$b ] || rm -rf $f; done'
     'cp -r $new/deploy/. ~/mistake-book/deploy/'
-    # deploy/web is bind-mounted into nginx: keep the directory, overwrite files in place, then drop files the new build no longer has (old hashed assets).
-    '(cd "$HOME/mistake-book/deploy/web" && find . -type f | while IFS= read -r f; do [ -e "$new/deploy/web/$f" ] || rm -f "$f"; done; find . -mindepth 1 -depth -type d -empty -delete)'
-    'rm -rf $new'
-    'bash ~/mistake-book/deploy/remote.sh'
+    # remote.sh prunes stale deploy/web files (using $new), checks nginx.conf, deploys, and removes $new on exit.
+    'bash ~/mistake-book/deploy/remote.sh $new'
 ) -join '; '
 ssh @ssh $Server $remote
 if ($LASTEXITCODE -ne 0) { throw "deploy failed (exit $LASTEXITCODE)" }

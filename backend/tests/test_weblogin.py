@@ -65,6 +65,20 @@ async def test_poll_unknown_ticket_is_expired(client, fake_tickets):
     assert r.json()["status"] == "expired"
 
 
+async def test_malformed_ticket_ids_are_treated_as_missing(client, client_for, teacher, fake_tickets):
+    await _create(client)  # creates the rate-limit key weblogin:rate:<ip>
+    bad = ["rate:127.0.0.1", "rate:testclient", "short", "x" * 17, "a" * 15 + "."]
+    phone = client_for(teacher)
+    for tid in bad:
+        r = await client.get(f"{BASE}/{tid}?poll_key=x")
+        assert r.status_code == 200
+        assert r.json() == {"status": "expired", "expires_in": 0, "token": None, "teacher": None}
+        for action in ("scan", "confirm", "cancel"):
+            r = await phone.post(f"{BASE}/{tid}:{action}")
+            assert r.status_code == 410
+            assert r.json()["detail"] == "二维码已过期，请在电脑上刷新"
+
+
 async def test_scan_confirm_then_poll_gets_token(client, client_for, teacher, fake_tickets):
     t = await _create(client)
     poll = f"{BASE}/{t['ticket']}?poll_key={t['poll_key']}"

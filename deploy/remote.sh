@@ -15,6 +15,21 @@ fi
 
 dc() { sudo docker compose "$@"; }
 
+# Optional $1: the freshly uploaded tree (deploy.ps1 passes it); removed on exit.
+new="${1:-}"
+if [ -n "$new" ]; then
+  trap 'rm -rf "$new"' EXIT
+  # deploy/web is bind-mounted into nginx: keep the directory, files were overwritten in place;
+  # now drop files the new build no longer has (old hashed assets), then empty subdirectories.
+  mkdir -p web
+  (cd web && find . -type f | while IFS= read -r f; do [ -e "$new/deploy/web/$f" ] || rm -f "$f"; done
+   find . -mindepth 1 -depth -type d -empty -delete)
+fi
+
+# Validate nginx.conf before touching any container; a bad config aborts the deploy.
+sudo docker run --rm -v "$PWD/nginx.conf:/etc/nginx/conf.d/default.conf:ro" nginx:1.27-alpine nginx -t \
+  || { echo "nginx.conf is invalid; aborting deploy"; exit 1; }
+
 dc build --pull
 dc up -d mysql redis
 echo "waiting for mysql"

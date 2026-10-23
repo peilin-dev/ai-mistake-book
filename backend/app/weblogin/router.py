@@ -1,4 +1,5 @@
 import base64
+import re
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -20,8 +21,16 @@ RATE_WINDOW_S = 60
 EXPIRED_DETAIL = "二维码已过期，请在电脑上刷新"
 
 
+_TICKET_RE = re.compile(r"^[A-Za-z0-9_-]{16}$")
+
+
 def _key(ticket: str) -> str:
     return f"weblogin:{ticket}"
+
+
+def _valid(ticket: str) -> bool:
+    # Keeps crafted ids (e.g. "rate:1.2.3.4") from addressing other keys in the store.
+    return _TICKET_RE.fullmatch(ticket) is not None
 
 
 class TicketOut(BaseModel):
@@ -84,6 +93,8 @@ async def poll_ticket(
     store: TicketStore = Depends(get_ticket_store),
     db: AsyncSession = Depends(get_db),
 ):
+    if not _valid(ticket):
+        return PollOut(status="expired")
     data = await store.get_json(_key(ticket))
     if data is None:
         return PollOut(status="expired")
@@ -115,6 +126,8 @@ async def scan_ticket(
     teacher: Teacher = Depends(current_teacher),
     store: TicketStore = Depends(get_ticket_store),
 ):
+    if not _valid(ticket):
+        raise _expired()
     res = await store.transition(_key(ticket), "pending", "scanned", new_teacher_id=teacher.id)
     if res == "missing":
         raise _expired()
@@ -127,6 +140,8 @@ async def scan_ticket(
 
 
 async def _decide(ticket: str, teacher: Teacher, store: TicketStore, new_status: str) -> Response:
+    if not _valid(ticket):
+        raise _expired()
     res = await store.transition(
         _key(ticket), "scanned", new_status, expect_teacher_id=teacher.id
     )

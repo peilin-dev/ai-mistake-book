@@ -37,6 +37,10 @@ describe('api', () => {
     expect(errorText(new TypeError('Failed to fetch'))).toBe('网络不太好，请稍后再试')
     expect(errorText(new ApiError(409, '作业已关闭'))).toBe('作业已关闭')
     expect(errorText(new ApiError(500, 'Internal Server Error'))).toBe('出了点问题，请稍后再试')
+    const gone = '找不到这份内容（可能不是你的班级，或已经删除）'
+    expect(errorText(new ApiError(404, 'assignment not found'))).toBe(gone)
+    expect(errorText(new ApiError(404, ''))).toBe(gone)
+    expect(errorText(new ApiError(422, 'value is not a valid integer'))).toBe(gone)
     expect(errorText(new Error('x'))).toBe('出了点问题，请稍后再试')
   })
 })

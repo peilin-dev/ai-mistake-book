@@ -49,6 +49,7 @@ const HAS_CJK = /[\u4e00-\u9fff]/
 
 export function errorText(e: unknown): string {
   if (e instanceof ApiError) {
+    if (e.status === 404 || e.status === 422) return '找不到这份内容（可能不是你的班级，或已经删除）'
     return HAS_CJK.test(e.detail) ? e.detail : '出了点问题，请稍后再试'
   }
   if (e instanceof TypeError) return '网络不太好，请稍后再试'

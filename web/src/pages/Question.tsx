@@ -135,7 +135,7 @@ export default function Question() {
                 return (
                   <section className="q-group" key={g.key}>
                     <h2>写成 {g.answer || '（空白）'}，{g.count} 人</h2>
-                    <div className="q-crops">
+                    <div className={open ? 'q-crops open' : 'q-crops'}>
                       {shown.map((u) => (
                         <img key={u} src={u} alt="学生作答原图" onClick={() => setZoom(u)} />
                       ))}
@@ -145,9 +145,14 @@ export default function Question() {
                         </button>
                       )}
                     </div>
-                    {causes[g.key] && (
-                      <p className="q-cause">{causes[g.key]}<span className="q-ai">{AI_LABEL}</span></p>
-                    )}
+                    <p className="q-cause">
+                      {causes[g.key] && (
+                        <>
+                          {causes[g.key]}
+                          <span className="q-ai">{AI_LABEL}</span>
+                        </>
+                      )}
+                    </p>
                   </section>
                 )
               })
