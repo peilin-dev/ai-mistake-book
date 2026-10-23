@@ -65,6 +65,36 @@ async def test_delete_queued_page_then_job_is_noop(db, auth_client, storage, mak
     assert (await db.execute(select(func.count()).select_from(Page))).scalar_one() == 0
 
 
+async def _answer_page(db, make_done_page, seq, answer, **kw):
+    page = await make_done_page(seq, None, None)
+    row = make_result(page.id, None, "1", answer_verified=False, correct_answer=answer, **kw)
+    db.add(row)
+    await db.commit()
+    return page, row
+
+
+async def test_delete_refreshes_consensus_into_tie(db, auth_client, storage, make_done_page):
+    a1, _ = await _answer_page(db, make_done_page, 1, "A")
+    _, a2 = await _answer_page(db, make_done_page, 2, "A")
+    _, b = await _answer_page(db, make_done_page, 3, "B", answer_mismatch=True, needs_review=True)
+    a2_id, b_id = a2.id, b.id
+    assert (await auth_client.delete(f"/api/pages/{a1.id}")).status_code == 204
+    db.expire_all()
+    for rid in (a2_id, b_id):  # A vs B is a tie now: both go to review
+        r = await db.get(QuestionResult, rid)
+        assert r.answer_mismatch is True and r.needs_review is True
+
+
+async def test_delete_refreshes_consensus_out_of_tie(db, auth_client, storage, make_done_page):
+    a, _ = await _answer_page(db, make_done_page, 1, "A", answer_mismatch=True, needs_review=True)
+    _, b = await _answer_page(db, make_done_page, 2, "B", answer_mismatch=True, needs_review=True)
+    b_id = b.id
+    assert (await auth_client.delete(f"/api/pages/{a.id}")).status_code == 204
+    db.expire_all()
+    r = await db.get(QuestionResult, b_id)
+    assert r.answer_mismatch is False  # needs_review stays on: the page has no student yet
+
+
 async def test_delete_other_teachers_page_404(auth_client, other_teacher_failed_page):
     r = await auth_client.delete(f"/api/pages/{other_teacher_failed_page.id}")
     assert r.status_code == 404

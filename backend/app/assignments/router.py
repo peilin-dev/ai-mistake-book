@@ -18,6 +18,7 @@ from app.config import get_settings
 from app.deps import current_teacher, get_db
 from app.ai.base import VisionModel
 from app.grading.answer_key import AnswerKeyItem, extract_answer_key, get_answer_key_model
+from app.grading.consensus import refresh_answer_consensus
 from app.grading.pipeline import clear_page_results, lock_assignment, recompute_submission
 from app.models import (
     AnswerItem,
@@ -493,9 +494,18 @@ async def delete_page(
         raise HTTPException(status_code=404, detail="page not found")
     original, created_at = page.image_key, page.created_at
     try:
+        # Rows that took part in the no-answer-key class majority; their questions need a fresh vote.
+        consensus_nos = set((await db.execute(
+            select(QuestionResult.question_no).where(
+                QuestionResult.page_id == page_id,
+                QuestionResult.answer_verified.is_(False),
+                QuestionResult.reviewed.is_(False),
+            )
+        )).scalars())
         submissions, crops = await clear_page_results(db, page_id)
         db.add(DeletedPageQuota(teacher_id=teacher_id, page_created_at=created_at))
         await db.execute(delete(Page).where(Page.id == page_id))
+        submissions = submissions | await refresh_answer_consensus(db, assignment_id, consensus_nos, get_settings())
         for sid in submissions - {None}:
             left = (await db.execute(
                 select(func.count(QuestionResult.id)).where(QuestionResult.submission_id == sid)
