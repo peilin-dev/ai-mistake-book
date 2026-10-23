@@ -1,6 +1,6 @@
 # M6b 第一批（电脑上建班、建作业、答案卷、批量上传、待认领）开发计划
 
-> 2026-10-23 状态更新：原计划中的网页任务已在当前工作区补齐；用户要求“网页做好”后，也实现了网页复核、成绩、学生详情、全班/个人练习生成。最新状态以 `docs/WEB-STATUS.md` 和 `docs/benchmark/m6b-batch1-acceptance.md` 为准。下列步骤保留原始计划记录，不把未执行的先失败测试、提交或真实验收勾为完成。本轮未部署、未运行迁移；本机后端未启动，真实链路待验收。
+> 2026-10-23 状态更新：网页任务及复核、成绩、学生详情、全班/个人练习生成已完成；后端 615、网页 96 项测试及 33 项真实模型验收通过，已部署并将生产数据库升级至 0014，线上真实批改等关键链路已复测。最新证据以 `docs/WEB-STATUS.md` 和 `docs/benchmark/2026-10-23-web-release.md` 为准。下列步骤保留原始计划记录，不把未执行的“先失败测试”或尚未完整手工执行的条目冒充完成。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

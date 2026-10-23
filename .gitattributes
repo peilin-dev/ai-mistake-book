@@ -1,3 +1,4 @@
 *.sh text eol=lf
 deploy/*.conf text eol=lf
 deploy/*.cnf text eol=lf
+web/tests/fixtures/*.pdf binary

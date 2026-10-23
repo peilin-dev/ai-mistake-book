@@ -1,7 +1,7 @@
 # M6b 网页后台补全（电脑上完整做完一份作业）设计
 
 日期：2026-10-23
-状态：用户已授权网页补全；当前工作区已实现第一批及复核、成绩、学生详情、练习生成等后续网页功能，真实环境验收与部署待完成。详见 `docs/WEB-STATUS.md`。
+状态：网页主流程已实现、完成真实模型验收并部署上线，生产数据库 0014。手机扫码确认、200 页压力与实体打印边界详见 `docs/benchmark/2026-10-23-web-release.md`，不视为已测。
 上游：`docs/specs/2026-10-23-m6-web-admin-design.md`（M6：扫码登录、学情总览、投影讲评、下载打印，已上线）；`docs/specs/2026-10-21-m3-miniprogram-design.md`（小程序各页面的行为与文案）；`docs/specs/2026-10-22-m4-analytics-design.md`、`docs/specs/2026-10-22-m5-practice-design.md`
 
 ## 1. 为什么做
