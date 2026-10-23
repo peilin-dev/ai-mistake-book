@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Header from '../components/Header'
 import { ApiError, errorText, request } from '../lib/api'
+import { publishMe } from '../lib/me'
 import {
   NAME_MAX, exportAndDownload, exportAndView, needsSignature, openViewerTab, practiceReady,
   type ExportKind, type MeOut,
@@ -108,6 +109,7 @@ export default function Downloads() {
     try {
       const m = await request<MeOut>('PATCH', '/api/me', { display_name: n })
       setMe(m)
+      publishMe(m) // keep the header's name in sync
       setDialog(null)
       d.resume(win)
     } catch (e) {

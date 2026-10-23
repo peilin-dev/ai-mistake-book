@@ -35,12 +35,16 @@ const analytics = {
 const students = ['示例学生甲', '示例学生乙', '示例学生丙', '示例学生丁', '示例学生戊', '示例学生己'].map((name, i) => ({ id: i + 1, name, student_no: i === 2 ? null : String(i + 1).padStart(2, '0') }))
 const response = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } })
 
+let previewName = '林老师'
 if (import.meta.env.DEV) {
   // No fallback to native fetch: preview actions never reach a real server.
   window.fetch = async (input, init) => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url, location.origin)
     const p = url.pathname
-    if (p === '/api/me') return response({ id: 1, display_name: '林老师', last_subject: 'math' })
+    if (p === '/api/me') {
+      if (init?.method === 'PATCH') previewName = JSON.parse(String(init.body)).display_name.trim()
+      return response({ id: 1, display_name: previewName, last_subject: 'math', login_name: null, quota_total: 100, quota_used: 37 })
+    }
     if (p === '/api/classes' && init?.method === 'POST') return response({ id: 1, name: '示例班级', grade: 5 }, 201)
     if (p === '/api/classes') return response(classes)
     if (/^\/api\/classes\/\d+\/students$/.test(p)) return response(students)
