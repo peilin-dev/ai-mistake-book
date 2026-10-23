@@ -1,4 +1,4 @@
-# AI 错题本 · 老师端小程序（M3）
+# 红笔君（AI 错题本）· 老师端小程序（M3）
 
 Taro 4 + React + TypeScript。接口基地址来自环境变量 `TARO_APP_API_BASE`。
 
