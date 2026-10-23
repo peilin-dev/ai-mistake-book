@@ -85,7 +85,7 @@ export default function Question() {
   return (
     <>
       <Header />
-      <main className="page question">
+      <main id="main-content" className="page question" tabIndex={-1}>
         <div className="q-toolbar">
           <Link to={`/a/${assignmentId}`} className="back">← 返回总览</Link>
           <span className="q-spacer" />

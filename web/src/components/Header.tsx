@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import Icon from './Icon'
 import { clearToken } from '../lib/auth'
 import { request } from '../lib/api'
 
@@ -27,9 +28,11 @@ export default function Header({ teacherName }: { teacherName?: string }) {
   const shown = teacherName ?? name
   return (
     <header className="header">
-      <span className="brand">红笔君</span>
+      <a className="skip-link" href="#main-content">跳到主要内容</a>
+      <Link className="brand" to="/" aria-label="红笔君，返回班级"><Icon name="pen" size={26} /><span>红笔君<span className="brand-dot">.</span></span></Link>
+      <Link className="header-workspace" to="/">老师工作台</Link>
       <span className="spacer" />
-      {shown && <span className="who">{shown}</span>}
+      <span className="who"><span className="avatar" aria-hidden="true">{(shown || '老师').slice(0, 1)}</span>{shown || '老师'}</span>
       <button
         type="button"
         onClick={() => {
@@ -37,7 +40,7 @@ export default function Header({ teacherName }: { teacherName?: string }) {
           navigate('/login', { replace: true })
         }}
       >
-        退出登录
+        <Icon name="logout" size={16} /><span>退出登录</span>
       </button>
     </header>
   )

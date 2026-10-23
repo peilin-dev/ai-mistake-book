@@ -133,10 +133,11 @@ export default function Downloads() {
   return (
     <>
       <Header />
-      <main className="page downloads">
+      <main id="main-content" className="page downloads" tabIndex={-1}>
         <Link to={`/a/${assignmentId}`} className="back">← 返回概览</Link>
         <h1 className="main-title">下载打印</h1>
-        {error && <p className="err">{error}</p>}
+        <p className="page-description">为课堂准备一份讲评单，为学生留下下一次进步的线索。</p>
+        {error && <p className="err" role="alert">{error}</p>}
         <div className="dl-cards">
           <section className="dl-card">
             <h2>讲评单</h2>
@@ -159,6 +160,9 @@ export default function Downloads() {
             {practiceOk === false && <p className="empty">练习卷请先在手机上生成</p>}
             <label className="dl-check">
               <input
+                aria-label="PDF 署名"
+                name="signature"
+                autoComplete="name"
                 type="checkbox"
                 checked={withAnswers}
                 disabled={!practiceOk}

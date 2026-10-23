@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Header from '../components/Header'
+import Icon from '../components/Icon'
 import { errorText, request } from '../lib/api'
 import {
   avgText, dateText, errorRate, heatLevel, pendingHint, percent, subjectLabel,
@@ -49,20 +50,20 @@ export default function Overview() {
   return (
     <>
       <Header />
-      <main className="page overview">
+      <main id="main-content" className="page overview" tabIndex={-1}>
         <Link to="/" className="back">← 返回班级</Link>
-        {error && <p className="err">{error}</p>}
+        {error && <p className="err" role="alert">{error}</p>}
         {!error && !(assignment && stats) && <p className="empty">加载中…</p>}
         {assignment && stats && (
           <>
-            <h1 className="main-title">{heading}</h1>
+            <div className="page-heading overview-heading"><div><h1 className="main-title">{assignment.title}</h1><p>{[className, subjectLabel(assignment.subject), dateText(assignment.created_at)].filter(Boolean).join(' · ')}</p></div><Link className="dl-link" to={`/a/${assignmentId}/downloads`}><Icon name="print" size={18} />下载打印</Link></div>
             <div className="stat-row">
-              <div className="stat"><span className="num">{stats.counted_students} / {stats.roster_size}</span><span className="lbl">全班人数</span></div>
+              <div className="stat"><span className="num">{stats.counted_students} / {stats.roster_size}</span><span className="lbl">已计入 / 全班人数</span></div>
               <div className="stat"><span className="num">{avgText(stats.average_score)}</span><span className="lbl">平均分</span></div>
               <div className="stat"><span className="num">{percent(stats.pass_rate)}</span><span className="lbl">及格率</span></div>
-              <Link className="dl-link" to={`/a/${assignmentId}/downloads`}>下载打印</Link>
             </div>
             {hint && <p className="pending-hint">{hint}</p>}
+            <div className="section-heading heat-heading"><div><h2>每道题，错在哪里</h2><p>查看错误率，点击题目进入课堂讲评。</p></div><div className="heat-legend"><span><i className="legend-hot" />≥ 40%</span><span><i className="legend-warm" />20–39%</span><span><i className="legend-cool" />低于 20%</span></div></div>
             {stats.questions.length === 0 ? (
               <p className="empty">还没有错题数据</p>
             ) : (
@@ -75,14 +76,17 @@ export default function Overview() {
                       to={`/a/${assignmentId}/q/${encodeURIComponent(q.question_no)}`}
                       className={`q-cell heat-${heatLevel(rate)}`}
                     >
-                      <span className="qno">{q.question_no}</span>
+                      <span className="qno">第 {q.question_no} 题</span>
                       <span className="qpct">{percent(rate)}</span>
+                      <span className="q-count">{q.wrong_count} / {q.student_count} 人答错</span>
+                      <span className="q-knowledge">{q.knowledge_point || '查看作答详情'}</span>
                       {q.is_subjective && <span className="qsub">主观</span>}
                     </Link>
                   )
                 })}
               </div>
             )}
+            <p className="workspace-footnote">统计会随复核结果更新。讲评页面不展示学生姓名。</p>
           </>
         )}
       </main>
