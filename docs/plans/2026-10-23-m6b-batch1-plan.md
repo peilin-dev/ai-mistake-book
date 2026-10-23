@@ -10,7 +10,7 @@
 
 **Spec:** `docs/specs/2026-10-23-m6b-web-full-design.md`（上游：`docs/specs/2026-10-23-m6-web-admin-design.md`、`docs/specs/2026-10-21-m3-miniprogram-design.md`）
 
-**执行顺序：** 1 → 2 → 3 → 5 → 4 → 6 → 7 → 8 → 9（任务 4 的「换一张」用到任务 5 的 `prepareOne`）。
+**执行顺序：** 1 → 2 → 3 → 3b → 5 → 4 → 6 → 7 → 8 → 9（任务 4 的「换一张」用到任务 5 的 `prepareOne`）。
 
 ## Global Constraints
 
@@ -89,6 +89,21 @@
 - [ ] **Step 2: 运行确认失败**：在 `web/` 下 `npx vitest run`
 - [ ] **Step 3: 实现**
 - [ ] **Step 4: 全量 vitest、`npx tsc --noEmit`、`npm run build` 通过并提交** `feat(web): create classes and manage the roster`
+
+### Task 3b: 账号设置（改署名、看额度）
+
+**Files:**
+- Create: `web/src/components/AccountDialog.tsx`
+- Modify: `web/src/components/Header.tsx`（老师名字可点击；没设署名时显示「设置署名」）、`web/src/theme.css`
+- Test: `web/tests/account.test.tsx`
+
+**Interfaces:**
+- Consumes: `GET /api/me`（任务 2 加的 `quota_total` / `quota_used`）、`PATCH /api/me` body `{"display_name"}`（≤ 32 字，去首尾空格）
+- Produces: `Header` 点名字打开 `AccountDialog`：可修改署名（说明「PDF 上印的署名，小程序和网页同时生效」）、显示「本月已批改 X / Y 页」；保存后页头立即显示新名字。
+- [ ] **Step 1: 写失败的测试**：`clicking the name opens the dialog with the current name`、`saving trims, PATCHes and updates the header`、`empty or over-32 names show an error and are not sent`、`no name shows 设置署名`、`dialog shows quota used / total`
+- [ ] **Step 2: 运行确认失败**
+- [ ] **Step 3: 实现**
+- [ ] **Step 4: 全量通过并提交** `feat(web): edit the signature name and see the monthly quota`
 
 ### Task 4: 建作业与作业页（批改进度）
 
