@@ -89,8 +89,9 @@ describe('question page', () => {
     mock()
     renderPage()
     await waitFor(() => expect(document.body.textContent).toContain('把加数看错了'))
+    await waitFor(() => expect((screen.getByRole('button', { name: '下一题' }) as HTMLButtonElement).disabled).toBe(false))
     fireEvent.keyDown(window, { key: 'ArrowRight' })
-    expect(screen.getByTestId('where').textContent).toBe('/a/5/q/3')
+    await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('/a/5/q/3'))
   })
 
   it('arrow left goes to the previous question', async () => {

@@ -37,6 +37,6 @@ describe('overview helpers', () => {
 
   it('pendingHint', () => {
     expect(pendingHint(0)).toBeNull()
-    expect(pendingHint(3)).toBe('还有 3 项没复核，统计可能变化，请在手机上复核')
+    expect(pendingHint(3)).toBe('还有 3 项没复核，统计可能变化，请先复核')
   })
 })

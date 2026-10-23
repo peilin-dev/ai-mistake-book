@@ -83,25 +83,26 @@ export default function Home() {
               ))}
             </nav>
             <Link to="/classes/new" className="btn-new-class"><Icon name="plus" size={16} />新建班级</Link>
-            <div className="sidebar-note"><Icon name="pen" size={20} /><p>手机拍卷，电脑讲评。</p><span>同一份作业，两端同步。</span></div>
+            <div className="sidebar-note"><Icon name="pen" size={20} /><p>上传、批改、复核、讲评。</p><span>同一份作业，两端同步。</span></div>
             </aside>
             <section className="workspace" aria-label="班级作业">
             <div className="page-heading"><div><h1>{activeClass?.name || '班级作业'}</h1><p>整理每一次练习，看见每一点进步。</p></div><div className="heading-side"><span className="quiet-label">{activeClass?.grade} 年级</span>{activeClass && <Link to={`/classes/${activeClass.id}`} className="manage-link">管理班级与名单</Link>}</div></div>
             <div className="section-heading"><h2 className="serif">全部作业 <span className="count">{assignments?.length ?? '—'}</span></h2><label className="search-field"><Icon name="search" size={18} /><input type="search" name="assignment-search" autoComplete="off" aria-label="搜索作业" placeholder="搜索作业名称…" value={query} onChange={e => setFilter('q', e.target.value)} /></label></div>
+            <div className="work-actions">{activeClass && <Link className="btn-primary" to={`/classes/${activeClass.id}/assignments/new`}>新建作业</Link>}</div>
             <div className="subject-filters" aria-label="学科筛选"><button type="button" aria-pressed={!subject} onClick={() => setFilter('subject', '')}>全部学科</button>{subjects.map(s => <button type="button" key={s} aria-pressed={subject === s} onClick={() => setFilter('subject', s)}>{subjectLabel(s)}</button>)}</div>
             <div className="assignment-list" aria-live="polite" aria-busy={assignments === null && !error}>
               {assignments === null && !error && <p className="empty">加载中…</p>}
               {assignments && assignments.length === 0 && <p className="empty">这个班还没有作业</p>}
               {assignments && assignments.length > 0 && visible?.length === 0 && <div className="empty"><p>没有找到匹配的作业</p><button type="button" onClick={() => setParams(selected ? { class: String(selected) } : {}, { replace: true })}>清除筛选</button></div>}
               {visible?.map((a) => (
-                <Link key={a.id} to={`/a/${a.id}`} className="assignment-item">
+                <Link key={a.id} to={`/a/${a.id}/work`} className="assignment-item">
                   <span className="subject-tag">{subjectLabel(a.subject)}</span>
                   <span className="assignment-copy"><span className="title">{a.title}</span><span className="meta">{dateText(a.created_at) || '查看批改结果与班级学情'}</span></span>
-                  <span className="row-action">查看学情 <Icon name="arrow" size={18} /></span>
+                  <span className="row-action">处理作业 <Icon name="arrow" size={18} /></span>
                 </Link>
               ))}
             </div>
-            <p className="workspace-footnote">拍照上传与批改复核，请在红笔君小程序中完成。</p>
+            <p className="workspace-footnote">电脑上传卷子，核对批改结果，再进入学情讲评。</p>
             </section>
           </div>
         )}

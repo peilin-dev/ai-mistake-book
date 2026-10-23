@@ -17,15 +17,17 @@ export function setOnUnauthorized(fn: () => void): void {
   onUnauthorized = fn
 }
 
-export async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+export async function request<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const headers: Record<string, string> = {}
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  const multipart = body instanceof FormData
+  if (body !== undefined && !multipart) headers['Content-Type'] = 'application/json'
   const res = await fetch(path, {
     method,
     headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
+    signal,
+    body: body === undefined ? undefined : multipart ? body : JSON.stringify(body),
   })
   if (!res.ok) {
     let detail = ''
@@ -35,7 +37,7 @@ export async function request<T>(method: string, path: string, body?: unknown): 
     } catch {
       /* non-JSON body */
     }
-    if (res.status === 401) {
+    if (res.status === 401 && !path.startsWith('/api/auth/')) {
       clearToken()
       onUnauthorized()
     }

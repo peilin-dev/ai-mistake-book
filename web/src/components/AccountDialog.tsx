@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { errorText, request } from '../lib/api'
 import { NAME_MAX } from '../lib/download'
 import { publishMe, type MeInfo } from '../lib/me'
+import Credentials from './Credentials'
 
 /**
  * Account settings. Each concern is its own `<section className="acct-section">`;
@@ -89,6 +90,7 @@ export default function AccountDialog({ me, onClose }: { me: MeInfo; onClose: ()
             <p className="acct-quota">{quota}</p>
           </section>
         )}
+        <Credentials me={me} />
         <div className="confirm-actions">
           <button type="button" onClick={onClose}>取消</button>
           <button type="button" className="btn-primary" disabled={busy} onClick={() => void save()}>保存</button>

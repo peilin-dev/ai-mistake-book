@@ -1,21 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { errorText, request } from '../lib/api'
 import { setToken } from '../lib/auth'
 import { createTicket, qrDataUrl, startPolling, type Ticket } from '../lib/login'
 import Brand from '../components/Brand'
 import Icon from '../components/Icon'
 import RedCircle from '../components/RedCircle'
+import { safeReturnPath } from '../lib/safePath'
 
 type View = 'pending' | 'scanned' | 'expired'
 
 export default function Login({ previewOnly = false }: { previewOnly?: boolean }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const from = (location.state as { from?: string } | null)?.from || '/'
+  const from = safeReturnPath((location.state as { from?: string } | null)?.from)
   const [ticket, setTicket] = useState<Ticket | null>(null)
   const [view, setView] = useState<View>('pending')
   const [error, setError] = useState('')
+  const [mode,setMode] = useState<'password' | 'wechat'>('password')
+  const [name,setName] = useState(''), [password,setPassword] = useState(''), [busy,setBusy] = useState(false)
+  const loginLock = useRef(false)
   const stopRef = useRef<() => void>(() => {})
   const genRef = useRef(0)
 
@@ -49,13 +53,13 @@ export default function Login({ previewOnly = false }: { previewOnly?: boolean }
   }, [finish])
 
   useEffect(() => {
-    if (previewOnly) return
+    if (previewOnly || mode !== 'wechat') return
     void load()
     return () => {
       genRef.current++
       stopRef.current()
     }
-  }, [load, previewOnly])
+  }, [load, previewOnly, mode])
 
   const devLogin = async () => {
     try {
@@ -76,8 +80,10 @@ export default function Login({ previewOnly = false }: { previewOnly?: boolean }
       </section>
       <section className="login" aria-labelledby="login-heading">
       <h2 id="login-heading" className="serif">欢迎回到红笔君</h2>
+      <div className="login-tabs"><button aria-pressed={mode === 'password'} onClick={() => { setMode('password'); setError('') }}>账号密码登录</button><button aria-pressed={mode === 'wechat'} onClick={() => { setMode('wechat'); setError('') }}>微信扫码登录</button></div>
+      {mode === 'password' && <form className="work-form login-form" onSubmit={async e => { e.preventDefault(); if(loginLock.current || previewOnly) return; loginLock.current = true; setBusy(true); setError(''); try { const r = await request<{token:string}>('POST','/api/auth/login',{login_name:name.trim(),password}); finish(r.token) } catch(e) { setError(errorText(e)) } finally { loginLock.current = false; setBusy(false) } }}><label>登录名<input autoComplete="username" required value={name} onChange={e => setName(e.target.value)} /></label><label>密码<input type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} /></label><button className="btn-primary" disabled={busy || previewOnly}>{busy ? '正在登录…' : '登录'}</button><p><Link to="/register" state={{from}}>还没有账号？注册</Link></p><p className="hint">忘记密码请联系管理员重置。</p></form>}
+      {mode === 'wechat' && <>
       <p className="hint">用微信扫一扫，在小程序里确认登录</p>
-      {error && <p className="err" role="alert">{error}</p>}
       {previewOnly ? <div className="qr-loading preview-login-placeholder"><Icon name="pen" size={38} /><strong>登录码展示区域</strong><span>界面预览，无需扫码</span></div> : !ticket && !error && <div className="qr-loading" role="status">正在准备登录码…</div>}
       {ticket && (
         <>
@@ -98,6 +104,8 @@ export default function Login({ previewOnly = false }: { previewOnly?: boolean }
           重试
         </button>
       )}
+      </>}
+      {error && <p className="err" role="alert">{error}</p>}
       {import.meta.env.DEV && !previewOnly && (
         <button type="button" className="dev" onClick={() => void devLogin()}>
           开发者登录

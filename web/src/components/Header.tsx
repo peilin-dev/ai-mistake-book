@@ -51,6 +51,7 @@ export default function Header({ teacherName }: { teacherName?: string }) {
       <button
         type="button"
         onClick={() => {
+          if (!window.dispatchEvent(new Event('teacher-logout', { cancelable: true }))) return
           clearToken()
           navigate('/login', { replace: true })
         }}

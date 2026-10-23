@@ -76,7 +76,7 @@ export function circledQuestions(
 }
 
 export function pendingHint(pending: number): string | null {
-  return pending > 0 ? `还有 ${pending} 项没复核，统计可能变化，请在手机上复核` : null
+  return pending > 0 ? `还有 ${pending} 项没复核，统计可能变化，请先复核` : null
 }
 
 /** Same formatting as the mini program: 0.714 -> "71%"; null -> "—". */

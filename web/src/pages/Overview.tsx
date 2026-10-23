@@ -57,6 +57,7 @@ export default function Overview() {
       <Header />
       <main id="main-content" className="page overview" tabIndex={-1}>
         <Link to="/" className="back">← 返回班级</Link>
+        <div className="work-actions"><Link to={`/a/${assignmentId}/work`}>批改进度</Link><Link to={`/a/${assignmentId}/review`}>复核作答</Link><Link to={`/a/${assignmentId}/grades`}>学生成绩</Link><Link to={`/a/${assignmentId}/practice`}>巩固练习</Link></div>
         {error && <p className="err" role="alert">{error}</p>}
         {!error && !(assignment && stats) && <p className="empty">加载中…</p>}
         {assignment && stats && (

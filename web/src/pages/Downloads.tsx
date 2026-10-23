@@ -159,7 +159,7 @@ export default function Downloads() {
           </section>
           <section className="dl-card">
             <h2 className="serif">练习卷</h2>
-            {practiceOk === false && <p className="empty">练习卷请先在手机上生成</p>}
+            {practiceOk === false && <p className="empty">还没有练习卷，请先生成。<Link to={`/a/${assignmentId}/practice`}>去生成练习卷</Link></p>}
             <label className="dl-check">
               <input
                 aria-label="PDF 署名"

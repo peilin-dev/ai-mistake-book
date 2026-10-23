@@ -105,7 +105,7 @@ describe('红笔君 identity', () => {
     const { container } = renderOverview(3)
     await waitFor(() => expect(container.querySelector('.pending-hint')).toBeTruthy())
     const hint = container.querySelector('.pending-hint')!
-    expect(hint.textContent).toBe('还有 3 项没复核，统计可能变化，请在手机上复核')
+    expect(hint.textContent).toBe('还有 3 项没复核，统计可能变化，请先复核')
     expect(hint.querySelector('.red-wavy')?.textContent).toBe('3 项没复核')
     expect(ruleBody(themeCss, '.red-wavy')).toMatch(/underline wavy/)
   })
