@@ -553,16 +553,28 @@ async def test_run_paper_clears_a_stale_replace_failure_marker(db, my_assignment
     assert (paper.status, paper.last_replace_failed_item) == ("done", None)
     assert len(await items_of(db, paper.id)) == 4  # the previous sheet was replaced, not appended to
 
-async def test_variants_reusing_the_answer_are_dropped(db, my_assignment):
+async def test_variants_reusing_the_answer_are_set_aside(db, my_assignment):
     await build_sources(db, my_assignment, n_sources=1)
     paper = await new_paper(db, my_assignment)
     gen = RoutedModel(fixed([[("3 × 9 =", "27"), ("14 ÷ 2 =", "7")], [("2 × 8 =", "16")]]))
     ver = RoutedModel(lambda p: {"answer": {"3 × 9 =": "27", "2 × 8 =": "16"}.get(
         re.search(r"题目：(.*)", p).group(1), "?")})
     await run_paper(db, gen, ver, paper.id)
-    # '14 ÷ 2 = 7' repeats the source's answer 7: never verified, the retry fills the gap.
+    # '14 ÷ 2 = 7' repeats the source's answer 7: set aside, named in the retry, which fills the gap.
     assert [i.stem for i in await items_of(db, paper.id)] == ["3 × 9 =", "2 × 8 ="]
-    assert len(ver.prompts) == 2
+    assert not any("14 ÷ 2" in p for p in ver.prompts[:1])  # not verified on the first attempt
+    assert "14 ÷ 2 =" in gen.prompts[1]
+
+
+async def test_variant_reusing_the_answer_is_the_last_resort(db, my_assignment):
+    await build_sources(db, my_assignment, n_sources=1)
+    paper = await new_paper(db, my_assignment)
+    gen = RoutedModel(fixed([[("3 × 9 =", "27"), ("14 ÷ 2 =", "7")], [("2 × 8 =坏", "16")]]))
+    ver = RoutedModel(lambda p: {"answer": {"3 × 9 =": "27", "14 ÷ 2 =": "7"}.get(
+        re.search(r"题目：(.*)", p).group(1), "?")})
+    await run_paper(db, gen, ver, paper.id)
+    # The retry's draft fails verification: the set-aside one is used rather than a short paper.
+    assert [i.stem for i in await items_of(db, paper.id)] == ["3 × 9 =", "14 ÷ 2 ="]
 
 
 async def test_replacement_reusing_the_replaced_answer_is_dropped(db, my_assignment):

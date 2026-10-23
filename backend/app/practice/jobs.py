@@ -90,24 +90,32 @@ async def _variants(gen_model, verify_model, teacher_id: int, source: Source, bu
                     heartbeat=None) -> list[Draft]:
     """Up to VARIANTS_PER_SOURCE verified drafts; a short source is generated once more for the gap.
 
+    Drafts that merely reuse the source's answer are set aside (and named in the retry's "do not
+    repeat" list); only the last attempt falls back on them, so the paper does not come up short.
     `heartbeat()` runs before a retry so the paper's updated_at keeps moving (see stale_after_running).
     """
     kept: list[Draft] = []
     rejected: list[str] = []
+    spare: list[Draft] = []
     for attempt in range(ATTEMPTS_PER_SOURCE):
+        last = attempt == ATTEMPTS_PER_SOURCE - 1
         if attempt and heartbeat is not None:
             await heartbeat()
         need = VARIANTS_PER_SOURCE - len(kept)
         kept_pairs = [(d.kind, d.stem) for d in kept]
-        raw = await generate_drafts(buf, gen_model, teacher_id, source, need, [d.stem for d in kept] + rejected)
-        fresh = dedupe(raw, kept_pairs)
-        new_answer = [d for d in fresh if not same_answer(d, source.correct_answer)]
-        drafts = new_answer[:need]
+        raw = await generate_drafts(buf, gen_model, teacher_id, source, need,
+                                    [d.stem for d in kept] + rejected + [d.stem for d in spare])
+        fresh = dedupe(raw, kept_pairs + [(d.kind, d.stem) for d in spare])
+        drafts = [d for d in fresh if not same_answer(d, source.correct_answer)][:need]
+        same = [d for d in fresh if same_answer(d, source.correct_answer)]
+        spare += same
+        if last and spare:  # verified alongside, used only where the preferred drafts fall short
+            drafts += dedupe(spare, kept_pairs + [(d.kind, d.stem) for d in drafts])[:need]
         oks = await asyncio.gather(*(verify_draft(buf, verify_model, teacher_id, d) for d in drafts))
-        kept += [d for d, ok in zip(drafts, oks) if ok]
+        kept += [d for d, ok in zip(drafts, oks) if ok][:need]
         rejected += [d.stem for d, ok in zip(drafts, oks) if not ok]
         log.info("practice source %s attempt %d: %d drafts, %d duplicate, %d same answer, %d unverified, %d kept",
-                 source.question_no, attempt + 1, len(raw), len(raw) - len(fresh), len(fresh) - len(new_answer),
+                 source.question_no, attempt + 1, len(raw), len(raw) - len(fresh), len(same),
                  sum(1 for ok in oks if not ok), sum(1 for ok in oks if ok))
         if len(kept) >= VARIANTS_PER_SOURCE:
             break
