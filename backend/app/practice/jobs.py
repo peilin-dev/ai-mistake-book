@@ -112,11 +112,12 @@ async def _variants(gen_model, verify_model, teacher_id: int, source: Source, bu
         if last and spare:  # verified alongside, used only where the preferred drafts fall short
             drafts += dedupe(spare, kept_pairs + [(d.kind, d.stem) for d in drafts])[:need]
         oks = await asyncio.gather(*(verify_draft(buf, verify_model, teacher_id, d) for d in drafts))
-        kept += [d for d, ok in zip(drafts, oks) if ok][:need]
+        added = [d for d, ok in zip(drafts, oks) if ok][:need]
+        kept += added
         rejected += [d.stem for d, ok in zip(drafts, oks) if not ok]
         log.info("practice source %s attempt %d: %d drafts, %d duplicate, %d same answer, %d unverified, %d kept",
                  source.question_no, attempt + 1, len(raw), len(raw) - len(fresh), len(same),
-                 sum(1 for ok in oks if not ok), sum(1 for ok in oks if ok))
+                 sum(1 for ok in oks if not ok), len(added))
         if len(kept) >= VARIANTS_PER_SOURCE:
             break
     return kept
