@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     # Must use a different provider than MODEL_FOR_PRACTICE_GENERATE (spec section 8).
     MODEL_FOR_PRACTICE_VERIFY: str = "deepseek:deepseek-v4-pro"
     MODEL_TIMEOUT_S: float = 120  # waiting for the model's answer
+    # Practice questions are short; a call that hangs longer is abandoned (that source just retries
+    # or comes up one question short) so a sheet stays near the one-minute target.
+    MODEL_TIMEOUT_PRACTICE_GENERATE_S: float = 40
     # Connecting is quick on a good network; fail fast and retry on a flaky one.
     MODEL_CONNECT_TIMEOUT_S: float = 10
     MODEL_CALL_ATTEMPTS: int = 3

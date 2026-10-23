@@ -239,6 +239,13 @@ async def test_run_paper_student_scope_uses_student_sources(db, my_assignment):
     assert all("王小明" not in p for p in gen.prompts)  # no student names in prompts
 
 
+async def _pending(db, *items) -> None:
+    """What the replace endpoint does on a tap: mark the item as being replaced."""
+    for item in items:
+        item.replacing = True
+    await db.commit()
+
+
 async def _done_paper(db, my_assignment):
     await build_sources(db, my_assignment, n_sources=2)
     paper = await new_paper(db, my_assignment)
@@ -282,12 +289,14 @@ async def test_replace_swaps_only_when_verified(db, my_assignment):
     dup = RoutedModel(lambda p: {"objective": True, "items": [
         {"kind": "calc", "stem": items[1].stem, "options": None, "answer": "10"}]})
     ver = RoutedModel(verifier)
+    await _pending(db, target)
     assert await run_replace(db, dup, ver, target.id) is False
     assert ver.prompts == []
 
     # A later success clears the failure marker.
     ok = RoutedModel(lambda p: {"objective": True, "items": [
         {"kind": "calc", "stem": "第三题", "options": None, "answer": "10"}]})
+    await _pending(db, target)
     assert await run_replace(db, ok, RoutedModel(verifier), target.id) is True
     await db.refresh(paper)
     assert paper.last_replace_failed_item is None
@@ -467,6 +476,7 @@ async def test_replace_retries_once_avoiding_dropped_candidates(db, my_assignmen
     target = items[0]
     # First batch: only duplicates or wrong answers; the retry is told about all of them.
     gen = RoutedModel(fixed([[("7×6=", "10"), ("4 × 4 =坏", "10")], [("2 × 9 =", "10")]]))
+    await _pending(db, target)
     assert await run_replace(db, gen, RoutedModel(verifier), target.id) is True
     assert len(gen.prompts) == 2
     assert "7×6=" in gen.prompts[1] and "4 × 4 =坏" in gen.prompts[1]
@@ -475,6 +485,7 @@ async def test_replace_retries_once_avoiding_dropped_candidates(db, my_assignmen
 
     # Both batches unusable: the original stays and the failure is remembered.
     gen = RoutedModel(fixed([[("9 × 2 =", "10")], [("2×9=", "10")]]))
+    await _pending(db, target)
     assert await run_replace(db, gen, RoutedModel(verifier), target.id) is False
     await db.refresh(target)
     await db.refresh(paper)
@@ -488,6 +499,7 @@ async def test_concurrent_replaces_never_write_the_same_question(db, settings, m
 
     paper, items = await _done_paper_with(db, my_assignment, ["6 × 7 =", "3 × 5 ="])
     a, b, paper_id = items[0].id, items[1].id, paper.id
+    await _pending(db, items[0], items[1])
     engine = make_engine(settings.DATABASE_URL)
     sm = async_sessionmaker(engine, expire_on_commit=False)
     # Both read the paper before either writes (the delay), and both come up with the same question.
@@ -580,6 +592,39 @@ async def test_variant_reusing_the_answer_is_the_last_resort(db, my_assignment):
 async def test_replacement_reusing_the_replaced_answer_is_dropped(db, my_assignment):
     paper, items = await _done_paper_with(db, my_assignment, ["6 × 7 =", "3 × 5 ="])
     gen = RoutedModel(fixed([[("1 × 1 =", "1"), ("2 × 5 =", "10")]]))
+    await _pending(db, items[0])
     assert await run_replace(db, gen, RoutedModel(verifier), items[0].id) is True
     await db.refresh(items[0])
     assert items[0].stem == "2 × 5 ="
+
+
+async def test_replace_given_up_before_the_job_started_never_swaps(db, my_assignment):
+    # The page already showed 「没换成」 (stale while queued): a late job must not change the question.
+    paper, items = await _done_paper_with(db, my_assignment, ["6 × 7 =", "3 × 5 ="])
+    target = items[0]
+    target.replacing, paper.last_replace_failed_item = False, target.id
+    await db.commit()
+    gen = RoutedModel(fixed([[("2 × 8 =", "16")]]))
+    assert await run_replace(db, gen, RoutedModel(verifier), target.id) is False
+    assert gen.prompts == []
+    await db.refresh(target)
+    assert target.stem == "6 × 7 ="
+
+
+async def test_replace_heartbeat_when_the_job_starts(db, my_assignment):
+    from datetime import timedelta
+
+    from tests.conftest import utcnow
+    paper, items = await _done_paper_with(db, my_assignment, ["6 × 7 =", "3 × 5 ="])
+    target = items[0]
+    await _pending(db, target)
+    target.updated_at = queued_at = utcnow() - timedelta(minutes=5)  # waited in the queue
+    await db.commit()
+    seen = []
+
+    def gen_fn(prompt):
+        seen.append(target.updated_at)  # same session object, so the job's write is visible
+        return {"objective": True, "items": [{"kind": "calc", "stem": "2 × 8 =", "options": None, "answer": "10"}]}
+
+    assert await run_replace(db, RoutedModel(gen_fn), RoutedModel(verifier), target.id) is True
+    assert seen and seen[0] > queued_at  # refreshed before the first model call

@@ -211,6 +211,13 @@ def test_practice_verify_defaults_to_deepseek(settings):
     assert get_model("practice_generate").provider == "qwen"
 
 
+def test_only_question_generation_has_the_short_timeout(settings):
+    settings.DEEPSEEK_API_KEY = "dsk"
+    assert get_model("practice_generate").timeout.read == 40
+    for purpose in ("grading", "answer_key", "analysis", "practice_verify"):
+        assert get_model(purpose).timeout.read == 120
+
+
 def test_practice_verify_same_provider_still_rejected(settings):
     settings.MODEL_FOR_PRACTICE_VERIFY = "deepseek:deepseek-flash"
     settings.MODEL_FOR_PRACTICE_GENERATE = "deepseek:deepseek-v4-pro"

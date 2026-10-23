@@ -27,9 +27,20 @@ ATTEMPTS_PER_SOURCE = 2  # first try plus one retry
 REPLACE_ATTEMPTS = 2  # first batch of candidates plus one retry
 
 
+STALE_MARGIN_S = 120  # slack on top of the worst silent stretch before a live job is called dead
+
+
+def _call_s(read_s: float) -> float:
+    """Worst case for one model call: the read timeout plus every connect retry and its backoff."""
+    s = get_settings()
+    attempts = max(1, s.MODEL_CALL_ATTEMPTS)
+    return read_s + attempts * s.MODEL_CONNECT_TIMEOUT_S + sum(range(1, attempts))  # backoff 1 s, 2 s, ...
+
+
 def _attempt_s() -> float:
     """One attempt: a generate call, then the (concurrent) verifications of at most two calls each."""
-    return 3 * get_settings().MODEL_TIMEOUT_S
+    s = get_settings()
+    return _call_s(s.MODEL_TIMEOUT_PRACTICE_GENERATE_S) + 2 * _call_s(s.MODEL_TIMEOUT_S)
 
 
 def paper_job_timeout_s() -> float:
@@ -48,9 +59,10 @@ def stale_after_queued() -> timedelta:
 
 
 def stale_after_running() -> timedelta:
-    """Running papers and replacing items commit after every attempt (progress / heartbeat), so
-    one silent attempt-length is all a live job ever needs."""
-    return timedelta(seconds=_attempt_s())
+    """Running papers and replacing items commit after every attempt (progress / heartbeat) and a
+    replace commits when its job starts, so a live job is never silent longer than one attempt;
+    the margin covers scheduling and DB time on top of that worst case."""
+    return timedelta(seconds=_attempt_s() + STALE_MARGIN_S)
 
 
 def _utcnow() -> datetime:
@@ -292,6 +304,12 @@ async def run_replace(db, gen_model, verify_model, item_id: int) -> bool:
     item = await db.get(PracticeItem, item_id)
     if item is None:
         return False  # the paper was regenerated meanwhile
+    if not item.replacing:
+        # Already given up on (the page showed 「没换成」 after the job sat too long): never swap now.
+        log.info("practice replace %s: no longer pending when the job started; skipped", item_id)
+        return False
+    item.updated_at = _utcnow()  # heartbeat: the stale clock restarts when the job actually starts
+    await db.commit()
     paper = await db.get(PracticePaper, item.paper_id)
     paper_id = paper.id
     picked: Draft | None = None

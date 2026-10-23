@@ -291,8 +291,9 @@ async def test_job_grades_page(db, job_ctx, uploaded_page, roster_zhangsan):
 def test_worker_settings(settings):
     grade, paper, replace = WorkerSettings.functions
     assert grade is grade_page_job
-    assert (paper.name, paper.max_tries, paper.timeout_s) == ("practice_paper_job", 1, 6 * 120 + 60)  # one wave of sources x 2 attempts x 3 calls
-    assert (replace.name, replace.max_tries, replace.timeout_s) == ("practice_replace_job", 1, 6 * 120 + 60)  # 2 attempts x 3 calls
+    attempt = (40 + 33) + 2 * (120 + 33)  # generate + two verify calls, each with 3 x 10 s connect + 1 s/2 s backoff
+    assert (paper.name, paper.max_tries, paper.timeout_s) == ("practice_paper_job", 1, 2 * attempt + 60)  # one wave of sources x 2 attempts
+    assert (replace.name, replace.max_tries, replace.timeout_s) == ("practice_replace_job", 1, 2 * attempt + 60)  # 2 attempts
     assert WorkerSettings.max_tries == 3
     assert WorkerSettings.job_timeout == 2 * 120 + 60 == 2 * settings.MODEL_TIMEOUT_S + 60
 

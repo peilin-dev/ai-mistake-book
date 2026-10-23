@@ -311,9 +311,12 @@ async def test_regenerate_enqueue_failure_keeps_the_old_sheet(db, app, auth_clie
 
 
 async def test_stale_cutoffs_running_vs_queued(db, auth_client, my_assignment, practice_enqueued, settings):
-    from app.practice.jobs import stale_after_queued, stale_after_running
+    from app.practice.jobs import STALE_MARGIN_S, _attempt_s, stale_after_queued, stale_after_running
 
-    assert stale_after_running() == timedelta(seconds=3 * settings.MODEL_TIMEOUT_S)
+    # A live job is never silent longer than one worst-case attempt; the cutoff leaves a margin on top.
+    worst = 40 + 3 * 10 + 3 + 2 * (120 + 3 * 10 + 3)  # generate call + two verify calls, with connect retries
+    assert _attempt_s() == worst
+    assert stale_after_running() == timedelta(seconds=worst + STALE_MARGIN_S)
     await build_sources(db, my_assignment)
     paper_id = (await auth_client.post(f"/api/assignments/{my_assignment.id}/practice")).json()["id"]
     paper = await db.get(PracticePaper, paper_id)

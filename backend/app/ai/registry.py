@@ -28,12 +28,13 @@ def _setting(settings: Settings, purpose: str) -> str:
         raise ValueError(f"unknown purpose {purpose!r}") from None
 
 
-def build_model(spec: str) -> VisionModel:
-    """Build a model from a "provider:model" spec."""
+def build_model(spec: str, timeout: float | None = None) -> VisionModel:
+    """Build a model from a "provider:model" spec; `timeout` overrides MODEL_TIMEOUT_S (read timeout)."""
     provider, model = _parse(spec)
     url_attr, key_attr = _PROVIDERS[provider]
     settings = get_settings()
-    return OpenAICompatModel(provider, getattr(settings, url_attr), getattr(settings, key_attr), model)
+    return OpenAICompatModel(provider, getattr(settings, url_attr), getattr(settings, key_attr), model,
+                             timeout=timeout)
 
 
 def get_model(purpose: Purpose) -> VisionModel:
@@ -43,5 +44,6 @@ def get_model(purpose: Purpose) -> VisionModel:
         gen_provider, _ = _parse(_setting(settings, "practice_generate"))
         if provider == gen_provider:
             raise ValueError("practice_verify must use a different provider than practice_generate")
-    return build_model(_setting(settings, purpose))
+    timeout = settings.MODEL_TIMEOUT_PRACTICE_GENERATE_S if purpose == "practice_generate" else None
+    return build_model(_setting(settings, purpose), timeout=timeout)
 
