@@ -24,6 +24,8 @@ export default function Downloads() {
   const [name, setName] = useState('')
   const [nameErr, setNameErr] = useState('')
   const busy = useRef(false)
+  const saving = useRef(false)
+  const [saving_, setSaving] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -78,9 +80,12 @@ export default function Downloads() {
   }
 
   const saveName = async () => {
+    if (saving.current) return
     const n = name.trim()
     if (!n) return setNameErr('请填写署名')
     if (n.length > NAME_MAX) return setNameErr(`署名最多 ${NAME_MAX} 个字`)
+    saving.current = true
+    setSaving(true)
     try {
       const m = await request<MeOut>('PATCH', '/api/me', { display_name: n })
       setMe(m)
@@ -89,6 +94,9 @@ export default function Downloads() {
       d?.resume()
     } catch (e) {
       setNameErr(downloadErrorText(e))
+    } finally {
+      saving.current = false
+      setSaving(false)
     }
   }
 
@@ -143,7 +151,7 @@ export default function Downloads() {
               {nameErr && <p className="err">{nameErr}</p>}
               <div className="dl-row">
                 <button onClick={cancelDialog}>取消</button>
-                <button className="dl-btn" onClick={saveName}>保存并下载</button>
+                <button className="dl-btn" disabled={saving_} onClick={saveName}>保存并下载</button>
               </div>
             </div>
           </div>

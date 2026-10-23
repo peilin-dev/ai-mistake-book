@@ -17,7 +17,6 @@ function RequireAuth({ children }: { children: JSX.Element }) {
   return children
 }
 
-// Tasks 6-8 replace the Placeholder elements below with the real pages.
 export default function App() {
   const navigate = useNavigate()
   const location = useLocation()
