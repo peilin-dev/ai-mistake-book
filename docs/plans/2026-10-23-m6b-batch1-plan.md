@@ -10,7 +10,7 @@
 
 **Spec:** `docs/specs/2026-10-23-m6b-web-full-design.md`（上游：`docs/specs/2026-10-23-m6-web-admin-design.md`、`docs/specs/2026-10-21-m3-miniprogram-design.md`）
 
-**执行顺序：** 1 → 2 → 3 → 3b → 5 → 4 → 6 → 7 → 8 → 9（任务 4 的「换一张」用到任务 5 的 `prepareOne`）。
+**执行顺序：** 1 → 2 → 3 → 3b → 5 → 4 → 6 → 7 → 8 → 10 → 11 → 9（任务 4 的「换一张」用到任务 5 的 `prepareOne`；任务 11 扩充任务 3b 的账号弹窗）。
 
 ## Global Constraints
 
@@ -195,6 +195,47 @@
 - [ ] **Step 2: 运行确认失败**
 - [ ] **Step 3: 实现**
 - [ ] **Step 4: 全量通过并提交** `feat(web): upload and confirm the answer key from PDFs or photos`
+
+## 二之二、账号密码注册登录（任务 10–11，设计文档 2.11）
+
+### Task 10: 后端注册、登录、验证码、额度
+
+**Files:**
+- Create: `backend/app/auth/passwords.py`、`backend/app/auth/captcha.py`、`backend/app/admin_cli.py`、`backend/migrations/versions/0014_password_login.py`（`down_revision = "0013"`）
+- Modify: `backend/app/models.py`（`Teacher.login_name: String(32) unique 可空`、`password_hash: String(255) 可空`、`page_quota: Integer 可空`）、`backend/app/auth/router.py`、`backend/app/config.py`（`FREE_MONTHLY_PAGES: int = 30`）、`backend/app/quota/service.py`（额度上限按老师）、`backend/app/main.py`
+- Test: `backend/tests/test_password_login.py`、`backend/tests/test_quota.py`（如已有则扩充）
+
+**Interfaces:**
+- Consumes: 任务 2 的 Redis 票据存储（`app/weblogin/store.py` 的 `get_ticket_store()`：`set_json` / `get_json` / `delete` / `incr` / `transition` 等）用于验证码、失败计数和频率限制；`issue_token`；`X-Real-IP` 取 IP 的写法同 `app/weblogin/router.py`
+- Produces:
+  - `hash_password(pw: str) -> str` / `verify_password(pw: str, stored: str) -> bool`（`hashlib.scrypt`，每个密码随机盐，存储格式 `scrypt$n$r$p$salt_b64$hash_b64`，比较用 `hmac.compare_digest`）
+  - `POST /api/auth/captcha` → `{"captcha_id", "image": <PNG base64>}`：4 位字符（去掉易混的 0/O/1/I/L），Pillow 画图加干扰线；Redis 存 300 秒，校验时取出即删（只能用一次），不区分大小写
+  - `POST /api/auth/register` body `{"login_name", "password", "captcha_id", "captcha_code"}` → 201 `WxLoginOut`（token + teacher）；登录名转小写、校验 `^[a-z0-9_]{4,32}$`；密码 8–64 位；验证码错 400「验证码不对或已过期」；登录名已存在 409「这个登录名已经有人用了」；同 IP 每小时 5 次，超出 429「操作太频繁，请稍后再试」；新老师 `page_quota = settings.FREE_MONTHLY_PAGES`
+  - `POST /api/auth/login` body `{"login_name", "password"}` → `WxLoginOut`；失败 401「登录名或密码不对」；同一登录名连续失败 5 次后 15 分钟内一律 429「输错次数太多，请 15 分钟后再试」（成功登录清零）；同 IP 每分钟 20 次
+  - `PUT /api/me/credentials` body `{"login_name", "password", "current_password": str | null}`（需登录）→ `MeOut`：首次设置不需要 `current_password`；已有密码时必须且正确，否则 403「当前密码不对」；登录名冲突 409（同上文案）
+  - `MeOut` 增加 `login_name: str | null`；`quota_total` 改为该老师的上限
+  - 额度：上限 = `teacher.page_quota`，为空时用 `MONTHLY_PAGE_QUOTA`；迁移把已有老师的 `page_quota` 设为 300；之后新建的老师（包括微信新用户）用 `FREE_MONTHLY_PAGES`
+  - `python -m app.admin_cli reset-password <login_name>`：生成 12 位临时密码，写入并打印；登录名不存在时退出码 1
+- [ ] **Step 1: 写失败的测试**：`test_hash_and_verify_roundtrip_and_salted`、`test_captcha_single_use_and_case_insensitive`、`test_register_creates_teacher_with_free_quota_and_logs_in`、`test_register_rejects_bad_name_password_captcha_and_duplicates`、`test_register_rate_limited_per_ip`、`test_login_success_and_generic_failure_message`、`test_login_locks_after_5_failures_then_resets_on_success`、`test_set_credentials_first_time_then_change_requires_current_password`、`test_wechat_and_password_reach_the_same_account`、`test_existing_teachers_keep_300_new_teachers_get_30`、`test_admin_cli_reset_password`
+- [ ] **Step 2: 运行确认失败**
+- [ ] **Step 3: 实现**（本机 `alembic upgrade head`）
+- [ ] **Step 4: 全量测试通过并提交** `feat(auth): password registration and login with captcha and per-teacher quota`
+
+### Task 11: 网页登录、注册、账号设置
+
+**Files:**
+- Create: `web/src/pages/Register.tsx`、`web/src/components/Captcha.tsx`
+- Modify: `web/src/pages/Login.tsx`（默认「账号密码登录」，切换「微信扫码登录」保留原功能）、`web/src/App.tsx`（`/register`，不需登录）、`web/src/components/AccountDialog.tsx`（任务 3b 的弹窗加「登录名和密码」：首次设置 / 修改）、`web/src/lib/auth.ts` 或新 `web/src/lib/account.ts`
+- Test: `web/tests/passwordLogin.test.tsx`、`web/tests/register.test.tsx`、`web/tests/account.test.tsx`（扩充）
+
+**Interfaces:**
+- Consumes: 任务 10 的 `/api/auth/captcha`、`/api/auth/register`、`/api/auth/login`、`PUT /api/me/credentials`、`MeOut.login_name`
+- Produces: 登录成功后与扫码登录相同：`setToken` 并回到原来要去的地址。
+- 登录页：登录名、密码、「登录」；「还没有账号？注册」；「用微信扫码登录」切换。注册页：登录名、密码、确认密码、验证码图片（点图换一张）、「注册」；前端先校验格式（同后端规则），错误显示后端文案；验证码失败后自动换一张。账号设置：没有登录名时显示「设置登录名和密码，以后可以不用手机扫码」；有时可改密码（需当前密码）。
+- [ ] **Step 1: 写失败的测试**：`password login stores the token and redirects back`、`login failure shows the server message`、`register validates name and password before sending`、`register refreshes the captcha after a failure`、`wechat tab still shows the QR login`、`account dialog sets credentials first time and asks for the current password later`
+- [ ] **Step 2: 运行确认失败**
+- [ ] **Step 3: 实现**
+- [ ] **Step 4: 全量通过并提交** `feat(web): password login, registration and credentials in account settings`
 
 ## 三、收尾（任务 9）
 
