@@ -372,3 +372,16 @@ async def test_submission_questions_include_answer_verified(auth_client, db, gra
 async def test_submission_detail_has_is_subjective(auth_client, graded_submission):
     body = (await auth_client.get(f"/api/submissions/{graded_submission.id}")).json()
     assert all(q["is_subjective"] is False for q in body["questions"])
+
+async def test_feedback_edit_and_submission_roundtrip(auth_client, graded_submission):
+    qr = graded_submission.questions[0]
+    feedback = dict(scoring_basis="推理2分", error_reason=None, strengths="列式正确", guidance="保持逐步验算")
+    response = await auth_client.patch(f"/api/question-results/{qr.id}", json=feedback)
+    assert response.status_code == 200
+    assert response.json()["score"] == qr.score
+    detail = (await auth_client.get(f"/api/submissions/{graded_submission.id}")).json()
+    row = next(q for q in detail["questions"] if q["id"] == qr.id)
+    for key, value in feedback.items():
+        assert row[key] == value
+    response = await auth_client.patch(f"/api/question-results/{qr.id}", json={"guidance": "x" * 12001})
+    assert response.status_code == 422

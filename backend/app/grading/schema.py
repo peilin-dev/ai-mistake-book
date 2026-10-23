@@ -15,6 +15,15 @@ def _coerce_no(v):
 UnitFloat = Annotated[float, Field(ge=0, le=1)]
 
 
+def _feedback_text(value):
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return "\n".join(value)
+    return value
+
+
+FeedbackText = Annotated[Annotated[str, Field(max_length=12000)] | None, BeforeValidator(_feedback_text)]
+
+
 class GradedQuestion(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -29,7 +38,10 @@ class GradedQuestion(BaseModel):
     confidence: float = Field(ge=0, le=1)
     bbox: tuple[UnitFloat, UnitFloat, UnitFloat, UnitFloat]
     knowledge_point_id: int | None = None
-    error_reason: str | None = None
+    error_reason: FeedbackText = None
+    scoring_basis: FeedbackText = None
+    strengths: FeedbackText = None
+    guidance: FeedbackText = None
 
     @model_validator(mode="after")
     def _check(self):

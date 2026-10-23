@@ -5,6 +5,11 @@ export interface QuestionResult {
   question_text: string | null
   student_answer: string | null
   correct_answer: string | null
+  is_subjective?: boolean
+  error_reason?: string | null
+  scoring_basis?: string | null
+  strengths?: string | null
+  guidance?: string | null
   is_correct: boolean
   score: number
   max_score: number | null

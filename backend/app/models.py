@@ -216,6 +216,9 @@ class QuestionResult(_Base):
     model_is_correct: Mapped[bool | None] = mapped_column(Boolean)
     model_score: Mapped[float | None] = mapped_column(Float)
     error_reason: Mapped[str | None] = mapped_column(Text)
+    scoring_basis: Mapped[str | None] = mapped_column(Text)
+    strengths: Mapped[str | None] = mapped_column(Text)
+    guidance: Mapped[str | None] = mapped_column(Text)
     knowledge_point_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("knowledge_points.id", ondelete="SET NULL"), index=True
     )

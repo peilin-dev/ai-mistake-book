@@ -1,3 +1,4 @@
+import GradingFeedback from '../components/GradingFeedback'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import WorkShell from '../components/WorkShell'
@@ -139,7 +140,7 @@ export default function Student() {
             <section className="question-row" key={q.id}>
               <div className="section-heading">
                 <h3>
-                  第 {q.question_no} 题 · {q.is_correct ? '对' : '错'} ·{' '}
+                  第 {q.question_no} 题 · {q.is_subjective ? '评分' : q.is_correct ? '对' : '错'} ·{' '}
                   {q.score} / {q.max_score ?? '未标分值'}
                 </h3>
                 <button
@@ -155,6 +156,7 @@ export default function Student() {
                 学生答案：{q.student_answer || '未识别'}　参考答案：
                 {q.correct_answer || '未识别'}
               </p>
+              <GradingFeedback question={q} />
               {q.crop_url && (
                 <a href={q.crop_url} target="_blank" rel="noreferrer">
                   <img

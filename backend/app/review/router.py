@@ -2,7 +2,7 @@
 import re
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,6 +31,10 @@ class AssignPage(BaseModel):
 class CorrectQuestion(BaseModel):
     is_correct: bool | None = None
     score: float | None = None
+    scoring_basis: str | None = Field(default=None, max_length=12000)
+    error_reason: str | None = Field(default=None, max_length=12000)
+    strengths: str | None = Field(default=None, max_length=12000)
+    guidance: str | None = Field(default=None, max_length=12000)
 
 
 def _question_fields(r: QuestionResult) -> dict:
@@ -44,6 +48,11 @@ def _question_fields(r: QuestionResult) -> dict:
         "score": r.score,
         "max_score": r.max_score,
         "confidence": r.confidence,
+        "is_subjective": r.is_subjective,
+        "error_reason": r.error_reason,
+        "scoring_basis": r.scoring_basis,
+        "strengths": r.strengths,
+        "guidance": r.guidance,
     }
 
 
@@ -284,8 +293,9 @@ async def correct_question(
     db: AsyncSession = Depends(get_db),
     storage: Storage = Depends(get_storage),
 ) -> dict:
-    if body.is_correct is None and body.score is None:
-        raise HTTPException(422, "is_correct or score is required")
+    feedback_fields = {"scoring_basis", "error_reason", "strengths", "guidance"}
+    if body.is_correct is None and body.score is None and not (body.model_fields_set & feedback_fields):
+        raise HTTPException(422, "score, is_correct or feedback is required")
     assignment_id, _ = await _own_result(db, teacher, result_id)
     await lock_assignment(db, assignment_id)
     r = (await db.execute(
@@ -303,6 +313,8 @@ async def correct_question(
             r.is_correct = body.score >= r.max_score  # a full-mark override reads as 对
     elif body.is_correct is not None:
         r.score = 0 if not body.is_correct else (r.max_score or 0)
+    for field in body.model_fields_set & feedback_fields:
+        setattr(r, field, getattr(body, field))
     r.reviewed, r.needs_review = True, False
     if r.submission_id is not None:
         await recompute_submission(db, r.submission_id)

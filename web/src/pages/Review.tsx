@@ -1,3 +1,4 @@
+import GradingFeedback from '../components/GradingFeedback'
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import WorkShell from '../components/WorkShell'
@@ -128,10 +129,11 @@ export default function Review() {
                 <dd>{current.correct_answer || '未识别'}</dd>
                 <dt>当前判定</dt>
                 <dd>
-                  {current.is_correct ? '对' : '错'} · {current.score} /{' '}
+                  {current.is_subjective ? '评分' : current.is_correct ? '对' : '错'} · {current.score} /{' '}
                   {current.max_score ?? '未标分值'}
                 </dd>
               </dl>
+              <GradingFeedback question={current} />
               <ResultEditor
                 key={current.id}
                 question={current}

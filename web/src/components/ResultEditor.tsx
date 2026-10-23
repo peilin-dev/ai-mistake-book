@@ -11,8 +11,14 @@ export default function ResultEditor({
   const [score, setScore] = useState(String(question.score)),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('')
+  const [feedback, setFeedback] = useState({
+    scoring_basis: question.scoring_basis || '',
+    error_reason: question.error_reason || '',
+    strengths: question.strengths || '',
+    guidance: question.guidance || '',
+  })
   const lock = useRef(false)
-  async function save(body: { score?: number; is_correct?: boolean }) {
+  async function save(body: { score?: number; is_correct?: boolean } & Partial<typeof feedback>) {
     if (lock.current) return
     lock.current = true
     setBusy(true)
@@ -83,6 +89,23 @@ export default function ResultEditor({
           确认原判
         </button>
       </div>
+      <details>
+        <summary>修改批改指导</summary>
+        {([
+          ['scoring_basis', '评分依据'],
+          ['error_reason', '错因与扣分说明'],
+          ['strengths', '好句与作答亮点'],
+          ['guidance', '解题思路与修改建议'],
+        ] as const).map(([field, label]) => (
+          <label key={field} style={{ display: 'block', marginTop: '1rem' }}>
+            {label}
+            <textarea rows={4} maxLength={12000} value={feedback[field]}
+              style={{ display: 'block', width: '100%' }}
+              onChange={e => setFeedback(old => ({ ...old, [field]: e.target.value }))} />
+          </label>
+        ))}
+        <button disabled={busy} onClick={() => void save(feedback)}>保存批改指导</button>
+      </details>
       {question.max_score === null && (
         <p className="hint">原卷没有标分值，请填写得分或确认原判。</p>
       )}
