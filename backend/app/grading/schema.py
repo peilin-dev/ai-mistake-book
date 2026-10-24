@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
 
@@ -31,6 +31,7 @@ class GradedQuestion(BaseModel):
     question_text: str
     student_answer: str | None
     correct_answer: str | None
+    question_type: Literal["objective", "calculation", "reading", "writing", "reasoning", "other"] | None = None
     is_subjective: bool = False
     is_correct: bool
     score: float = Field(ge=0)

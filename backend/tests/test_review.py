@@ -381,6 +381,8 @@ async def test_feedback_edit_and_submission_roundtrip(auth_client, graded_submis
     assert response.json()["score"] == qr.score
     detail = (await auth_client.get(f"/api/submissions/{graded_submission.id}")).json()
     row = next(q for q in detail["questions"] if q["id"] == qr.id)
+    assert row["subject"] == "math"
+    assert "question_type" in row
     for key, value in feedback.items():
         assert row[key] == value
     response = await auth_client.patch(f"/api/question-results/{qr.id}", json={"guidance": "x" * 12001})

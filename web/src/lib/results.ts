@@ -5,6 +5,8 @@ export interface QuestionResult {
   question_text: string | null
   student_answer: string | null
   correct_answer: string | null
+  subject?: string
+  question_type?: string | null
   is_subjective?: boolean
   error_reason?: string | null
   scoring_basis?: string | null

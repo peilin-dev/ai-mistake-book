@@ -526,7 +526,7 @@ async def test_is_subjective_from_answer_key(db, storage, uploaded_page, confirm
 
 
 async def test_instructional_feedback_survives_grading(db, storage, uploaded_page, roster_zhangsan):
-    feedback = dict(scoring_basis="计算2分，单位1分，合计2/3分", error_reason="漏写单位，扣1分",
+    feedback = dict(question_type="calculation", scoring_basis="计算2分，单位1分，合计2/3分", error_reason="漏写单位，扣1分",
                     strengths="正确列出算式，数量关系清楚", guidance="在结果后补上厘米，并检查题目要求")
     model = FakeModel([graded(student_name="张三", questions=[q(no="1", score=2, max_score=3, **feedback)])])
     await grade_page(db, storage, model, uploaded_page.id)

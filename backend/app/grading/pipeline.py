@@ -300,6 +300,7 @@ def _result_row(gq: GradedQuestion, item: AnswerItem | None, allowed_kps: set[in
         model_is_correct=None,
         model_score=None,
         error_reason=gq.error_reason,
+        question_type=gq.question_type,
         scoring_basis=gq.scoring_basis,
         strengths=gq.strengths,
         guidance=gq.guidance,

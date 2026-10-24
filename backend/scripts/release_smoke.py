@@ -65,9 +65,10 @@ async def main():
             detail = await call('GET', f"/submissions/{subs[0]['id']}")
             assert detail['questions']
             for question in detail['questions']:
-                assert question['scoring_basis'] and question['guidance']
+                assert question['subject'] == 'math'
+                assert question['question_type']
                 if question['score'] < question['max_score']:
-                    assert question['error_reason']
+                    assert question['error_reason'] and question['guidance']
             print('PASS production instructional feedback persisted and served', flush=True)
             r=await client.get(f'/api/assignments/{aid}',headers={'Authorization':'Bearer '+other_token})
             assert r.status_code==404

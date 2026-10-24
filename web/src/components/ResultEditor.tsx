@@ -96,7 +96,8 @@ export default function ResultEditor({
           ['error_reason', '错因与扣分说明'],
           ['strengths', '好句与作答亮点'],
           ['guidance', '解题思路与修改建议'],
-        ] as const).map(([field, label]) => (
+        ] as const).filter(([field]) => field !== 'strengths' || question.question_type === 'writing' ||
+          (!question.question_type && ['chinese', 'english'].includes(question.subject || '') && /作文|写作|习作|书面表达/.test(question.question_text || ''))).map(([field, label]) => (
           <label key={field} style={{ display: 'block', marginTop: '1rem' }}>
             {label}
             <textarea rows={4} maxLength={12000} value={feedback[field]}

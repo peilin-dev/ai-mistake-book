@@ -50,6 +50,7 @@ def _question_fields(r: QuestionResult) -> dict:
         "confidence": r.confidence,
         "is_subjective": r.is_subjective,
         "error_reason": r.error_reason,
+        "question_type": r.question_type,
         "scoring_basis": r.scoring_basis,
         "strengths": r.strengths,
         "guidance": r.guidance,
@@ -87,7 +88,7 @@ async def review_queue(
     db: AsyncSession = Depends(get_db),
     storage: Storage = Depends(get_storage),
 ) -> dict:
-    await own_assignment(db, teacher, assignment_id)
+    assignment = await own_assignment(db, teacher, assignment_id)
     threshold = get_settings().REVIEW_CONFIDENCE_THRESHOLD
     pages = (await db.execute(
         select(Page).where(
@@ -119,6 +120,7 @@ async def review_queue(
         "questions": [
             {
                 **_question_fields(r),
+                "subject": assignment.subject.value,
                 "student_name": name,
                 "reason": _reason(page.student_id, r, threshold),
                 "crop_url": storage.signed_url(r.crop_key) if r.crop_key else None,
@@ -330,7 +332,7 @@ async def get_submission(
     storage: Storage = Depends(get_storage),
 ) -> dict:
     row = (await db.execute(
-        select(Submission, Student.name)
+        select(Submission, Student.name, Assignment.subject)
         .join(Student, Student.id == Submission.student_id)
         .join(Assignment, Assignment.id == Submission.assignment_id)
         .join(Class_, Class_.id == Assignment.class_id)
@@ -338,7 +340,7 @@ async def get_submission(
     )).first()
     if row is None:
         raise HTTPException(404, "submission not found")
-    sub, student_name = row
+    sub, student_name, subject = row
     results = (await db.execute(
         select(QuestionResult)
         .join(Page, Page.id == QuestionResult.page_id)
@@ -352,5 +354,5 @@ async def get_submission(
         "student_name": student_name,
         "total_score": sub.total_score,
         "needs_review_count": sub.needs_review_count,
-        "questions": [_result_out(r, storage) for r in results],
+        "questions": [{**_result_out(r, storage), "subject": subject.value} for r in results],
     }

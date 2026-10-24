@@ -50,7 +50,7 @@ let samplePages = [
   { page_id:2,seq:2,status:'done',fail_reason:null,student_id:null,student_name:null,recognized_name:null,source:'web' },
   { page_id:3,seq:3,status:'failed',fail_reason:'model_unavailable',student_id:null,student_name:null,recognized_name:null,source:'web' },
 ]
-const sampleQuestion = {id:1,page_id:1,question_no:'3',question_text:'计算：2.4 × 0.3',student_answer:'7.2',correct_answer:'0.72',is_correct:false,score:0,max_score:5,crop_url:null,image_url:null,student_name:'示例学生甲',reason:'answer_mismatch',needs_review:true,reviewed:false}
+const sampleQuestion = {subject:'math',question_type:'calculation',error_reason:'小数位数判断错误：两个因数共两位小数，积却只保留了一位。',scoring_basis:'本题按计算结果计分，结果错误扣 5 分。',guidance:'先算 24 × 3 = 72，再从右往左数两位点上小数点，得到 0.72。估算时，2.4 的三成应小于 2.4，可用于检查结果。',id:1,page_id:1,question_no:'3',question_text:'计算：2.4 × 0.3',student_answer:'7.2',correct_answer:'0.72',is_correct:false,score:0,max_score:5,crop_url:null,image_url:null,student_name:'示例学生甲',reason:'answer_mismatch',needs_review:true,reviewed:false}
 let sampleQuestions = [sampleQuestion]
 if (import.meta.env.DEV) {
   // No fallback to native fetch: preview actions never reach a real server.
