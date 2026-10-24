@@ -76,7 +76,7 @@ export default function AssignmentNew() {
         </label>
         <label>
           学科
-          <select value={subject} onChange={(e) => setSubject(e.target.value)}>
+          <select disabled={!room} aria-describedby="subject-grade-hint" value={subject} onChange={(e) => setSubject(e.target.value)}>
             {subjectsForGrade(room?.grade ?? 1).map((s) => (
               <option key={s.value} value={s.value}>
                 {s.label}
@@ -84,6 +84,11 @@ export default function AssignmentNew() {
             ))}
           </select>
         </label>
+        {room && (
+          <p id="subject-grade-hint" className="hint">
+            当前班级：{room.grade >= 7 ? '初中' : '小学'} {room.grade} 年级，学科按年级显示。
+          </p>
+        )}
         <p className="hint">建好后可先上传答案卷，再上传学生试卷。</p>
         {error && (
           <p role="alert" className="err">

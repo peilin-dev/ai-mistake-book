@@ -9,7 +9,6 @@ const PRIMARY: SubjectOption[] = [
   { value: 'english', label: '英语' },
   { value: 'science', label: '科学' },
   { value: 'politics', label: '道德与法治' },
-  { value: 'other', label: '其他' },
 ]
 
 const SECONDARY_EXTRA: SubjectOption[] = [
