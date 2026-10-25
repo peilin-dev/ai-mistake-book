@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -18,6 +18,17 @@ function mockData() {
 }
 
 describe('workspace navigation', () => {
+  it('switches assignment layout without dropping filters and exposes scoped quick actions', async () => {
+    mockData()
+    const { container } = render(<MemoryRouter initialEntries={['/?class=2&subject=math']}><Home /><Location /></MemoryRouter>)
+    const actions = await screen.findByRole('navigation', { name: '小数单元练习快捷操作' })
+    expect(within(actions).getByRole('link', { name: '上传' }).getAttribute('href')).toBe('/a/7/upload')
+    expect(within(actions).getByRole('link', { name: '成绩' }).getAttribute('href')).toBe('/a/7/grades')
+    fireEvent.click(screen.getByRole('button', { name: '列表', exact: true }))
+    expect(screen.getByLabelText('当前地址').textContent).toContain('subject=math')
+    expect(screen.getByLabelText('当前地址').textContent).toContain('layout=list')
+    expect(container.querySelector('.assignment-list.is-list-view')).toBeTruthy()
+  })
   it('searches assignments without losing the selected class', async () => {
     mockData()
     render(<MemoryRouter initialEntries={['/?class=2']}><Header /><Location /></MemoryRouter>)

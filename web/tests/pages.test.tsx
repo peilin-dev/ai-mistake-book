@@ -74,7 +74,7 @@ describe('Home states', () => {
     expect(screen.getByText('加载中…')).toBeTruthy()
     await waitFor(() => expect(screen.getByText('出错了')).toBeTruthy())
     fireEvent.click(screen.getByText('二班'))
-    await waitFor(() => expect(screen.getByText('二班作业')).toBeTruthy())
+    await waitFor(() => expect(screen.getByRole('link', { name: /^数学 二班作业/ })).toBeTruthy())
     expect(screen.queryByText('出错了')).toBeNull()
   })
 })

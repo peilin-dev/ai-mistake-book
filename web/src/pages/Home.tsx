@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import Header from '../components/Header'
-import Icon from '../components/Icon'
+import Icon, { type IconName } from '../components/Icon'
+import AssignmentFocus from '../components/AssignmentFocus'
 import { errorText, request } from '../lib/api'
 import { dateText, subjectLabel, type AssignmentOut, type ClassOut } from '../lib/overview'
+const subjectIcons: Record<string, IconName> = { math: 'math', physics: 'physics', chemistry: 'chemistry', biology: 'biology', science: 'chemistry', history: 'history', geography: 'geography', english: 'language', chinese: 'book', politics: 'users' }
 
 export default function Home() {
   const [classes, setClasses] = useState<ClassOut[] | null>(null)
@@ -49,6 +51,7 @@ export default function Home() {
   const subjects = [...new Set(assignments?.map(a => a.subject) ?? [])]
   const visible = assignments?.filter(a => (!subject || a.subject === subject) && a.title.toLowerCase().includes(query.trim().toLowerCase()))
   const classView = params.get('view') === 'classes'
+  const listView = params.get('layout') === 'list'
   return (
     <>
       <Header />
@@ -65,18 +68,19 @@ export default function Home() {
         </article>)}</section>}
         {classes && classes.length > 0 && !classView && <section className="workspace" aria-label="班级作业">
           <div className="class-switcher-row"><nav className="class-switcher" aria-label="班级">{classes.map(c => <button key={c.id} type="button" aria-pressed={c.id === selected} onClick={() => { setSelected(c.id); setParams({ class: String(c.id) }, { replace: true }) }}>{c.name}</button>)}</nav><Link to="/classes/new" className="class-add" aria-label="新建班级"><Icon name="plus" size={18} /></Link></div>
+          {!!assignments?.length && <AssignmentFocus key={assignments[0].id} assignment={assignments[0]} />}
           <div className="section-heading assignments-heading"><div><h2><Icon name="layers" size={22} />{activeClass?.name || '班级作业'}<span className="count">{assignments?.length ?? '—'} 份作业</span></h2><p>{activeClass?.grade} 年级 · 上传卷子后可查看批改进度和学生成绩。</p></div>{activeClass && <Link to={`/classes/${activeClass.id}`} className="manage-link"><Icon name="users" size={16} />管理名单</Link>}</div>
-          <div className="assignment-toolbar"><div className="subject-filters" aria-label="学科筛选"><button type="button" aria-pressed={!subject} onClick={() => setFilter('subject', '')}>全部学科</button>{subjects.map(s => <button type="button" key={s} aria-pressed={subject === s} onClick={() => setFilter('subject', s)}>{subjectLabel(s)}</button>)}</div><span className="sort-label">按创建时间 · 最新优先</span></div>
+          <div className="assignment-toolbar"><div className="subject-filters" aria-label="学科筛选"><button type="button" aria-pressed={!subject} onClick={() => setFilter('subject', '')}>全部学科</button>{subjects.map(s => <button type="button" key={s} aria-pressed={subject === s} onClick={() => setFilter('subject', s)}>{subjectLabel(s)}</button>)}</div><div className="assignment-view-tools"><span className="sort-label">按创建时间 · 最新优先</span><div className="view-switch" role="group" aria-label="作业显示方式"><button aria-pressed={!listView} onClick={() => setFilter('layout', '')}><Icon name="panel" size={16} />卡片</button><button aria-pressed={listView} onClick={() => setFilter('layout', 'list')}><Icon name="layers" size={16} />列表</button></div></div></div>
           {query && <div className="search-summary"><span>“{query}” 的搜索结果</span><button type="button" onClick={() => setFilter('q', '')}>清除搜索</button></div>}
-          <div className="assignment-list" aria-live="polite" aria-busy={assignments === null && !error}>
+          <div className={`assignment-list${listView ? ' is-list-view' : ''}`} aria-live="polite" aria-busy={assignments === null && !error}>
             {assignments === null && !error && <p className="empty">加载中…</p>}
             {assignments && assignments.length === 0 && <div className="empty"><Icon name="file" size={30} /><h3>这个班还没有作业</h3><p>点击右上角“新建作业”，开始第一次批改。</p></div>}
             {assignments && assignments.length > 0 && visible?.length === 0 && <div className="empty"><p>没有找到匹配的作业</p><button type="button" onClick={() => setParams(selected ? { class: String(selected) } : {}, { replace: true })}>清除筛选</button></div>}
-            {visible?.map(a => <Link key={a.id} to={`/a/${a.id}/work`} className={`assignment-item subject-${a.subject}`}>
-              <span className="card-top"><span className="card-icon"><Icon name={a.subject === 'math' || a.subject === 'physics' ? 'clipboard' : a.subject === 'chinese' || a.subject === 'english' ? 'book' : 'file'} size={23} /></span><span className="subject-tag">{subjectLabel(a.subject)}</span></span>
-              <span className="assignment-copy"><span className="title">{a.title}</span><span className="assignment-description">答案核对、试卷批改、成绩与学情</span></span>
+            {visible?.map(a => <article key={a.id} className="assignment-card-shell"><Link to={`/a/${a.id}/work`} className={`assignment-item subject-${a.subject}`}>
+              <span className="card-top"><span className="card-icon"><Icon name={subjectIcons[a.subject] || 'file'} size={23} /></span><span className="subject-tag">{subjectLabel(a.subject)}</span></span>
+              <span className="assignment-copy"><span className="title">{a.title}</span><span className="assignment-description">答案核对、试卷批改、成绩与学情</span>{a.answer_key_status && <span className={`answer-status ${a.answer_key_status === 'confirmed' ? 'is-confirmed' : ''}`}><Icon name={a.answer_key_status === 'confirmed' ? 'check' : 'file'} size={13} />{a.answer_key_status === 'confirmed' ? '参考答案已确认' : a.answer_key_status === 'none' ? 'AI 建议答案' : '参考答案待核对'}</span>}</span>
               <span className="card-bottom"><span className="meta">{dateText(a.created_at) || '作业日期未记录'}</span><span className="row-action">处理作业 <Icon name="arrow" size={17} /></span></span>
-            </Link>)}
+            </Link><nav className="assignment-quick-links" aria-label={`${a.title}快捷操作`}><Link to={`/a/${a.id}/upload`}><Icon name="upload" size={14} />上传</Link><Link to={`/a/${a.id}/grades`}><Icon name="chart" size={14} />成绩</Link><Link to={`/a/${a.id}/downloads`}><Icon name="print" size={14} />打印</Link></nav></article>)}
           </div>
           <p className="workspace-footnote"><Icon name="check" size={15} />电脑上传卷子，核对批改结果，再进入学情讲评。</p>
         </section>}

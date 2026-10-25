@@ -11,6 +11,7 @@ export interface AssignmentOut {
   class_id: number
   subject: string
   title: string
+  answer_key_status?: string
   // The API does not return a date yet; shown only when the backend adds it.
   created_at?: string | null
 }

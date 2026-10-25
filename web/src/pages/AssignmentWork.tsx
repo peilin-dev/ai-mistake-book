@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import WorkShell from '../components/WorkShell'
 import Confirm from '../components/Confirm'
+import WorkflowSteps from '../components/WorkflowSteps'
 import { request, errorText } from '../lib/api'
 import {
   canRetry,
@@ -76,6 +77,7 @@ export default function AssignmentWork() {
       description="先核对答案，再上传卷子；批改后处理待认领与复核。"
     >
       {uploadSummary && <p className="notice" role="status">{uploadSummary}。上传已完成，可在下方查看批改进度。</p>}
+      {progress && <WorkflowSteps assignmentId={assignmentId!} current={!progress.total ? 0 : progress.queued + progress.processing || progress.failed ? 1 : unclaimed || progress.needs_review ? 2 : 3} unclaimed={unclaimed} />}
       {error && (
         <p className="err" role="alert">
           {error}

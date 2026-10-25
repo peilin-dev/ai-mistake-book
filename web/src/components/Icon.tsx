@@ -1,5 +1,12 @@
-export type IconName = 'pen' | 'book' | 'arrow' | 'search' | 'logout' | 'check' | 'print' | 'plus' | 'home' | 'users' | 'panel' | 'upload' | 'clipboard' | 'chart' | 'file' | 'layers' | 'chevron' | 'close'
+export type IconName = 'pen' | 'book' | 'arrow' | 'search' | 'logout' | 'check' | 'print' | 'plus' | 'home' | 'users' | 'panel' | 'upload' | 'clipboard' | 'chart' | 'file' | 'layers' | 'chevron' | 'close' | 'math' | 'physics' | 'chemistry' | 'biology' | 'history' | 'geography' | 'language'
 const paths: Record<IconName, string> = {
+  math: 'M4 4h16v16H4Z M7 8h4 M9 6v4 M14 8h3 M7 14l4 4 M7 18l4-4 M14 15h3 M14 18h3',
+  physics: 'M9 3H5v8a7 7 0 0 0 14 0V3h-4v8a3 3 0 0 1-6 0V3Z M5 7h4 M15 7h4',
+  chemistry: 'M9 3h6 M10 3v7l-6 9a1.3 1.3 0 0 0 1 2h14a1.3 1.3 0 0 0 1-2l-6-9V3 M7 15h10 M10 18h1 M14 12h1',
+  biology: 'M20 3C8 2 3 8 5 15c2 7 14 6 15-12Z M4 21 16 9 M8 17l-1-6 M12 13h5',
+  history: 'M7 3h14v14 M7 3a3 3 0 0 0 0 6h10v9a3 3 0 0 1-3 3H5a3 3 0 0 0 0-6h2V3 M5 15H3v3a3 3 0 0 0 3 3 M10 12h4 M10 15h4',
+  geography: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z M3 12h18 M12 3c-5 5-5 13 0 18 M12 3c5 5 5 13 0 18 M5 6h14 M5 18h14',
+  language: 'M3 5h11 M8 3v2 M5 5c0 5 3 8 8 10 M12 5c0 5-3 8-8 10 M13 21l4-10 4 10 M15 17h4',
   pen: 'm15 3 6 6-11 11-7 1 1-7L15 3Z M12 6l6 6 M4 14l6 6 M3 21l4-4',
   book: 'M12 5v15 M12 5C9 3 5 3 2 4v15c3-1 7-1 10 1 3-2 7-2 10-1V4c-3-1-7-1-10 1Z',
   arrow: 'M5 12h14 M13 6l6 6-6 6',

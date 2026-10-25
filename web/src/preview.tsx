@@ -84,7 +84,7 @@ if (import.meta.env.DEV) {
     if (/^\/api\/students\/\d+$/.test(p) && init?.method === 'PATCH') return response({ ...students[0], ...JSON.parse(String(init.body)) })
     if (/^\/api\/(students|classes)\/\d+$/.test(p) && init?.method === 'DELETE') return new Response(null, { status: 204 })
     const classMatch = p.match(/^\/api\/classes\/(\d+)\/assignments$/)
-    if (classMatch) return response(classMatch[1] === '3' ? [] : assignments.map(a => ({ ...a, class_id: Number(classMatch[1]) })))
+    if (classMatch) return response(classMatch[1] === '3' ? [] : assignments.map(a => ({ ...a, class_id: Number(classMatch[1]), answer_key_status: a.id % 2 ? 'none' : 'confirmed' })))
     if (p.endsWith('/analytics')) return response(analytics)
     if (p.endsWith('/causes')) return response({ causes: { a: '计算时没有正确确定积的小数位数，建议先估算结果的范围。', b: '把小数乘法当作加法处理，需要重新理解运算的意义。' } })
     const q = p.match(/\/analytics\/questions\/(\d+)$/)
