@@ -150,3 +150,5 @@
 - 保留原 Logo、蓝白主色、红色批改语义以及上轮确认的小字号，检查桌面、平板和手机布局。
 - 新测试覆盖待办数量、动态进度停止轮询、错误恢复、视图切换保留筛选以及快捷链接的作业归属。全量运行 115 项通过、1 项旧标题定位冲突；修复测试定位后相关 6 项通过，导航相关 5 项通过；生产构建通过。此次仅更新网页。
 - 研究参考：[Google Classroom 作业状态](https://support.google.com/edu/classroom/answer/16643267?hl=en_)、[Canva 教育作业审核](https://www.canva.com/help/review-and-mark-classwork-on-canva/)、[Nearpod 教师工作流程](https://nearpod.com/frequently-asked-questions)。
+
+教育工作台组件版本 `f74e672` 已推送并部署。网页回滚备份 `/home/ubuntu/mistake-book-web-releases/20261025T093323Z-education-components/previous-web.tar.gz`。服务器本地健康检查、登录页与新 JS/CSS 为 200，入口及主资源哈希与本地测试构建一致。
