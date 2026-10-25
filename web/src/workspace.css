@@ -315,3 +315,58 @@ body:has(.app-sidebar.is-collapsed) { --sidebar-width: 76px; }
 @media(max-width:1180px) { .assignment-create-layout { grid-template-columns:1fr; } .creation-guide { position:static; } }
 @media(max-width:600px) { .creation-fields { grid-template-columns:1fr; gap:16px; } .creation-drop { flex-wrap:wrap; padding:18px; } .creation-drop>svg { display:none; } .creation-drop>div { flex-basis:100%; } .creation-guide { padding:22px; } }
 @media(prefers-reduced-motion:reduce) { .progress-strip progress::-webkit-progress-value { transition:none; } }
+/* Teacher account, horizontal navigation and a more readable type scale. */
+.sidebar-brand { margin-bottom:24px; }
+.sidebar-profile { margin:0 8px 26px; padding-bottom:24px; border-bottom:1px solid var(--line); }
+.sidebar-profile .sidebar-account { padding:6px 0 16px; gap:12px; }
+.sidebar-profile .sidebar-account>.avatar { width:46px; height:46px; border-radius:50%; color:white; background:var(--link); font-size:18px; font-weight:600; }
+.sidebar-profile .account-copy { gap:4px; }
+.sidebar-profile .account-copy strong { font-size:17px; font-weight:600; }
+.sidebar-profile .account-copy small { font-size:13px; }
+.sidebar-profile .sidebar-quota { margin:0; padding:16px; border-radius:12px; background:#f0f5ff; color:#3d5680; font-size:13px; }
+.sidebar-profile .sidebar-quota strong { color:#214c9e; font-size:14px; font-weight:600; }
+.sidebar-profile .sidebar-quota progress { height:5px; margin:12px 0; }
+.sidebar-profile .sidebar-quota p { margin:0; font-size:13px; }
+.sidebar-profile .sidebar-quota b { font-weight:600; }
+.sidebar-link { font-weight:450; }
+.sidebar-bottom { padding-top:20px; }
+.logout-link { font-size:14px; }
+.workspace-header.header { height:76px; padding-inline:24px; }
+.topbar-title { font-size:16px; font-weight:600; }
+.topbar-nav { display:flex; align-items:center; gap:8px; margin-left:auto; white-space:nowrap; }
+.topbar-nav a { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:9px 14px; border-radius:9px; text-decoration:none; color:var(--ink-2); font-size:15px; }
+.topbar-nav a:hover { background:#f0f5ff; color:var(--link); }
+.topbar-nav a[aria-current=page] { color:var(--link); background:#edf3ff; font-weight:600; }
+.topbar-search { width:clamp(170px,21vw,310px); margin-left:8px; min-height:44px; }
+.topbar-search input { font-size:14px; }
+.workspace-header~.page { padding:36px 40px 44px; min-height:calc(100dvh - 98px); }
+.page-heading h1, .main-title { font-size:30px; font-weight:600; line-height:1.45; }
+.page-heading p { font-size:15px; line-height:1.8; max-width:75ch; }
+.assignment-copy .title { font-size:17px; line-height:1.65; font-weight:600; }
+.assignment-description { font-size:14px; line-height:1.8; }
+.card-bottom .meta, .row-action, .sort-label { font-size:12px; }
+.subject-tag, .subject-filters button { font-size:13px; }
+.class-switcher button { font-size:14px; padding:9px 18px; }
+.assignments-heading p, .work-page .hint, .work-form .hint { font-size:14px; line-height:1.8; }
+.btn-primary { font-size:14px; padding:11px 20px; }
+.work-table th { font-size:14px; }
+.work-table th, .work-table td { padding:18px; }
+.app-sidebar.is-collapsed .sidebar-profile { margin:0 0 20px; padding-bottom:18px; }
+.app-sidebar.is-collapsed .sidebar-profile .sidebar-account { padding:0; }
+.app-sidebar.is-collapsed .sidebar-profile .sidebar-account>.avatar { width:38px; height:38px; font-size:15px; }
+@media(max-width:1100px) { .topbar-nav { display:none; } .topbar-search { margin-left:auto; width:min(36vw,310px); } .workspace-header~.page { padding:30px; } }
+@media(max-width:760px) {
+  .workspace-header.header { height:64px; padding-inline:12px; }
+  .workspace-header~.page { padding:28px 20px; min-height:calc(100dvh - 80px); }
+  .topbar-title { font-size:15px; }
+  .topbar-search { width:min(37vw,230px); margin-left:auto; }
+  .topbar-search input { font-size:13px; }
+  .page-heading h1, .main-title { font-size:25px; }
+  .page-heading p { font-size:14px; }
+  .sidebar-profile { margin-inline:8px; }
+  .app-sidebar.is-collapsed .sidebar-profile { margin:0 8px 26px; padding-bottom:24px; }
+  .app-sidebar.is-collapsed .sidebar-profile .sidebar-account { padding:6px 0 16px; }
+  .app-sidebar.is-collapsed .sidebar-profile .sidebar-account>.avatar { width:46px; height:46px; font-size:18px; }
+  .assignment-copy .title { font-size:16px; }
+  .work-table th, .work-table td { padding:14px; }
+}

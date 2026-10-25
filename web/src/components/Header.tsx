@@ -58,7 +58,9 @@ export default function Header({ teacherName }: { teacherName?: string }) {
 
   const shown = teacherName ?? me?.display_name?.trim() ?? ''
   const accountLabel = teacherName !== undefined ? shown || '老师' : shown || '设置署名'
-  const account = <><span className="avatar" aria-hidden="true">{(shown || '老师').slice(0, 1)}</span><span className="account-copy"><strong>{accountLabel}</strong><small>账号与批改额度</small></span><Icon name="chevron" size={16} /></>
+  const account = <><span className="avatar" aria-hidden="true">{(shown || '老师').slice(0, 1)}</span><span className="account-copy"><strong>{accountLabel}</strong><small>教师工作台</small></span><Icon name="chevron" size={16} /></>
+  const hasQuota = me?.quota_total !== undefined && me.quota_used !== undefined
+  const quotaRemaining = hasQuota ? Math.max(0, me!.quota_total! - me!.quota_used!) : 0
   const logout = () => {
     if (!window.dispatchEvent(new Event('teacher-logout', { cancelable: true }))) return
     clearToken()
@@ -69,14 +71,16 @@ export default function Header({ teacherName }: { teacherName?: string }) {
     <a className="skip-link" href="#main-content">跳到主要内容</a>
     <aside id="workspace-sidebar" ref={sidebar} className={`app-sidebar${collapsed ? ' is-collapsed' : ''}${mobileOpen ? ' is-open' : ''}`} aria-label="工作台侧栏">
       <div className="sidebar-brand"><Link className="brand" to="/" aria-label="红笔君，返回班级"><Brand /></Link><button className="mobile-nav-close" type="button" aria-label="关闭导航" onClick={() => { setMobileOpen(false); mobileToggle.current?.focus() }}><Icon name="close" /></button></div>
+      <section className="sidebar-profile" aria-label="教师账号与额度">
+        {teacherName !== undefined || !me ? <div className="sidebar-account">{account}</div> : <button type="button" className="sidebar-account" aria-label={`${accountLabel}，账号与批改额度`} aria-haspopup="dialog" onClick={() => { if (mobileOpen) { setMobileOpen(false); mobileToggle.current?.focus() } setOpen(true); void load() }}>{account}</button>}
+        {hasQuota && <div className="sidebar-quota"><div><span>本月批改额度</span><strong>{me!.quota_used} / {me!.quota_total} 页</strong></div><progress aria-label="本月批改额度" value={me!.quota_used} max={Math.max(1, me!.quota_total!)} /><p>还可批改 <b>{quotaRemaining}</b> 页</p></div>}
+      </section>
       <nav className="primary-nav" aria-label="主导航">
         <Link to="/" className={`sidebar-link${location.pathname === '/' && !classView ? ' active' : ''}`} aria-label="班级作业" aria-current={location.pathname === '/' && !classView ? 'page' : undefined} title="班级作业"><Icon name="home" /><span>班级作业</span></Link>
         <Link to="/?view=classes" className={`sidebar-link${classView || location.pathname.startsWith('/classes/') ? ' active' : ''}`} aria-label="我的班级" aria-current={classView ? 'page' : undefined} title="我的班级"><Icon name="users" /><span>我的班级</span></Link>
       </nav>
       {assignmentId && <div className="sidebar-assignment"><div className="sidebar-group-label"><Icon name="book" size={17} /><span>当前作业 · 批改</span></div><nav className="assignment-nav" aria-label="作业功能">{workNav.map(item => <span className="sidebar-nav-entry" key={item.path}>{item.path === 'grades' && <span className="sidebar-subgroup">成绩与分析</span>}<NavLink key={item.path} end to={workPath(assignmentId, item.path)} className="sidebar-link" aria-label={item.label} title={item.label}><Icon name={item.icon} size={18} /><span>{item.label}</span></NavLink></span>)}</nav></div>}
       <div className="sidebar-bottom">
-        {me?.quota_total !== undefined && me.quota_used !== undefined && <div className="sidebar-quota"><div><Icon name="file" size={16} /><span>本月批改</span><strong>{me.quota_used} / {me.quota_total} 页</strong></div><progress aria-label="本月批改额度" value={me.quota_used} max={Math.max(1, me.quota_total)} /></div>}
-        {teacherName !== undefined || !me ? <div className="sidebar-account">{account}</div> : <button type="button" className="sidebar-account" aria-label={`${accountLabel}，账号与批改额度`} aria-haspopup="dialog" onClick={() => { if (mobileOpen) { setMobileOpen(false); mobileToggle.current?.focus() } setOpen(true); void load() }}>{account}</button>}
         <button type="button" className="sidebar-link logout-link" aria-label="退出登录" onClick={logout} title="退出登录"><Icon name="logout" size={18} /><span>退出登录</span></button>
       </div>
     </aside>
@@ -85,6 +89,11 @@ export default function Header({ teacherName }: { teacherName?: string }) {
       <button type="button" className="desktop-nav-toggle icon-button" aria-label={collapsed ? '展开侧边栏' : '折叠侧边栏'} aria-expanded={!collapsed} aria-controls="workspace-sidebar" onClick={() => setCollapsed(!collapsed)}><Icon name="panel" size={20} /></button>
       <button ref={mobileToggle} type="button" className="mobile-nav-toggle icon-button" aria-label="打开导航" aria-expanded={mobileOpen} aria-controls="workspace-sidebar" onClick={() => setMobileOpen(true)}><Icon name="panel" size={20} /></button>
       <span className="topbar-divider" /><span className="topbar-title">{title}</span>
+      <nav className="topbar-nav" aria-label="工作台快捷导航">
+        <Link to="/" aria-current={location.pathname === '/' && !classView ? 'page' : undefined}>作业管理</Link>
+        <Link to="/?view=classes" aria-current={classView || location.pathname.startsWith('/classes/') ? 'page' : undefined}>班级管理</Link>
+        {assignmentId && <Link to={`/a/${assignmentId}`} aria-current={location.pathname === `/a/${assignmentId}` ? 'page' : undefined}>本次学情</Link>}
+      </nav>
       <form className="topbar-search" role="search" onSubmit={event => {
         event.preventDefault()
         const next = location.pathname === '/' ? new URLSearchParams(location.search) : new URLSearchParams()
