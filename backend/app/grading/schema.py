@@ -1,4 +1,5 @@
 from typing import Annotated, Literal
+from math import isclose
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
 
@@ -24,6 +25,19 @@ def _feedback_text(value):
 FeedbackText = Annotated[Annotated[str, Field(max_length=12000)] | None, BeforeValidator(_feedback_text)]
 
 
+class ScoringStep(BaseModel):
+    criterion: str = Field(min_length=1, max_length=500)
+    score: float = Field(ge=0, allow_inf_nan=False)
+    max_score: float = Field(ge=0, allow_inf_nan=False)
+    reason: str = Field(min_length=1, max_length=1500)
+
+    @model_validator(mode="after")
+    def _check(self):
+        if self.score > self.max_score:
+            raise ValueError("step score must not exceed max_score")
+        return self
+
+
 class GradedQuestion(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -43,11 +57,17 @@ class GradedQuestion(BaseModel):
     scoring_basis: FeedbackText = None
     strengths: FeedbackText = None
     guidance: FeedbackText = None
+    scoring_steps: list[ScoringStep] | None = Field(default=None, max_length=30)
 
     @model_validator(mode="after")
     def _check(self):
         if self.score > self.max_score:
             raise ValueError("score must not exceed max_score")
+        if self.scoring_steps:
+            if not isclose(sum(s.score for s in self.scoring_steps), self.score, abs_tol=0.001):
+                raise ValueError("step scores must add up to score")
+            if not isclose(sum(s.max_score for s in self.scoring_steps), self.max_score, abs_tol=0.001):
+                raise ValueError("step maximums must add up to max_score")
         x1, y1, x2, y2 = self.bbox
         if not (x1 < x2 and y1 < y2):
             raise ValueError("bbox must satisfy x1 < x2 and y1 < y2")

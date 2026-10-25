@@ -112,7 +112,7 @@ async def _model_phase(
     image = await asyncio.to_thread(prepare_image, await storage.get(page.image_key))
     answers = await _answer_key(db, assignment)
     kps = await candidates(db, assignment.subject, cls.grade)
-    prompt = build_grading_prompt(assignment.subject.value, cls.grade, list(answers.values()), kps)
+    prompt = build_grading_prompt(assignment.subject.value, cls.grade, list(answers.values()), kps, assignment.grading_rules)
     ctx = _Context(assignment.id, cls.id, cls.teacher_id, answers, {kp.id for kp in kps}, image)
     return ctx, await _call_model(db, model, prompt, image, cls.teacher_id)
 
@@ -282,6 +282,9 @@ def _result_row(gq: GradedQuestion, item: AnswerItem | None, allowed_kps: set[in
         correct, verified, score = item.answer, True, min(gq.score, max_score)
     else:
         max_score, correct, verified, score = gq.max_score, gq.correct_answer, False, gq.score
+    # A teacher's confirmed maximum may differ from the model's. Never show
+    # a breakdown whose denominator no longer matches the stored total.
+    mismatched_steps = bool(gq.scoring_steps) and max_score != gq.max_score
     # 没拿满分就算错 (same rule as review overrides): the stored flag follows the final score, not the
     # model's own is_correct, which can disagree with the score it gave.
     is_correct = score >= max_score if max_score is not None else gq.is_correct
@@ -294,16 +297,17 @@ def _result_row(gq: GradedQuestion, item: AnswerItem | None, allowed_kps: set[in
         is_correct=is_correct,
         score=score,
         max_score=max_score,
-        confidence=gq.confidence,
+        confidence=0 if mismatched_steps else gq.confidence,
         is_subjective=item.is_subjective if item is not None else gq.is_subjective,
         reviewed=False,
         model_is_correct=None,
         model_score=None,
         error_reason=gq.error_reason,
         question_type=gq.question_type,
-        scoring_basis=gq.scoring_basis,
+        scoring_basis=("AI步骤分与老师确认的满分不一致，步骤明细暂不采用，请老师复核。\n" + (gq.scoring_basis or "")) if mismatched_steps else gq.scoring_basis,
         strengths=gq.strengths,
         guidance=gq.guidance,
+        scoring_steps=[step.model_dump() for step in gq.scoring_steps] if gq.scoring_steps and not mismatched_steps else None,
         knowledge_point_id=filter_knowledge_point(gq.knowledge_point_id, allowed_kps),
     )
 

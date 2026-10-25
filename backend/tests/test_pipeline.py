@@ -526,10 +526,21 @@ async def test_is_subjective_from_answer_key(db, storage, uploaded_page, confirm
 
 
 async def test_instructional_feedback_survives_grading(db, storage, uploaded_page, roster_zhangsan):
-    feedback = dict(question_type="calculation", scoring_basis="计算2分，单位1分，合计2/3分", error_reason="漏写单位，扣1分",
+    feedback = dict(scoring_steps=[dict(criterion="计算", score=2, max_score=2, reason="列式计算正确"), dict(criterion="单位", score=0, max_score=1, reason="漏写单位")], question_type="calculation", scoring_basis="计算2分，单位1分，合计2/3分", error_reason="漏写单位，扣1分",
                     strengths="正确列出算式，数量关系清楚", guidance="在结果后补上厘米，并检查题目要求")
     model = FakeModel([graded(student_name="张三", questions=[q(no="1", score=2, max_score=3, **feedback)])])
     await grade_page(db, storage, model, uploaded_page.id)
     row = (await _results(db))[0]
     for key, value in feedback.items():
         assert getattr(row, key) == value
+
+
+async def test_teacher_maximum_conflict_cannot_publish_inconsistent_steps(db, storage, uploaded_page, confirmed_key_q1_q2, roster_zhangsan):
+    confirmed_key_q1_q2[0].max_score = 3
+    await db.commit()
+    model = FakeModel([graded(student_name="张三", questions=[q(no="1", score=2, max_score=4, scoring_steps=[dict(criterion="方法", score=2, max_score=4, reason="计算出错，保留方法分")])])])
+    await grade_page(db, storage, model, uploaded_page.id)
+    row = (await _results(db))[0]
+    assert row.max_score == 3 and row.score == 2
+    assert row.scoring_steps is None and row.needs_review
+    assert "满分不一致" in row.scoring_basis

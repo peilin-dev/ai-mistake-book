@@ -95,7 +95,7 @@ export default function Grades() {
                   <td>{s.needs_review_count} 项</td>
                   <td>
                     <Link to={`/a/${assignmentId}/students/${s.id}`}>
-                      查看作答与历次成绩
+                      查看原卷与 AI 批改
                     </Link>
                   </td>
                 </tr>

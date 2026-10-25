@@ -44,6 +44,11 @@ class AssignmentIn(BaseModel):
     class_id: int
     subject: Subject
     title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
+    grading_rules: Annotated[str, StringConstraints(strip_whitespace=True, max_length=6000)] | None = None
+
+
+class GradingRulesIn(BaseModel):
+    grading_rules: Annotated[str, StringConstraints(strip_whitespace=True, max_length=6000)] | None
 
 
 class AssignmentOut(BaseModel):
@@ -53,6 +58,7 @@ class AssignmentOut(BaseModel):
     subject: Subject
     title: str
     answer_key_status: AnswerKeyStatus
+    grading_rules: str | None = None
 
     @computed_field
     @property
@@ -77,7 +83,7 @@ async def create_assignment(
     db: AsyncSession = Depends(get_db),
 ):
     await own_class(db, teacher, body.class_id)
-    a = Assignment(class_id=body.class_id, subject=body.subject, title=body.title)
+    a = Assignment(class_id=body.class_id, subject=body.subject, title=body.title, grading_rules=body.grading_rules or None)
     db.add(a)
     teacher.last_subject = body.subject
     await db.commit()  # insert + last_subject update in one transaction
@@ -104,6 +110,19 @@ async def get_assignment(
     db: AsyncSession = Depends(get_db),
 ):
     return await own_assignment(db, teacher, assignment_id)
+
+
+@router.patch("/assignments/{assignment_id}/grading-rules", response_model=AssignmentOut)
+async def update_grading_rules(
+    assignment_id: int,
+    body: GradingRulesIn,
+    teacher: Teacher = Depends(current_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    assignment = await own_assignment(db, teacher, assignment_id)
+    assignment.grading_rules = body.grading_rules or None
+    await db.commit()
+    return assignment
 
 
 @router.get("/assignments/{assignment_id}/progress", response_model=ProgressOut)

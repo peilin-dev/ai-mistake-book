@@ -1,4 +1,5 @@
 import type { QuestionResult } from '../lib/results'
+import ScoreBreakdown from './ScoreBreakdown'
 
 export function feedbackSections(q: QuestionResult): [string, string | null | undefined][] {
   const subject = q.subject || 'other'
@@ -29,10 +30,11 @@ export function feedbackSections(q: QuestionResult): [string, string | null | un
 
 export default function GradingFeedback({ question: q }: { question: QuestionResult }) {
   const sections = feedbackSections(q)
-  if (!sections.length) return null
+  if (!sections.length && !q.scoring_steps?.length) return null
   return (
     <div className="grading-feedback">
       <p className="hint">AI 批改分析 · 请结合原图核对{q.reviewed ? '；老师已复核，以下保留 AI 原始建议，分数以当前成绩为准。' : ''}</p>
+      <ScoreBreakdown question={q} />
       {sections.map(([title, content]) => (
         <section key={title}>
           <h4>{title}</h4>

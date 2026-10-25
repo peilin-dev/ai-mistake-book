@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import WorkShell from '../components/WorkShell'
 import Confirm from '../components/Confirm'
+import GradingRulesEditor from '../components/GradingRulesEditor'
 import { errorText, request } from '../lib/api'
 import {
   ACCEPT,
@@ -21,6 +22,7 @@ import {
 } from '../lib/answerKey'
 import { mergeKeys } from '../lib/answerKeyMerge'
 import { useLeaveGuard } from '../lib/useLeaveGuard'
+import { takeAssignmentMaterials } from '../lib/assignmentMaterials'
 type Extraction = {
   page: SourcePage
   items?: AnswerKeyItem[]
@@ -152,6 +154,14 @@ export default function AnswerKey() {
     setNotice('')
   }
   const unresolved = extractions.some((p) => !p.items && !p.skipped)
+  useEffect(() => {
+    if (!loaded) return
+    const timer = setTimeout(() => {
+      const files = takeAssignmentMaterials(Number(assignmentId))
+      if (files.length) void start(files)
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [loaded, assignmentId])
   return (
     <WorkShell
       title="答案卷核对"
@@ -167,6 +177,7 @@ export default function AnswerKey() {
           {notice}
         </p>
       )}
+      <GradingRulesEditor assignmentId={assignmentId!} />
       <div className="work-actions">
         <label className="file-button btn-primary">
           {busy ? '正在处理…' : confirmed ? '重新上传答案卷' : '选择答案卷'}

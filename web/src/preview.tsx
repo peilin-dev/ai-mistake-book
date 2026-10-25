@@ -51,7 +51,7 @@ let samplePages = [
   { page_id:2,seq:2,status:'done',fail_reason:null,student_id:null,student_name:null,recognized_name:null,source:'web' },
   { page_id:3,seq:3,status:'failed',fail_reason:'model_unavailable',student_id:null,student_name:null,recognized_name:null,source:'web' },
 ]
-const sampleQuestion = {subject:'math',question_type:'calculation',error_reason:'小数位数判断错误：两个因数共两位小数，积却只保留了一位。',scoring_basis:'本题按计算结果计分，结果错误扣 5 分。',guidance:'先算 24 × 3 = 72，再从右往左数两位点上小数点，得到 0.72。估算时，2.4 的三成应小于 2.4，可用于检查结果。',id:1,page_id:1,question_no:'3',question_text:'计算：2.4 × 0.3',student_answer:'7.2',correct_answer:'0.72',is_correct:false,score:0,max_score:5,crop_url:null,image_url:null,student_name:'示例学生甲',reason:'answer_mismatch',needs_review:true,reviewed:false}
+const sampleQuestion = {subject:'math',question_type:'calculation',error_reason:'小数位数判断错误：两个因数共两位小数，学生将积写成 7.2，小数点应再向左移动一位。',scoring_basis:'AI建议评分细则，待老师确认：整数乘法2分，小数点位置3分；合计2/5分。',guidance:'先算 24 × 3 = 72，再从右往左数两位点上小数点，得到 0.72。估算时，2.4 的三成应小于 2.4，可用于检查结果。',id:1,page_id:1,question_no:'3',question_text:'计算：2.4 × 0.3',student_answer:'7.2',correct_answer:'0.72',is_correct:false,score:2,max_score:5,crop_url:null,image_url:'/tests/fixtures/comparison-example.svg',scoring_steps:[{criterion:'整数乘法',score:2,max_score:2,reason:'24 × 3 = 72，整数乘法正确。'},{criterion:'小数点位置',score:0,max_score:3,reason:'两个因数共两位小数，积应为 0.72。'}],student_name:'示例学生甲',reason:'answer_mismatch',needs_review:true,reviewed:false}
 let sampleQuestions = [sampleQuestion]
 if (import.meta.env.DEV) {
   // No fallback to native fetch: preview actions never reach a real server.
@@ -67,6 +67,7 @@ if (import.meta.env.DEV) {
     if (/^\/api\/pages\/\d+$/.test(p) && init?.method === 'DELETE') { samplePages = samplePages.filter(r => r.page_id !== Number(p.split('/').pop())); return new Response(null,{status:204}) }
     if (p.endsWith(':retry')) return response({page_id:3,status:'queued'})
     if (/^\/api\/question-results\/\d+$/.test(p) && init?.method === 'PATCH') { sampleQuestions = []; return response({...sampleQuestion,...JSON.parse(String(init.body)),reviewed:true,needs_review:false}) }
+    if (p.endsWith('/grading-rules')) return response({ ...assignments[0], grading_rules: JSON.parse(String(init?.body)).grading_rules })
     if (p.endsWith('/answer-key')) return response({answer_key_status:'confirmed',items:[{question_no:'1',answer:'0.72',max_score:5,is_subjective:false},{question_no:'2',answer:'3.6',max_score:5,is_subjective:false}],regrade_suggested:false})
     if (p.endsWith('/submissions')) return response(students.slice(0,4).map((s,i) => ({id:s.id,student_id:s.id,student_name:s.name,total_score:85+i*3,needs_review_count:i===0?1:0})))
     if (p.endsWith('/history')) return response(assignments.slice(0,4).map((a,i) => ({assignment_id:a.id,title:a.title,score:85-i*4,max_score:100,ratio:(85-i*4)/100})))

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import WorkShell from '../components/WorkShell'
 import PageThumbnail from '../components/PageThumbnail'
 import { errorText, request } from '../lib/api'
@@ -12,6 +12,7 @@ import {
 } from '../lib/intake'
 import { summaryText, uploadAll, type UploadState } from '../lib/uploader'
 import { useLeaveGuard } from '../lib/useLeaveGuard'
+import { takeAssignmentMaterials } from '../lib/assignmentMaterials'
 type State = { state: UploadState; error?: string }
 const labels: Record<UploadState, string> = {
   waiting: '等待上传',
@@ -23,6 +24,7 @@ const labels: Record<UploadState, string> = {
 }
 export default function Upload() {
   const { assignmentId } = useParams()
+  const navigate = useNavigate()
   const [pages, setPages] = useState<SourcePage[]>([]),
     [bad, setBad] = useState<BadFile[]>([]),
     [states, setStates] = useState<Record<string, State>>({}),
@@ -80,6 +82,13 @@ export default function Upload() {
       if (live.current) setExpanding(false)
     }
   }
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const files = takeAssignmentMaterials(Number(assignmentId))
+      if (files.length) void add(files)
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [assignmentId])
   async function upload(list: SourcePage[]) {
     if (
       lock.current ||
@@ -128,6 +137,17 @@ export default function Upload() {
       (p) => !['done', 'duplicate'].includes(states[p.id]?.state),
     ),
     over = pages.length > MAX_BATCH
+  const complete = Boolean(summary) && !busy && !expanding && bad.length === 0 &&
+    pages.length > 0 && pages.every(p => ['done', 'duplicate'].includes(states[p.id]?.state))
+  useEffect(() => {
+    if (!complete) return
+    // Let the completed upload release the route-leave guard before navigating.
+    const timer = setTimeout(() => navigate(`/a/${assignmentId}/work`, {
+      replace: true,
+      state: { uploadSummary: summary },
+    }), 0)
+    return () => clearTimeout(timer)
+  }, [complete, navigate, assignmentId, summary])
   return (
     <WorkShell
       title="上传学生卷子"
@@ -156,7 +176,7 @@ export default function Upload() {
             }}
           />
         </label>
-        <p>一次最多上传 200 页，调整顺序不会改变卷子的学生归属。</p>
+        <p>一次最多上传 200 页；全部上传成功后自动进入批改进度。</p>
       </section>
       {error && (
         <p className="err" role="alert">

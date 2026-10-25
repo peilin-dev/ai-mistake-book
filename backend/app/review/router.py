@@ -54,6 +54,7 @@ def _question_fields(r: QuestionResult) -> dict:
         "scoring_basis": r.scoring_basis,
         "strengths": r.strengths,
         "guidance": r.guidance,
+        "scoring_steps": r.scoring_steps,
     }
 
 
@@ -341,6 +342,11 @@ async def get_submission(
     if row is None:
         raise HTTPException(404, "submission not found")
     sub, student_name, subject = row
+    pages = list((await db.execute(
+        select(Page).where(Page.assignment_id == sub.assignment_id, Page.student_id == sub.student_id)
+        .order_by(Page.seq)
+    )).scalars())
+    page_images = {p.id: None if p.original_deleted_at else storage.signed_url(p.image_key) for p in pages}
     results = (await db.execute(
         select(QuestionResult)
         .join(Page, Page.id == QuestionResult.page_id)
@@ -354,5 +360,8 @@ async def get_submission(
         "student_name": student_name,
         "total_score": sub.total_score,
         "needs_review_count": sub.needs_review_count,
-        "questions": [{**_result_out(r, storage), "subject": subject.value} for r in results],
+        "pages": [{"page_id": p.id, "seq": p.seq, "status": p.status.value,
+                   "image_url": page_images[p.id]} for p in pages],
+        "questions": [{**_result_out(r, storage), "subject": subject.value,
+                       "image_url": page_images.get(r.page_id)} for r in results],
     }

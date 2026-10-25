@@ -12,6 +12,9 @@ export interface QuestionResult {
   scoring_basis?: string | null
   strengths?: string | null
   guidance?: string | null
+  scoring_steps?: { criterion: string; score: number; max_score: number; reason: string }[] | null
+  model_score?: number | null
+  model_is_correct?: boolean | null
   is_correct: boolean
   score: number
   max_score: number | null

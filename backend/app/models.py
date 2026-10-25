@@ -9,6 +9,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    JSON,
     Numeric,
     String,
     Text,
@@ -118,6 +119,7 @@ class Student(_Base):
 
 class Assignment(_Base):
     __tablename__ = "assignments"
+    grading_rules: Mapped[str | None] = mapped_column(Text)
     class_id: Mapped[int] = _fk("classes.id")
     subject: Mapped[Subject] = mapped_column(_enum(Subject, "subject"))
     title: Mapped[str] = mapped_column(String(128))
@@ -220,6 +222,7 @@ class QuestionResult(_Base):
     scoring_basis: Mapped[str | None] = mapped_column(Text)
     strengths: Mapped[str | None] = mapped_column(Text)
     guidance: Mapped[str | None] = mapped_column(Text)
+    scoring_steps: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
     knowledge_point_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("knowledge_points.id", ondelete="SET NULL"), index=True
     )

@@ -1,12 +1,12 @@
-import GradingFeedback from '../components/GradingFeedback'
+import PaperComparison, { type PaperPage } from '../components/PaperComparison'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import WorkShell from '../components/WorkShell'
-import ResultEditor from '../components/ResultEditor'
 import { request, errorText } from '../lib/api'
 import type { QuestionResult, Submission } from '../lib/results'
 import { openViewerTab } from '../lib/download'
 interface Detail extends Submission {
+  pages?: PaperPage[]
   questions: QuestionResult[]
 }
 interface History {
@@ -23,11 +23,11 @@ export default function Student() {
     [summary, setSummary] = useState<string | null>(),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
-    [editing, setEditing] = useState<number>(),
     [answers, setAnswers] = useState(true)
   const lock = useRef(false)
   useEffect(() => {
     let live = true
+    setData(undefined); setHistory([]); setSummary(undefined); setError('')
     Promise.all([
       request<Detail>('GET', `/api/submissions/${submissionId}`),
       request<History[]>('GET', `/api/submissions/${submissionId}/history`),
@@ -81,6 +81,13 @@ export default function Student() {
           <p>
             当前总分 {data.total_score} · 待复核 {data.needs_review_count} 项
           </p>
+          <PaperComparison questions={data.questions} pages={data.pages} onSaved={async () => {
+            const [fresh, h] = await Promise.all([
+              request<Detail>('GET', `/api/submissions/${submissionId}`),
+              request<History[]>('GET', `/api/submissions/${submissionId}/history`),
+            ])
+            setData(fresh); setHistory(h); setSummary(undefined)
+          }} />
           <div className="work-actions">
             <Link to={`/a/${assignmentId}/grades`}>返回成绩表</Link>
             <button disabled={busy} onClick={() => void exportPdf('student')}>
@@ -135,64 +142,6 @@ export default function Student() {
               {busy ? '正在处理…' : '生成学习小结'}
             </button>
           </section>
-          <h2 className="serif">本次作答</h2>
-          {data.questions.map((q) => (
-            <section className="question-row" key={q.id}>
-              <div className="section-heading">
-                <h3>
-                  第 {q.question_no} 题 · {q.is_subjective ? '评分' : q.is_correct ? '对' : '错'} ·{' '}
-                  {q.score} / {q.max_score ?? '未标分值'}
-                </h3>
-                <button
-                  onClick={() =>
-                    setEditing(editing === q.id ? undefined : q.id)
-                  }
-                >
-                  修改判定
-                </button>
-              </div>
-              <p>{q.question_text}</p>
-              <p>
-                学生答案：{q.student_answer || '未识别'}　参考答案：
-                {q.correct_answer || '未识别'}
-              </p>
-              <GradingFeedback question={q} />
-              {q.crop_url && (
-                <a href={q.crop_url} target="_blank" rel="noreferrer">
-                  <img
-                    className="result-crop"
-                    src={q.crop_url}
-                    alt={`第 ${q.question_no} 题作答，点击放大`}
-                    loading="lazy"
-                  />
-                </a>
-              )}
-              {editing === q.id && (
-                <ResultEditor
-                  question={q}
-                  onSaved={async () => {
-                    setEditing(undefined)
-                    try {
-                      const fresh = await request<Detail>(
-                        'GET',
-                        `/api/submissions/${submissionId}`,
-                      )
-                      setData(fresh)
-                      setHistory(
-                        await request<History[]>(
-                          'GET',
-                          `/api/submissions/${submissionId}/history`,
-                        ),
-                      )
-                      setSummary(undefined)
-                    } catch (e) {
-                      setError(errorText(e))
-                    }
-                  }}
-                />
-              )}
-            </section>
-          ))}
           <h2 className="serif">同班同学科历次成绩</h2>
           <div className="table-scroll">
             <table className="work-table">

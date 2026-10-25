@@ -149,3 +149,19 @@ async def test_lists_of_foreign_assignment_are_404(client_for, make_teacher, my_
     other = client_for(await make_teacher())
     assert (await other.get(f"/api/assignments/{my_assignment.id}/pages")).status_code == 404
     assert (await other.get(f"/api/assignments/{my_assignment.id}/submissions")).status_code == 404
+
+
+async def test_teacher_rubric_persist_update_clear_and_ownership(auth_client, my_class, make_assignment):
+    body = dict(class_id=my_class.id, subject="physics", title="力学", grading_rules="  列式2分，计算1分  ")
+    created = await auth_client.post("/api/assignments", json=body)
+    assert created.status_code == 201
+    aid = created.json()["id"]
+    path = f"/api/assignments/{aid}/grading-rules"
+    assert created.json()["grading_rules"] == "列式2分，计算1分"
+    saved = await auth_client.patch(path, json={"grading_rules": "允许等价方法"})
+    assert saved.json()["grading_rules"] == "允许等价方法"
+    assert (await auth_client.get(f"/api/assignments/{aid}")).json()["grading_rules"] == "允许等价方法"
+    assert (await auth_client.patch(path, json={"grading_rules": "x" * 6001})).status_code == 422
+    assert (await auth_client.patch(path, json={"grading_rules": "  "})).json()["grading_rules"] is None
+    foreign = await make_assignment()
+    assert (await auth_client.patch(f"/api/assignments/{foreign.id}/grading-rules", json={"grading_rules": "改分"})).status_code == 404

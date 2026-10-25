@@ -387,3 +387,25 @@ async def test_feedback_edit_and_submission_roundtrip(auth_client, graded_submis
         assert row[key] == value
     response = await auth_client.patch(f"/api/question-results/{qr.id}", json={"guidance": "x" * 12001})
     assert response.status_code == 422
+
+
+async def test_original_paper_and_steps_survive_teacher_correction(auth_client, db, graded_submission):
+    from datetime import datetime, timezone
+    q = graded_submission.questions[0]
+    q.scoring_steps = [dict(criterion="方法", score=2, max_score=2, reason="方法正确")]
+    await db.commit()
+    path = f"/api/submissions/{graded_submission.id}"
+    initial = (await auth_client.get(path)).json()
+    question = initial["questions"][0]
+    page = next(p for p in initial["pages"] if p["page_id"] == q.page_id)
+    assert page["image_url"] and question["image_url"] == page["image_url"]
+    await auth_client.patch(f"/api/question-results/{q.id}", json={"score": 1})
+    corrected = (await auth_client.get(path)).json()["questions"][0]
+    assert corrected["score"] == 1 and corrected["model_score"] == 2
+    assert corrected["scoring_steps"] == q.scoring_steps
+    original = await db.get(Page, q.page_id)
+    original.original_deleted_at = datetime.now(timezone.utc)
+    await db.commit()
+    expired = (await auth_client.get(path)).json()
+    assert expired["questions"][0]["image_url"] is None
+    assert next(p for p in expired["pages"] if p["page_id"] == q.page_id)["image_url"] is None

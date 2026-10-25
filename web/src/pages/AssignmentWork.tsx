@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import WorkShell from '../components/WorkShell'
 import Confirm from '../components/Confirm'
 import { request, errorText } from '../lib/api'
@@ -12,9 +12,13 @@ import {
 import { imageBody, prepareOne } from '../lib/intake'
 export default function AssignmentWork() {
   const { assignmentId } = useParams()
+  const location = useLocation()
+  const uploadSummary = typeof location.state?.uploadSummary === 'string'
+    ? location.state.uploadSummary : ''
   const [title, setTitle] = useState('作业批改'),
     [pages, setPages] = useState<PageItem[] | null>(null),
     [progress, setProgress] = useState<Progress>(),
+    [updated, setUpdated] = useState(''),
     [error, setError] = useState(''),
     [deleting, setDeleting] = useState<PageItem>(),
     [busy, setBusy] = useState(false),
@@ -35,9 +39,10 @@ export default function AssignmentWork() {
         setProgress(p)
         setPages(list)
         setError('')
+        setUpdated(new Date().toLocaleTimeString())
         if (p.queued + p.processing > 0) timer = setTimeout(load, 3000)
       } catch (e) {
-        if (live) setError(errorText(e))
+        if (live) { setError(errorText(e)); timer = setTimeout(load, 5000) }
       }
     }
     void load()
@@ -64,11 +69,13 @@ export default function AssignmentWork() {
   const unclaimed =
     pages?.filter((p) => p.status === 'done' && p.student_id === null).length ??
     0
+  const percentage = progress?.total ? Math.floor(progress.done / progress.total * 100) : 0
   return (
     <WorkShell
       title={title}
       description="先核对答案，再上传卷子；批改后处理待认领与复核。"
     >
+      {uploadSummary && <p className="notice" role="status">{uploadSummary}。上传已完成，可在下方查看批改进度。</p>}
       {error && (
         <p className="err" role="alert">
           {error}
@@ -84,17 +91,24 @@ export default function AssignmentWork() {
       </div>
       {progress && (
         <section className="progress-strip" aria-label="批改进度">
-          <p>
+          <div className="section-heading"><h2>{progress.queued + progress.processing > 0 ? '正在批改' : progress.total ? '本批处理结束' : '等待上传'}</h2><button onClick={() => setReload(n => n + 1)}>刷新进度</button></div>
+          <p className="hint" role="status">{progress.queued + progress.processing > 0 ? '每 3 秒自动更新，无需手动刷新。' : '上传新卷后继续更新。'}{updated && ` 最近更新 ${updated}`}</p>
+          <div className="grading-progress-numbers" aria-live="polite" aria-atomic="true"><p>
             <strong>
               {progress.done} / {progress.total}
             </strong>{' '}
             页已完成
-          </p>
-          <progress value={progress.done} max={Math.max(progress.total, 1)} />
+          </p><strong className="grading-percentage">{percentage}%</strong></div>
+          <progress aria-label="已成功批改比例" aria-valuetext={`已成功批改 ${progress.done} / ${progress.total} 页，${percentage}%`} value={progress.done} max={Math.max(progress.total, 1)} />
           <p>
             排队 {progress.queued} · 批改中 {progress.processing} · 失败{' '}
             {progress.failed} · 需复核 {progress.needs_review}
           </p>
+          {progress.done > 0 && <div className="work-actions">
+            {unclaimed > 0 && <Link className="btn-primary" to={`/a/${assignmentId}/claim`}>先认领 {unclaimed} 页</Link>}
+            {progress.needs_review > 0 && <Link className={unclaimed ? '' : 'btn-primary'} to={`/a/${assignmentId}/review`}>复核 {progress.needs_review} 题</Link>}
+            <Link className={!unclaimed && !progress.needs_review ? 'btn-primary' : ''} to={`/a/${assignmentId}/grades`}>查看成绩与原卷</Link>
+          </div>}
         </section>
       )}
       {pages === null && !error && <p className="empty">加载中…</p>}

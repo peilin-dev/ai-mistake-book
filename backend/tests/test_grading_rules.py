@@ -98,3 +98,25 @@ def test_page_may_have_no_questions_or_name():
 def test_unknown_knowledge_point_dropped():
     assert filter_knowledge_point(999, {1, 2}) is None and filter_knowledge_point(2, {1, 2}) == 2
     assert filter_knowledge_point(None, {1, 2}) is None
+
+
+def test_partial_credit_steps_balance_and_reject_inconsistent_totals():
+    steps = [dict(criterion="列式", score=2, max_score=2, reason="公式正确"),
+             dict(criterion="计算", score=0, max_score=2, reason="计算出错，扣2分")]
+    question = {**VALID_Q, "score": 2, "scoring_steps": steps}
+    assert GradedQuestion(**question).score == 2
+    for changes in ({"score": 1}, {"max_score": 5}, {"scoring_steps": [{**steps[0], "score": 3}]}):
+        with pytest.raises(ValidationError):
+            GradedQuestion(**{**question, **changes})
+
+
+def test_every_subject_has_specific_rules_and_teacher_rubric_reaches_prompt():
+    from app.grading.prompts import build_grading_prompt
+    from app.grading.subject_rules import SUBJECT_RULES
+    from app.models import Subject
+    assert set(SUBJECT_RULES) == {s.value for s in Subject}
+    rubric = "第3题列式2分，推导3分，计算1分"
+    for subject in Subject:
+        prompt = build_grading_prompt(subject.value, 9, [], [], rubric)
+        assert SUBJECT_RULES[subject.value] in prompt
+        assert rubric in prompt
