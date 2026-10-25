@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import WorkShell from '../components/WorkShell'
 import Confirm from '../components/Confirm'
+import BatchClaims from '../components/BatchClaims'
 import { request, errorText } from '../lib/api'
 interface Candidate {
   student_id: number
@@ -18,6 +19,7 @@ interface ClaimInfo {
 }
 export default function Claim() {
   const { assignmentId } = useParams()
+  const [batch, setBatch] = useState(true)
   const [list, setList] = useState<number[] | null>(null),
     [info, setInfo] = useState<ClaimInfo>(),
     [selected, setSelected] = useState(0),
@@ -27,6 +29,7 @@ export default function Claim() {
     [reload, setReload] = useState(0)
   const lock = useRef(false)
   useEffect(() => {
+    if (batch) return
     let live = true
     request<{ pages_unassigned: { page_id: number }[] }>(
       'GET',
@@ -37,9 +40,10 @@ export default function Claim() {
     return () => {
       live = false
     }
-  }, [assignmentId, reload])
+  }, [assignmentId, reload, batch])
   const current = list?.[0]
   useEffect(() => {
+    if (batch) return
     let live = true
     setInfo(undefined)
     setSelected(0)
@@ -55,7 +59,7 @@ export default function Claim() {
     return () => {
       live = false
     }
-  }, [current, reload])
+  }, [current, reload, batch])
   const process = useCallback(
     async (remove = false) => {
       if (lock.current || !info || (!remove && !info.candidates[selected]))
@@ -85,7 +89,7 @@ export default function Claim() {
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (
-        busy ||
+        batch || busy ||
         discard ||
         !info ||
         (e.target instanceof Element &&
@@ -109,12 +113,15 @@ export default function Claim() {
     }
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
-  }, [info, busy, discard, process])
+  }, [info, busy, discard, process, batch])
+  const modes = <div className="claim-modes" role="group" aria-label="归属处理方式"><button aria-pressed={batch} onClick={() => setBatch(true)}>批量归属</button><button aria-pressed={!batch} onClick={() => setBatch(false)}>逐页核对</button></div>
+  if (batch) return <WorkShell title="试卷归属" description="姓名和学号明确的卷子自动匹配学生；这里只处理异常页，支持多页一次确认。">{modes}<BatchClaims assignmentId={assignmentId!} /></WorkShell>
   return (
     <WorkShell
       title="待认领卷子"
       description="候选仅按缺少的题号排序，请核对原图后确认学生。上下键选择，回车确认。"
     >
+      {modes}
       {error && (
         <p role="alert" className="err">
           {error}

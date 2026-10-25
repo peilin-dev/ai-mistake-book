@@ -2,7 +2,7 @@
 import re
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +26,21 @@ router = APIRouter(tags=["review"])
 
 class AssignPage(BaseModel):
     student_id: int
+
+
+class ClaimAssignment(BaseModel):
+    page_id: int = Field(gt=0)
+    student_id: int = Field(gt=0)
+
+
+class BatchClaims(BaseModel):
+    assignments: list[ClaimAssignment] = Field(min_length=1, max_length=200)
+
+    @model_validator(mode="after")
+    def unique_pages(self):
+        if len({item.page_id for item in self.assignments}) != len(self.assignments):
+            raise ValueError("each page must appear only once")
+        return self
 
 
 class CorrectQuestion(BaseModel):
@@ -163,7 +178,14 @@ async def assign_student(
     if student is None:
         raise HTTPException(404, "student not found")
 
+    await _assign_page(db, page, student)
+    await db.commit()
+    return {"page_id": page.id, "student_id": page.student_id}
+
+
+async def _assign_page(db: AsyncSession, page: Page, student: int, *, follow: bool = True):
     settings = get_settings()
+    page_id, assignment_id = page.id, page.assignment_id
     old_student_id = page.student_id
     results = (await db.execute(
         select(QuestionResult).where(QuestionResult.page_id == page_id).execution_options(populate_existing=True)
@@ -177,19 +199,79 @@ async def assign_student(
             r.needs_review = needs_review(r.confidence, "exact", settings.REVIEW_CONFIDENCE_THRESHOLD,
                                           r.answer_mismatch)
     last = page
-    if old_student_id is not None and old_student_id != student:
+    if follow and old_student_id is not None and old_student_id != student:
         # Nameless pages that continued this page followed the old student; move them too.
         last, moved = await _move_continuation(db, page, old_student_id, submission_id)
         old_submissions |= moved
-    await attach_following_pages(db, last, submission_id, settings)
+    if follow:
+        await attach_following_pages(db, last, submission_id, settings)
     for sid in old_submissions | {submission_id}:
         await recompute_submission(db, sid)
-    await db.commit()
-    return {"page_id": page.id, "student_id": page.student_id}
+
 
 
 def _natural_key(no: str) -> list:
     return [(0, int(t), "") if t.isdigit() else (1, 0, t) for t in re.split(r"(\d+)", no) if t]
+
+
+@router.get("/assignments/{assignment_id}/claims")
+async def batch_claim_queue(
+    assignment_id: int,
+    teacher: Teacher = Depends(current_teacher),
+    db: AsyncSession = Depends(get_db),
+    storage: Storage = Depends(get_storage),
+):
+    assignment = await own_assignment(db, teacher, assignment_id)
+    students = list((await db.execute(select(Student).where(Student.class_id == assignment.class_id).order_by(Student.name, Student.id))).scalars())
+    pages = list((await db.execute(select(Page).where(Page.assignment_id == assignment_id, Page.status == PageStatus.done, Page.student_id.is_(None)).order_by(Page.seq))).scalars())
+    question_nos: dict[int, list[str]] = {}
+    if pages:
+        for pid, no in await db.execute(select(QuestionResult.page_id, QuestionResult.question_no).where(QuestionResult.page_id.in_([p.id for p in pages]))):
+            question_nos.setdefault(pid, []).append(no)
+    def normalize(value):
+        return re.sub(r"\s+", "", value or "")
+    output = []
+    for page in pages:
+        matches = [s.id for s in students if normalize(page.recognized_name) and normalize(s.name) == normalize(page.recognized_name)]
+        output.append({"page_id": page.id, "seq": page.seq, "recognized_name": page.recognized_name,
+                       "question_nos": sorted(question_nos.get(page.id, []), key=_natural_key),
+                       "image_url": None if page.original_deleted_at else storage.signed_url(page.image_key),
+                       "suggested_student_id": matches[0] if len(matches) == 1 else None})
+    return {"pages": output, "students": [{"id": s.id, "name": s.name, "student_no": s.student_no} for s in students]}
+
+
+@router.post("/assignments/{assignment_id}/claims")
+async def confirm_batch_claims(
+    assignment_id: int,
+    body: BatchClaims,
+    teacher: Teacher = Depends(current_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    assignment = await own_assignment(db, teacher, assignment_id)
+    await lock_assignment(db, assignment_id)
+    wanted = {item.page_id: item.student_id for item in body.assignments}
+    pages = list((await db.execute(select(Page).where(Page.assignment_id == assignment_id, Page.id.in_(wanted)).execution_options(populate_existing=True))).scalars())
+    if len(pages) != len(wanted):
+        raise HTTPException(404, "部分试卷不存在或不属于本作业")
+    if any(p.status != PageStatus.done or p.student_id is not None for p in pages):
+        raise HTTPException(409, "部分试卷尚未批改完成或已归属，请刷新后再确认；本批未做修改")
+    students = set((await db.execute(select(Student.id).where(Student.class_id == assignment.class_id, Student.id.in_(set(wanted.values()))))).scalars())
+    if students != set(wanted.values()):
+        raise HTTPException(404, "部分学生不属于本班级")
+    seen: dict[int, dict[str, bool]] = {}
+    rows = await db.execute(select(QuestionResult.page_id, QuestionResult.question_no, Page.student_id).join(Page, Page.id == QuestionResult.page_id).where(Page.assignment_id == assignment_id, (Page.student_id.in_(students)) | (Page.id.in_(wanted))))
+    for pid, no, existing_student in rows:
+        sid = wanted.get(pid, existing_student)
+        owned_nos = seen.setdefault(sid, {})
+        selected_page = pid in wanted
+        if no in owned_nos and (selected_page or owned_nos[no]):
+            raise HTTPException(409, f"同一学生出现重复题号 {no}，请核对是否混入另一份卷子；本批未做修改")
+        owned_nos[no] = owned_nos.get(no, False) or selected_page
+    for page in sorted(pages, key=lambda p: p.seq):
+        # Explicit groups never infer ownership of any neighbouring page.
+        await _assign_page(db, page, wanted[page.id], follow=False)
+    await db.commit()
+    return {"assigned": len(pages)}
 
 
 @router.get("/pages/{page_id}/claim-candidates")

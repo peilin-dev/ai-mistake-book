@@ -24,7 +24,7 @@ describe('workspace navigation', () => {
     const actions = await screen.findByRole('navigation', { name: '小数单元练习快捷操作' })
     expect(within(actions).getByRole('link', { name: '上传' }).getAttribute('href')).toBe('/a/7/upload')
     expect(within(actions).getByRole('link', { name: '成绩' }).getAttribute('href')).toBe('/a/7/grades')
-    fireEvent.click(screen.getByRole('button', { name: '列表', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: '列表' }))
     expect(screen.getByLabelText('当前地址').textContent).toContain('subject=math')
     expect(screen.getByLabelText('当前地址').textContent).toContain('layout=list')
     expect(container.querySelector('.assignment-list.is-list-view')).toBeTruthy()

@@ -18,6 +18,7 @@ import Review from './pages/Review'
 import Grades from './pages/Grades'
 import Student from './pages/Student'
 import Practice from './pages/Practice'
+import type { PageItem } from './lib/pages'
 import './theme.css'
 import './workspace.css'
 import './preview.css'
@@ -46,7 +47,7 @@ const students = ['示例学生甲', '示例学生乙', '示例学生丙', '示�
 const response = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } })
 
 let previewName = '林老师'
-let samplePages = [
+let samplePages: PageItem[] = [
   { page_id:1,seq:1,status:'done',fail_reason:null,student_id:1,student_name:'示例学生甲',recognized_name:'示例学生甲',source:'web' },
   { page_id:2,seq:2,status:'done',fail_reason:null,student_id:null,student_name:null,recognized_name:null,source:'web' },
   { page_id:3,seq:3,status:'failed',fail_reason:'model_unavailable',student_id:null,student_name:null,recognized_name:null,source:'web' },
@@ -62,6 +63,14 @@ if (import.meta.env.DEV) {
     if (p.endsWith('/progress')) return response({total:samplePages.length,queued:0,processing:0,done:samplePages.filter(p => p.status === 'done').length,failed:samplePages.filter(p => p.status === 'failed').length,needs_review:sampleQuestions.length})
     if (p.endsWith('/pages') && init?.method === 'GET') return response(samplePages)
     if (p.endsWith('/review')) return response({pages_unassigned:samplePages.filter(p => p.status === 'done' && p.student_id === null),questions:sampleQuestions})
+    if (p.endsWith('/claims')) {
+      if (init?.method === 'POST') {
+        const rows = JSON.parse(String(init.body)).assignments as {page_id:number; student_id:number}[]
+        samplePages = samplePages.map(page => { const row = rows.find(r => r.page_id === page.page_id); return row ? {...page, student_id:row.student_id, student_name:students.find(s=>s.id===row.student_id)?.name || null} : page })
+        return response({assigned:rows.length})
+      }
+      return response({pages:samplePages.filter(page=>page.status==='done' && page.student_id===null).map(page=>({...page, image_url:'/tests/fixtures/comparison-example.svg',question_nos:['3'],suggested_student_id:null})),students:students.map(s=>({...s,student_no:s.student_no}))})
+    }
     if (p.endsWith('/claim-candidates')) return response({page_id:2,image_url:null,question_nos:['4','5'],candidates:students.map(s => ({student_id:s.id,name:s.name,missing_all:true,page_count:1,thumb_url:null}))})
     if (/^\/api\/pages\/\d+$/.test(p) && init?.method === 'PATCH') { samplePages = samplePages.filter(r => r.page_id !== 2); return response({page_id:2,student_id:1}) }
     if (/^\/api\/pages\/\d+$/.test(p) && init?.method === 'DELETE') { samplePages = samplePages.filter(r => r.page_id !== Number(p.split('/').pop())); return new Response(null,{status:204}) }

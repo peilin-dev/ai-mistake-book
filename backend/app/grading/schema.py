@@ -78,4 +78,5 @@ class GradedPage(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     student_name: str | None
+    student_no: Annotated[str | None, BeforeValidator(_coerce_no)] = Field(default=None, max_length=32)
     questions: list[GradedQuestion]

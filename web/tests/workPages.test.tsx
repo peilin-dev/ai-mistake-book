@@ -180,6 +180,7 @@ describe('teacher work pages', () => {
       }
     })
     mount(<Claim />, '/a/:assignmentId/claim', '/a/7/claim')
+    fireEvent.click(screen.getByRole('button', { name: '逐页核对' }))
     await screen.findByText('张同学')
     fireEvent.keyDown(window, { key: 'Enter' })
     await waitFor(() =>
@@ -212,6 +213,7 @@ describe('teacher work pages', () => {
       }
     })
     mount(<Claim />, '/a/:assignmentId/claim', '/a/7/claim')
+    fireEvent.click(screen.getByRole('button', { name: '逐页核对' }))
     await screen.findByText('张同学')
     fireEvent.click(screen.getByText('确认归属'))
     expect(await screen.findByRole('alert')).toHaveProperty(

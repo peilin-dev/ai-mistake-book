@@ -18,6 +18,7 @@ SUBJECT_NAMES = {
 # Shape of spec section 7.1; values are placeholders, not an answer to copy.
 OUTPUT_SHAPE = """{
   "student_name": "卷头姓名，识别不到填 null",
+  "student_no": "卷头明确写出的学号，保留前导零；没有或看不清填 null，不得猜测",
   "questions": [
     {
       "no": "题号，字符串",
@@ -56,7 +57,7 @@ def build_grading_prompt(
         f"你是一名{grade}年级{subject_name}老师。图片是一张学生作业或试卷的照片，请逐题批改。",
         "",
         "要求：",
-        "1. 识别卷头的学生姓名填入 student_name，识别不到填 null。",
+        "1. 识别卷头的学生姓名填入 student_name，明确的学号填入 student_no，保留前导零；没有或看不清填 null，不得根据班级、座位或题目猜测身份。",
         "2. 逐题识别题号 no、题目 question_text、学生作答 student_answer（未作答填 null）。",
         "3. 判断 is_correct，给出得分 score 与满分 max_score，score 不得超过 max_score；主观题 is_subjective 填 true。",
         "4. confidence 为你对本题判断的把握程度，取值 0 到 1。",

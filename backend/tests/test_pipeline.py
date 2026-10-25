@@ -544,3 +544,23 @@ async def test_teacher_maximum_conflict_cannot_publish_inconsistent_steps(db, st
     assert row.max_score == 3 and row.score == 2
     assert row.scoring_steps is None and row.needs_review
     assert "满分不一致" in row.scoring_basis
+
+
+async def test_student_number_resolves_duplicate_names(db, storage, uploaded_page, roster_zhangsan, my_class):
+    roster_zhangsan.student_no = "001"
+    db.add(Student(class_id=my_class.id, name="张三", student_no="002"))
+    await db.commit()
+    payload = {**graded(student_name="张三", questions=[q(no="1")]), "student_no": "001"}
+    await grade_page(db, storage, FakeModel([payload]), uploaded_page.id)
+    await db.refresh(uploaded_page)
+    assert uploaded_page.student_id == roster_zhangsan.id
+
+
+async def test_conflicting_number_and_name_stays_unassigned(db, storage, uploaded_page, roster_zhangsan, my_class):
+    roster_zhangsan.student_no = "001"
+    db.add(Student(class_id=my_class.id, name="李四", student_no="002"))
+    await db.commit()
+    payload = {**graded(student_name="张三", questions=[q(no="1")]), "student_no": "002"}
+    await grade_page(db, storage, FakeModel([payload]), uploaded_page.id)
+    await db.refresh(uploaded_page)
+    assert uploaded_page.student_id is None

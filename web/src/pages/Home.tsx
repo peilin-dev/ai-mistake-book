@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import Header from '../components/Header'
 import Icon, { type IconName } from '../components/Icon'
-import AssignmentFocus from '../components/AssignmentFocus'
 import { errorText, request } from '../lib/api'
 import { dateText, subjectLabel, type AssignmentOut, type ClassOut } from '../lib/overview'
 const subjectIcons: Record<string, IconName> = { math: 'math', physics: 'physics', chemistry: 'chemistry', biology: 'biology', science: 'chemistry', history: 'history', geography: 'geography', english: 'language', chinese: 'book', politics: 'users' }
@@ -68,7 +67,6 @@ export default function Home() {
         </article>)}</section>}
         {classes && classes.length > 0 && !classView && <section className="workspace" aria-label="班级作业">
           <div className="class-switcher-row"><nav className="class-switcher" aria-label="班级">{classes.map(c => <button key={c.id} type="button" aria-pressed={c.id === selected} onClick={() => { setSelected(c.id); setParams({ class: String(c.id) }, { replace: true }) }}>{c.name}</button>)}</nav><Link to="/classes/new" className="class-add" aria-label="新建班级"><Icon name="plus" size={18} /></Link></div>
-          {!!assignments?.length && <AssignmentFocus key={assignments[0].id} assignment={assignments[0]} />}
           <div className="section-heading assignments-heading"><div><h2><Icon name="layers" size={22} />{activeClass?.name || '班级作业'}<span className="count">{assignments?.length ?? '—'} 份作业</span></h2><p>{activeClass?.grade} 年级 · 上传卷子后可查看批改进度和学生成绩。</p></div>{activeClass && <Link to={`/classes/${activeClass.id}`} className="manage-link"><Icon name="users" size={16} />管理名单</Link>}</div>
           <div className="assignment-toolbar"><div className="subject-filters" aria-label="学科筛选"><button type="button" aria-pressed={!subject} onClick={() => setFilter('subject', '')}>全部学科</button>{subjects.map(s => <button type="button" key={s} aria-pressed={subject === s} onClick={() => setFilter('subject', s)}>{subjectLabel(s)}</button>)}</div><div className="assignment-view-tools"><span className="sort-label">按创建时间 · 最新优先</span><div className="view-switch" role="group" aria-label="作业显示方式"><button aria-pressed={!listView} onClick={() => setFilter('layout', '')}><Icon name="panel" size={16} />卡片</button><button aria-pressed={listView} onClick={() => setFilter('layout', 'list')}><Icon name="layers" size={16} />列表</button></div></div></div>
           {query && <div className="search-summary"><span>“{query}” 的搜索结果</span><button type="button" onClick={() => setFilter('q', '')}>清除搜索</button></div>}

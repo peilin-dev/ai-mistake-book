@@ -409,3 +409,61 @@ async def test_original_paper_and_steps_survive_teacher_correction(auth_client, 
     expired = (await auth_client.get(path)).json()
     assert expired["questions"][0]["image_url"] is None
     assert next(p for p in expired["pages"] if p["page_id"] == q.page_id)["image_url"] is None
+
+
+async def test_batch_claims_multiple_pages_are_atomic_and_do_not_claim_neighbors(auth_client, db, my_assignment, roster_zhangsan, make_done_page):
+    from tests.conftest import make_result
+    pages = [await make_done_page(i) for i in (1, 2, 3)]
+    for i, p in enumerate(pages):
+        p.source = "phone"
+        db.add(make_result(p.id, None, str(i + 1), needs_review=True))
+    await db.commit()
+    response = await auth_client.post(f"/api/assignments/{my_assignment.id}/claims", json={"assignments": [{"page_id": p.id, "student_id": roster_zhangsan.id} for p in pages[:2]]})
+    assert response.status_code == 200 and response.json()["assigned"] == 2
+    for p in pages[:2]:
+        await db.refresh(p)
+        assert p.student_id == roster_zhangsan.id
+    await db.refresh(pages[2])
+    assert pages[2].student_id is None
+    sub = (await db.execute(select(Submission).where(Submission.student_id == roster_zhangsan.id))).scalar_one()
+    assert sub.total_score == 4 and sub.needs_review_count == 0
+
+
+async def test_batch_claim_rejects_duplicate_questions_without_partial_changes(auth_client, db, my_assignment, roster_zhangsan, make_done_page):
+    from tests.conftest import make_result
+    pages = [await make_done_page(i) for i in (1, 2)]
+    for p in pages:
+        db.add(make_result(p.id, None, "1"))
+    await db.commit()
+    response = await auth_client.post(f"/api/assignments/{my_assignment.id}/claims", json={"assignments": [{"page_id": p.id, "student_id": roster_zhangsan.id} for p in pages]})
+    assert response.status_code == 409
+    for p in pages:
+        await db.refresh(p)
+        assert p.student_id is None
+
+
+async def test_batch_claim_scope_stale_and_payload_validation(auth_client, db, my_assignment, unmatched_page, roster_zhangsan, other_class_student, make_assignment):
+    path = f"/api/assignments/{my_assignment.id}/claims"
+    item = {"page_id": unmatched_page.id, "student_id": roster_zhangsan.id}
+    assert (await auth_client.post(path, json={"assignments": [item, item]})).status_code == 422
+    assert (await auth_client.post(path, json={"assignments": [{**item, "student_id": other_class_student.id}]})).status_code == 404
+    foreign = await make_assignment()
+    assert (await auth_client.get(f"/api/assignments/{foreign.id}/claims")).status_code == 404
+    assert (await auth_client.post(f"/api/assignments/{foreign.id}/claims", json={"assignments": [item]})).status_code == 404
+    unmatched_page.status = PageStatus.queued
+    await db.commit()
+    assert (await auth_client.post(path, json={"assignments": [item]})).status_code == 409
+    await db.refresh(unmatched_page)
+    assert unmatched_page.student_id is None
+
+
+async def test_batch_claim_queue_only_suggests_unique_exact_names_and_hides_expired_originals(auth_client, db, my_assignment, make_done_page, roster_zhangsan):
+    from datetime import datetime, timezone
+    p = await make_done_page(1, None, "张 三")
+    q = await make_done_page(2, None, "张小三")
+    p.original_deleted_at = datetime.now(timezone.utc)
+    await db.commit()
+    queue = (await auth_client.get(f"/api/assignments/{my_assignment.id}/claims")).json()
+    assert queue["pages"][0]["suggested_student_id"] == roster_zhangsan.id
+    assert queue["pages"][0]["image_url"] is None
+    assert queue["pages"][1]["suggested_student_id"] is None

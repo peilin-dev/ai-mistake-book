@@ -128,6 +128,14 @@ async def _write_phase(
     roster = [(sid, n) for sid, n in await db.execute(
         select(Student.id, Student.name).where(Student.class_id == ctx.class_id))]
     match = match_student(name, roster, await _previous_student(db, page), settings.NAME_MATCH_THRESHOLD)
+    if result.student_no and result.student_no.strip():
+        matches = list((await db.execute(select(Student.id, Student.name).where(Student.class_id == ctx.class_id, Student.student_no == result.student_no.strip()))).all())
+        if len(matches) == 1 and (not name or "".join(name.split()) == "".join(matches[0].name.split())):
+            match = MatchResult(matches[0].id, "exact")
+        else:
+            # A read number which is unknown, duplicated or conflicts with the
+            # name is an exception; do not silently fall back to a guessed name.
+            match = MatchResult(None, "ambiguous")
     if match.status == "continued" and await _repeats_questions(
             db, ctx.assignment_id, match.student_id, page_id, {gq.no for gq in result.questions}):
         match = MatchResult(None, "none")  # same question numbers again: someone else's paper, ask the teacher
