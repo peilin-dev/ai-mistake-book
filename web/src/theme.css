@@ -1,9 +1,9 @@
 :root {
   color-scheme: light;
-  --paper:#f8f9f7; --card:#fff; --ink:#242b29; --ink-2:#626b66; --ink-3:#6f7671;
-  --line:#e3e7e2; --link:#b53632; --warn:#ac6d22; --warn-text:#86551a; --warn-bg:#faf2e4;
+  --paper:#faf7f1; --card:#fff; --ink:#403d38; --ink-2:#716b62; --ink-3:#797166;
+  --line:#dedad2; --link:#b53632; --warn:#ac6d22; --warn-text:#86551a; --warn-bg:#faf2e4;
   --busy:#ac6d22; --ok:#35715b; --danger:#b52f35; --danger-bg:#fceeed; --gray-bg:#f0f2ee;
-  --accent-soft:#faecea;
+  --accent-soft:#fce9da;
   --serif:"Source Han Serif SC","Noto Serif SC","Songti SC","STSong","SimSun",serif;
   font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
   font-size:16px; font-synthesis:none; text-rendering:optimizeLegibility; -webkit-font-smoothing:antialiased;

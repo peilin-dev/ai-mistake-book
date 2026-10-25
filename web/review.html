@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>红笔君 · 响应式验收</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:12px;background:#eae5dc;font:13px system-ui,sans-serif;color:#403d38}nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}button{border:1px solid #cfc5b5;border-radius:7px;background:#fff;padding:9px 12px;color:#403d38;cursor:pointer}button[aria-pressed=true]{background:#ffd4ad}button:focus-visible{outline:2px solid #b53632;outline-offset:2px}nav span{margin-left:auto;font-size:11px}#stage{position:relative;width:100%;overflow:hidden;background:white}iframe{display:block;border:0;transform-origin:top left}p{color:#716b62;font-size:11px}
+</style></head>
+<body><nav aria-label="验收尺寸"><button data-width="1440" aria-pressed="true">桌面 1440</button><button data-width="1024" aria-pressed="false">平板 1024</button><button data-width="390" aria-pressed="false">手机 390</button><span>示例数据 · 响应式验收</span></nav><div id="stage"><iframe title="工作台预览" src="/preview.html" width="1440" height="1100"></iframe></div><p>画面按面板宽度缩放，页面在所选的真实视口宽度下渲染。仅本地开发使用。</p>
+<script type="module">
+if (!import.meta.env.DEV) document.body.replaceChildren()
+else {
+  const stage = document.querySelector('#stage'), frame = document.querySelector('iframe')
+  let width = 1440
+  function size() { const scale = Math.min(1,stage.clientWidth/width);frame.width=width;frame.style.transform=`scale(${scale})`;stage.style.height=`${1100*scale}px` }
+  document.querySelectorAll('button').forEach(button => button.addEventListener('click',()=>{width=Number(button.dataset.width);document.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));size()}))
+  new ResizeObserver(size).observe(stage)
+  size()
+}
+</script></body></html>

@@ -19,6 +19,7 @@ import Grades from './pages/Grades'
 import Student from './pages/Student'
 import Practice from './pages/Practice'
 import './theme.css'
+import './workspace.css'
 import './preview.css'
 
 const classes = [
