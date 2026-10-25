@@ -104,3 +104,5 @@
 视觉规则记录在根目录 DESIGN.md。仅开发环境使用 `web/review.html` 和已有 `preview.html` 进行真实 iframe 视口验收：1440px 三列卡片、1024px 两列、390px 单列，未发现页面横向溢出；桌面侧栏折叠、手机展开及 Escape 关闭、搜索、班级目录、上传与复核页导航已实际检查。示例界面截图见 [改版验收截图](benchmark/workspace-redesign-20261025.jpg)。验收页和示例入口不进入正式构建。本轮只修改网页，不改后端、小程序或历史数据。
 
 验证：22 个测试文件共 104 项网页测试全部通过，覆盖新增搜索保留班级、当前作业入口、折叠、手机导航关闭和班级目录；TypeScript 与正式构建通过。Impeccable 机械检查未报告问题。文件解码库沿用原有按需加载，大体积构建提示仍存在。
+
+发布：版本 `25df782` 已于 2026-10-25 推送至 `feat/m6b-batch1` 并部署；网页回滚备份 `/home/ubuntu/mistake-book-web-releases/20261025T053925Z-workspace-ui/previous-web.tar.gz`。外部核对入口 HTML、`index-Btd4q9YX.js`、`index-BG_Zgqfg.css` 和原印章图片均为 200 且与本地测试构建逐字节一致；健康检查正常，线上登录页已实际打开确认新版样式。部署未重启后端或迁移数据库。
