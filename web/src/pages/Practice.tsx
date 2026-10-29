@@ -26,6 +26,10 @@ interface Paper {
 }
 export default function Practice() {
   const { assignmentId, submissionId } = useParams()
+  return <PracticeEditor key={`${assignmentId}:${submissionId || "class"}`} />
+}
+function PracticeEditor() {
+  const { assignmentId, submissionId } = useParams()
   const path = submissionId
     ? `/api/submissions/${submissionId}/practice`
     : `/api/assignments/${assignmentId}/practice`
