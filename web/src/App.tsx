@@ -19,6 +19,7 @@ import Review from './pages/Review'
 import Grades from './pages/Grades'
 import Student from './pages/Student'
 import Practice from './pages/Practice'
+import Landing from './pages/Landing'
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const location = useLocation()
@@ -41,6 +42,7 @@ export default function App() {
 
   return (
     <Routes>
+      <Route path="/welcome" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/classes/:classId/assignments/new" element={<RequireAuth><AssignmentNew /></RequireAuth>} />
@@ -53,7 +55,7 @@ export default function App() {
       <Route path="/a/:assignmentId/students/:submissionId" element={<RequireAuth><Student /></RequireAuth>} />
       <Route path="/a/:assignmentId/practice" element={<RequireAuth><Practice /></RequireAuth>} />
       <Route path="/a/:assignmentId/students/:submissionId/practice" element={<RequireAuth><Practice /></RequireAuth>} />
-      <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
+      <Route path="/" element={getToken() ? <RequireAuth><Home /></RequireAuth> : <Landing />} />
       <Route path="/classes/new" element={<RequireAuth><ClassNew /></RequireAuth>} />
       <Route path="/classes/:classId" element={<RequireAuth><ClassDetail /></RequireAuth>} />
       <Route path="/a/:assignmentId" element={<RequireAuth><Overview /></RequireAuth>} />
