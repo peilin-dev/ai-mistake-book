@@ -37,7 +37,7 @@ async def test_extract_then_confirm(auth_client, my_assignment, jpeg_bytes, fake
     assert r.json()["answer_key_status"] == "confirmed"
 
 
-async def test_post_stores_items_pending_and_returns_in_order(
+async def test_post_previews_items_without_publishing_and_returns_in_order(
     auth_client, db, my_assignment, jpeg_bytes, fake_model_answer_key
 ):
     r = await auth_client.post(key_url(my_assignment), files=photo(jpeg_bytes))
@@ -49,8 +49,8 @@ async def test_post_stores_items_pending_and_returns_in_order(
         {"question_no": "2", "answer": "12", "max_score": 4.0, "is_subjective": False},
     ]
     await db.refresh(my_assignment)
-    assert my_assignment.answer_key_status == AnswerKeyStatus.pending
-    assert [i.question_no for i in await item_rows(db, my_assignment)] == ["1", "2"]
+    assert my_assignment.answer_key_status == AnswerKeyStatus.none
+    assert await item_rows(db, my_assignment) == []
     assert await usage_count(db) == 1
     assert "标准答案" in fake_model_answer_key.prompts[0]
 
@@ -143,15 +143,17 @@ async def test_non_image_gives_415(auth_client, my_assignment, fake_model_answer
     assert fake_model_answer_key.prompts == []
 
 
-async def test_repost_after_confirm_replaces_items_and_resets_to_pending(
+async def test_repost_after_confirm_preserves_published_key(
     auth_client, db, my_assignment, jpeg_bytes, install_answer_key_model, confirmed_key_q1_q2
 ):
+    before = (await auth_client.get(key_url(my_assignment))).json()
     install_answer_key_model([{"questions": [{"question_no": "9", "answer": "z", "max_score": 3}]}])
     r = await auth_client.post(key_url(my_assignment), files=photo(jpeg_bytes))
     assert r.json()["answer_key_status"] == "pending"
-    assert [i.question_no for i in await item_rows(db, my_assignment)] == ["9"]
+    assert r.json()["items"][0]["question_no"] == "9"
     await db.refresh(my_assignment)
-    assert my_assignment.answer_key_status == AnswerKeyStatus.pending
+    assert my_assignment.answer_key_status == AnswerKeyStatus.confirmed
+    assert (await auth_client.get(key_url(my_assignment))).json() == before
 
 
 async def test_get_returns_status_and_items(auth_client, my_assignment, confirmed_key_q1_q2):
@@ -234,7 +236,7 @@ async def test_extracted_key_keeps_null_max_score(auth_client, db, my_assignment
     install_answer_key_model([{"questions": [{"question_no": "1", "answer": "7", "max_score": None}]}])
     r = await auth_client.post(key_url(my_assignment), files=photo(jpeg_bytes))
     assert r.status_code == 200 and r.json()["items"][0]["max_score"] is None
-    assert (await item_rows(db, my_assignment))[0].max_score is None
+    assert await item_rows(db, my_assignment) == []
 
 
 async def test_confirmed_key_without_score_uses_model_max(auth_client, db, storage, my_assignment,
@@ -260,3 +262,48 @@ async def test_confirmed_key_without_score_uses_model_max(auth_client, db, stora
     r = await auth_client.patch(f"/api/question-results/{res.id}", json={"is_correct": True})
     assert r.status_code == 200 and r.json()["score"] == 5
 
+
+
+async def test_delete_answer_key_resets_status_but_preserves_graded_results(auth_client, my_assignment, confirmed_key_q1_q2, graded_submission, db):
+    url = key_url(my_assignment)
+    before = (await auth_client.get(f"/api/submissions/{graded_submission.id}")).json()
+    response = await auth_client.delete(url)
+    assert response.status_code == 200
+    assert response.json() == {"answer_key_status": "none", "items": [], "regrade_suggested": True}
+    assert await item_rows(db, my_assignment) == []
+    assert (await auth_client.get(f"/api/assignments/{my_assignment.id}")).json()["has_answer_key"] is False
+    after = (await auth_client.get(f"/api/submissions/{graded_submission.id}")).json()
+    assert after["total_score"] == before["total_score"]
+    assert [(q["score"], q["correct_answer"]) for q in after["questions"]] == [(q["score"], q["correct_answer"]) for q in before["questions"]]
+    assert (await auth_client.delete(url)).status_code == 200
+
+
+async def test_delete_answer_key_ownership_and_inflight_guard(auth_client, my_assignment, confirmed_key_q1_q2, make_assignment, db):
+    foreign = await make_assignment()
+    assert (await auth_client.delete(key_url(foreign))).status_code == 404
+    page = Page(assignment_id=my_assignment.id, seq=1, image_key="pending", image_sha256="pending", status=PageStatus.processing)
+    db.add(page)
+    await db.commit()
+    response = await auth_client.delete(key_url(my_assignment))
+    assert response.status_code == 409
+    assert len(await item_rows(db, my_assignment)) == 2
+    assert (await auth_client.get(key_url(my_assignment))).json()["answer_key_status"] == "confirmed"
+
+async def test_multiple_extractions_only_publish_after_combined_confirmation(
+    auth_client, db, my_assignment, jpeg_bytes, install_answer_key_model, confirmed_key_q1_q2
+):
+    url = key_url(my_assignment)
+    before = (await auth_client.get(url)).json()
+    install_answer_key_model([
+        {"questions": [{"question_no": "3", "answer": "a", "max_score": 1}]},
+        {"questions": [{"question_no": "4", "answer": "b", "max_score": 2}]},
+    ])
+    combined = []
+    for _ in range(2):
+        response = await auth_client.post(url, files=photo(jpeg_bytes))
+        assert response.status_code == 200
+        combined.extend(response.json()["items"])
+        assert (await auth_client.get(url)).json() == before
+    response = await auth_client.put(url, json={"items": combined})
+    assert response.status_code == 200
+    assert (await auth_client.get(url)).json() == {"answer_key_status": "confirmed", "items": combined}

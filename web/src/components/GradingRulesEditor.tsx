@@ -2,17 +2,18 @@ import { useEffect, useState } from 'react'
 import { request, errorText } from '../lib/api'
 import { gradingRules } from '../lib/gradingRules'
 
-export default function GradingRulesEditor({ assignmentId }: { assignmentId: string }) {
+export interface AssignmentContext { title?: string; class_id?: number; subject: string }
+export default function GradingRulesEditor({ assignmentId, onAssignment }: { assignmentId: string; onAssignment?: (assignment: AssignmentContext) => void }) {
   const [subject, setSubject] = useState(''), [rules, setRules] = useState('')
   const [loaded, setLoaded] = useState(false), [busy, setBusy] = useState(false)
   const [message, setMessage] = useState(''), [error, setError] = useState('')
   useEffect(() => {
     let live = true
-    request<{ subject: string; grading_rules?: string | null }>('GET', `/api/assignments/${assignmentId}`)
-      .then(a => { if (live) { setSubject(a.subject); setRules(a.grading_rules || ''); setLoaded(true) } })
+    request<AssignmentContext & { grading_rules?: string | null }>('GET', `/api/assignments/${assignmentId}`)
+      .then(a => { if (live) { setSubject(a.subject); setRules(a.grading_rules || ''); setLoaded(true); onAssignment?.(a) } })
       .catch(e => live && setError(errorText(e)))
     return () => { live = false }
-  }, [assignmentId])
+  }, [assignmentId, onAssignment])
   return <details className="grading-rules-editor">
     <summary>本次作业的批改规则与评分细则</summary>
     <p className="hint">{gradingRules[subject] || '正在读取学科规则…'}</p>

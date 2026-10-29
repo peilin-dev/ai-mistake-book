@@ -642,8 +642,8 @@ async def extract_key(
     except HTTPException:
         await db.commit()  # keep the usage rows of calls that did return
         raise
-    await _replace_items(db, assignment, items, AnswerKeyStatus.pending)
-    await db.commit()
+    # Extraction is a preview. Only PUT publishes answers used for grading.
+    await db.commit()  # retain model usage without changing the saved key
     return AnswerKeyOut(answer_key_status=AnswerKeyStatus.pending, items=items)
 
 
@@ -667,3 +667,19 @@ async def confirm_answer_key(
     return AnswerKeyConfirmOut(
         answer_key_status=AnswerKeyStatus.confirmed, items=body.items, regrade_suggested=done_pages > 0
     )
+
+
+@router.delete("/assignments/{assignment_id}/answer-key", response_model=AnswerKeyConfirmOut)
+async def delete_answer_key(
+    assignment_id: int,
+    teacher: Teacher = Depends(current_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    assignment = await own_assignment(db, teacher, assignment_id)
+    await lock_assignment(db, assignment_id)
+    statuses = list((await db.execute(select(Page.status).where(Page.assignment_id == assignment_id))).scalars())
+    if any(status in (PageStatus.queued, PageStatus.processing) for status in statuses):
+        raise HTTPException(409, "还有试卷等待或正在批改，请等本批结束后再删除答案卷")
+    await _replace_items(db, assignment, [], AnswerKeyStatus.none)
+    await db.commit()
+    return AnswerKeyConfirmOut(answer_key_status=AnswerKeyStatus.none, items=[], regrade_suggested=PageStatus.done in statuses)

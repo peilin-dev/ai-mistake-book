@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react'
 import { Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { setAnswerKeyDraft } from '../../lib/answerKeyDraft'
+import type { AnswerKeyItem } from '../../lib/types'
 import { upload } from '../../lib/api'
 import { errorText } from '../../lib/messages'
 import { compressForUpload } from '../../lib/resize'
@@ -20,7 +22,8 @@ export default function SingleShot({ mode, assignmentId, pageId }: Props) {
 
   const send = async (file: string) => {
     if (mode === 'answerKey') {
-      await upload(`/api/assignments/${assignmentId}/answer-key`, file)
+      const out = await upload<{ items: AnswerKeyItem[] }>(`/api/assignments/${assignmentId}/answer-key`, file)
+      setAnswerKeyDraft(assignmentId, out.items)
       await Taro.redirectTo({ url: `/pages/answer-key/index?assignmentId=${assignmentId}` })
     } else {
       await upload(`/api/pages/${pageId}:replace`, file)

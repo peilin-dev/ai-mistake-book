@@ -1,6 +1,7 @@
 ﻿import { useRef, useState } from 'react'
 import { Button, Input, Text, View } from '@tarojs/components'
 import Taro, { useLoad, useRouter } from '@tarojs/taro'
+import { takeAnswerKeyDraft } from '../../lib/answerKeyDraft'
 import { ApiError, request } from '../../lib/api'
 import { blankRow, toPutBody, toRows, validateRows, type KeyRow } from '../../lib/answerKey'
 import { errorText } from '../../lib/messages'
@@ -45,7 +46,12 @@ export default function AnswerKeyPage() {
     }
   }
   useLoad(() => {
-    if (validId) void load()
+    if (!validId) return
+    const preview = takeAnswerKeyDraft(assignmentId)
+    if (preview !== undefined) {
+      setRows(toRows(preview))
+      setState('ok')
+    } else void load()
   })
 
   const edit = (key: string, patch: Partial<KeyRow>) =>

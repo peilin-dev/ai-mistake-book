@@ -461,3 +461,10 @@ h1, .page-heading h1, .main-title { font-size:26px; }
 .batch-claim-submit { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; padding:20px; margin:20px 0 12px; background:#f2f6ff; border-radius:12px; }
 .batch-claim-table input[type=checkbox] { margin-top:10px; }
 @media(max-width:760px) { .batch-claim-toolbar { align-items:stretch; } .batch-claim-toolbar label { flex-wrap:wrap; } .batch-claim-toolbar button { margin-left:0; } .batch-claim-submit { padding:16px; } }
+.answer-key-context { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px 28px; padding:20px 24px; margin:0 0 20px; border:1px solid #d3e1f7; border-radius:12px; background:#f2f6ff; }
+.answer-key-context h2 { font-size:18px; margin:0 0 6px; }
+.answer-key-context p { margin:0; color:var(--ink-2); font-size:13px; }
+.answer-key-context>.hint { max-width:42ch; }
+.answer-key-delete { margin-left:auto; color:var(--danger); border-color:#e8c1c5; background:#fff; font-size:13px; }
+.answer-key-delete:hover { color:#92242b; background:var(--danger-bg); border-color:#d9a7ac; }
+@media(max-width:760px) { .answer-key-context { padding:18px; } .answer-key-delete { margin-left:0; } }

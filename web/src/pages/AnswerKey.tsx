@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import WorkShell from '../components/WorkShell'
 import Confirm from '../components/Confirm'
-import GradingRulesEditor from '../components/GradingRulesEditor'
+import GradingRulesEditor, { type AssignmentContext } from '../components/GradingRulesEditor'
+import { subjectLabel, type ClassOut } from '../lib/overview'
 import { errorText, request } from '../lib/api'
 import {
   ACCEPT,
@@ -30,8 +31,19 @@ type Extraction = {
   skipped?: boolean
 }
 export default function AnswerKey() {
+  const { assignmentId } = useParams()
+  return <AnswerKeyEditor key={assignmentId} />
+}
+function AnswerKeyEditor() {
   const { assignmentId } = useParams(),
     path = `/api/assignments/${assignmentId}/answer-key`
+  const [assignment, setAssignment] = useState<AssignmentContext>(), [classes, setClasses] = useState<ClassOut[]>([])
+  const [deleting, setDeleting] = useState(false), [hasKey, setHasKey] = useState(false)
+  useEffect(() => {
+    let live = true
+    request<ClassOut[]>('GET', '/api/classes').then(list => { if (live && Array.isArray(list)) setClasses(list) }).catch(() => {})
+    return () => { live = false }
+  }, [])
   const [rows, setRows] = useState<KeyRow[]>([]),
     [extractions, setExtractions] = useState<Extraction[]>([]),
     [overridden, setOverridden] = useState<string[]>([]),
@@ -64,6 +76,7 @@ export default function AnswerKey() {
         if (live) {
           setRows(toRows(r.items))
           setConfirmed(r.answer_key_status === 'confirmed')
+          setHasKey(r.answer_key_status !== 'none')
           setLoaded(true)
         }
       })
@@ -90,6 +103,7 @@ export default function AnswerKey() {
         imageBody(await toJpeg(await page.load())),
         controller.current?.signal,
       )
+      if (mounted.current) setHasKey(true)
       return { page, items: r.items }
     } catch (e) {
       return {
@@ -177,7 +191,11 @@ export default function AnswerKey() {
           {notice}
         </p>
       )}
-      <GradingRulesEditor assignmentId={assignmentId!} />
+      <section className="answer-key-context" aria-label="答案卷所属作业">
+        <div><h2>{assignment?.title || `当前作业 #${assignmentId}`}</h2><p>{classes.find(c => c.id === assignment?.class_id)?.name || (assignment?.class_id ? `班级 #${assignment.class_id}` : '当前班级')}{assignment?.subject ? ` · ${subjectLabel(assignment.subject)}` : ''} · 作业 #{assignmentId}</p></div>
+        <p className="hint">本页答案只用于这份作业。上传前请核对作业名称、题号与试卷一致。</p>
+      </section>
+      <GradingRulesEditor assignmentId={assignmentId!} onAssignment={setAssignment} />
       <div className="work-actions">
         <label className="file-button btn-primary">
           {busy ? '正在处理…' : confirmed ? '重新上传答案卷' : '选择答案卷'}
@@ -201,6 +219,7 @@ export default function AnswerKey() {
             ? '已确认保存'
             : '支持照片、多页 PDF 和 ZIP，也可直接手动填写'}
         </span>
+        {(hasKey || rows.length > 0) && <button className="answer-key-delete" disabled={busy || !loaded} onClick={() => setDeleting(true)}>删除整份答案卷</button>}
       </div>
       {!!extractions.length && (
         <section className="notice" aria-label="答案提取进度">
@@ -345,6 +364,7 @@ export default function AnswerKey() {
                 toPutBody(rows),
               )
               setConfirmed(true)
+              setHasKey(true)
               setDirty(false)
               setNotice(
                 out.regrade_suggested
@@ -375,6 +395,16 @@ export default function AnswerKey() {
           }}
         />
       )}
+      {deleting && <Confirm title="删除本作业的整份答案卷？" message={`将清除“${assignment?.title || `作业 #${assignmentId}`}”已保存的参考答案和本页编辑内容。后续批改将使用 AI 建议答案，已有成绩不会自动重算。`} confirmText="删除答案卷" danger onCancel={() => setDeleting(false)} onConfirm={async () => {
+        if (lock.current) return
+        lock.current = true; setBusy(true); setError(''); setDeleting(false)
+        try {
+          const out = await request<{ regrade_suggested: boolean }>('DELETE', path)
+          setRows([]); setExtractions([]); setOverridden([]); setConfirmed(false); setHasKey(false); setDirty(false); setPending(undefined)
+          setNotice(out.regrade_suggested ? '答案卷已删除。后续批改使用 AI 建议答案；已有成绩保留，请按需复核。' : '答案卷已删除，可以重新上传或填写参考答案。')
+        } catch (e) { setError(errorText(e)) }
+        finally { lock.current = false; setBusy(false) }
+      }} />}
     </WorkShell>
   )
 }
